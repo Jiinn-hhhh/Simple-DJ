@@ -28,10 +28,14 @@ Space가 생성되면 다음 파일들을 업로드합니다:
 2. **`seperator.py`**
    - `back/seperator.py` 파일을 그대로 업로드
 
-3. **`requirements.txt`**
+3. **`analysis.py`** (새로 추가)
+   - `back/analysis.py` 파일을 그대로 업로드
+   - BPM/Key 분석에 필요
+
+4. **`requirements.txt`**
    - `back/space_requirements.txt`의 내용을 복사하여 `requirements.txt`로 저장
 
-4. **`Dockerfile`** (Docker SDK 사용 시)
+5. **`Dockerfile`** (Docker SDK 사용 시)
    ```
    FROM python:3.11-slim
 
