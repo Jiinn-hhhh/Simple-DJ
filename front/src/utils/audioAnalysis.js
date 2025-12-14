@@ -96,16 +96,17 @@ export async function analyzeAudioClient(audioFile) {
     const channelData = audioBuffer.getChannelData(0);
     const audioData = Array.from(channelData);
     
-    // Pass to Python
-    pyodide.runPython(`
-import numpy as np
-audio_data = np.array(${JSON.stringify(audioData)}, dtype=np.float32)
-sr = ${sampleRate}
-    `);
+    // Convert to Pyodide-compatible format
+    const audioDataPy = pyodide.toPy(audioData);
+    pyodide.globals.set("audio_data_js", audioDataPy);
+    pyodide.globals.set("sr_js", sampleRate);
     
     console.log("[Client Analysis] Analyzing BPM...");
     const bpm = pyodide.runPython(`
 import librosa
+import numpy as np
+audio_data = np.array(audio_data_js, dtype=np.float32)
+sr = sr_js
 tempo, beats = librosa.beat.beat_track(y=audio_data, sr=sr)
 float(tempo)
     `);
@@ -114,6 +115,8 @@ float(tempo)
     const key = pyodide.runPython(`
 import librosa
 import numpy as np
+audio_data = np.array(audio_data_js, dtype=np.float32)
+sr = sr_js
 y_harmonic, y_percussive = librosa.effects.hpss(audio_data)
 chroma = librosa.feature.chroma_stft(y=y_harmonic, sr=sr)
 chroma_mean = np.mean(chroma, axis=1)
