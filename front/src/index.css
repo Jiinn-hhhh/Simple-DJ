@@ -1,0 +1,668 @@
+/* CSS Reset & Variables */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
+
+:root {
+    /* --- COLOR PALETTE: Cyber Charcoal & Neon --- */
+    --bg-color: #121214;
+    --panel-bg: #1e1e24;
+    --panel-border: #33333f;
+
+    --text-main: #e0e0e0;
+    --text-dim: #888899;
+
+    /* Accents */
+    --neon-green: #00ff9d;
+    --neon-pink: #ff0055;
+    --neon-blue: #00e5ff;
+    --neon-yellow: #f0ff00;
+
+    /* UI Elements */
+    --knob-size: 40px;
+    --fader-width: 40px;
+    --fader-height: 180px;
+}
+
+body {
+    margin: 0;
+    font-family: 'Rajdhani', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+}
+
+.pixel-font {
+    font-family: 'Press Start 2P', cursive;
+}
+
+#root {
+    height: 100%;
+    min-width: 1280px;
+    /* Minimum width constraint */
+    min-height: 800px;
+    /* Minimum height constraint */
+    overflow: auto;
+    /* Allow scrolling if smaller */
+}
+
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    background: radial-gradient(circle at center, #1a1a20 0%, #0d0d10 100%);
+}
+
+/* --- TOP BAR --- */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 0 10px 15px 10px;
+    border-bottom: 2px solid var(--panel-border);
+}
+
+.top-bar h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: var(--text-main);
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+    letter-spacing: -2px;
+}
+
+.status-bar {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.85rem;
+    color: var(--neon-green);
+    background: rgba(0, 255, 157, 0.1);
+    padding: 8px 15px;
+    border: 1px solid var(--neon-green);
+    border-radius: 4px;
+}
+
+/* --- CONSOLE LAYOUT --- */
+.console-layout {
+    flex: 1;
+    display: grid;
+    /* Deck : Mixer : Deck = 1 : 1.3 : 1 */
+    grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.3fr) minmax(300px, 1fr);
+    gap: 20px;
+    padding: 0 10px 20px 10px;
+    align-items: stretch;
+}
+
+/* --- DECK & MIXER CONTAINERS --- */
+.deck-container,
+.mixer-container {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative;
+}
+
+/* Deck */
+.deck-container {
+    justify-content: space-between;
+}
+
+.deck-container.dragging {
+    border-color: var(--neon-green);
+    background: rgba(0, 255, 157, 0.05);
+}
+
+/* Mixer */
+/* Mixer Main Container */
+.mixer-container {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    background: #16161a;
+    gap: 15px;
+    align-items: stretch;
+}
+
+/* 1. HEADER: MASTER BPM & VOLUME */
+.mixer-header-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.bpm-display-large {
+    width: 100%;
+    background: #000;
+    border: 2px solid #333;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.bpm-slider {
+    width: 90%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #333;
+    border-radius: 3px;
+    margin-top: 5px;
+}
+
+.bpm-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--neon-green);
+    border: 2px solid #fff;
+    cursor: pointer;
+    box-shadow: 0 0 5px var(--neon-green);
+    margin-top: -3px;
+}
+
+.master-vol-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 5px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border: 1px solid #222;
+}
+
+.mixer-label.tiny {
+    font-size: 1.2rem;
+    color: #888;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+.master-vol-slider {
+    width: 90%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #333;
+    border-radius: 3px;
+}
+
+.master-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--neon-yellow);
+    border: 2px solid #fff;
+    cursor: pointer;
+    box-shadow: 0 0 5px var(--neon-yellow);
+    margin-top: -3px;
+    /* Center on 6px track? (12-6)/2 = 3. So -3 up. */
+}
+
+.bpm-label-top {
+    display: block;
+    color: #888;
+    font-size: 1.2rem;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+.bpm-input-large {
+    background: transparent;
+    border: none;
+    color: var(--neon-green);
+    font-size: 3.2rem;
+    width: 100%;
+    text-align: center;
+    outline: none;
+    -moz-appearance: textfield;
+    /* Firefox */
+}
+
+/* Hide Spin Buttons */
+.bpm-input-large::-webkit-outer-spin-button,
+.bpm-input-large::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* 2. BODY: SPLIT A/B */
+.mixer-body {
+    flex: 1;
+    display: flex;
+    /* Row layout for 2 columns */
+    gap: 20px;
+    justify-content: space-between;
+    position: relative;
+    /* Anchor for divider */
+}
+
+.mixer-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    position: relative;
+}
+
+
+
+
+/* Controls */
+.control-group {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.mixer-label {
+    font-size: 1.3rem;
+    color: #888;
+    font-weight: bold;
+}
+
+.filter-display {
+    color: var(--neon-blue);
+    font-size: 1.3rem;
+    height: 1.2rem;
+    font-weight: bold;
+}
+
+/* Horizontal Slider for Filter */
+.knob-slider-horizontal {
+    width: 80%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #222;
+    border-radius: 3px;
+    outline: none;
+}
+
+.knob-slider-horizontal::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #888;
+    cursor: pointer;
+    border: 2px solid #333;
+}
+
+/* Fader Group */
+.fader-group {
+    flex: 1;
+    justify-content: flex-end;
+    /* Push deck label to bottom */
+}
+
+.fader-track-new {
+    width: 40px;
+    height: 250px;
+    /* Taller faders */
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 4px;
+    position: relative;
+    box-shadow: inset 0 0 10px #000;
+}
+
+.vertical-fader-new {
+    width: 250px;
+    /* Must match height of track */
+    height: 40px;
+    /* Must match width of track */
+    transform: rotate(-90deg);
+    transform-origin: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    margin-left: -125px;
+    /* width/2 */
+    margin-top: -20px;
+    /* height/2 */
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+}
+
+.vertical-fader-new::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    /* Functional track height (visually hidden mostly) */
+    background: transparent;
+}
+
+/* Custom Fader Cap */
+.vertical-fader-new::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 30px;
+    width: 50px;
+    /* Wide cap */
+    background: linear-gradient(to bottom, #444, #222);
+    border: 1px solid #555;
+    border-radius: 2px;
+    margin-top: -12px;
+    /* Center on track */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+    cursor: ns-resize;
+    position: relative;
+}
+
+/* Visual line on fader cap */
+.vertical-fader-new::-webkit-slider-thumb::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    right: 10%;
+    height: 1px;
+    background: #fff;
+}
+
+
+.deck-label {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 2.0rem;
+    color: #333;
+    margin-top: 10px;
+}
+
+/* 3. FOOTER: CROSSFADER */
+.mixer-footer {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    border-radius: 4px;
+    border: 1px solid #222;
+    padding: 0 20px;
+}
+
+.crossfader-wrapper {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.crossfader-new {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+}
+
+.crossfader-new::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 8px;
+    background: #000;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.crossfader-new::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 24px;
+    width: 40px;
+    background: var(--neon-pink);
+    border: 2px solid #fff;
+    margin-top: -9px;
+    border-radius: 2px;
+    cursor: ew-resize;
+    box-shadow: 0 0 10px var(--neon-pink);
+}
+
+.xf-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.6rem;
+    /* Reduced from 2.5rem */
+    font-weight: bold;
+    color: #666;
+    /* Slightly darker for visibility */
+    padding: 0 5px;
+    margin-bottom: -5px;
+    /* Pull closer to slider */
+}
+
+/* --- DECK HEADER --- */
+.deck-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.deck-header h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    color: var(--text-dim);
+    border: 1px solid var(--panel-border);
+    padding: 5px 10px;
+    border-radius: 4px;
+    background: #111;
+}
+
+.track-display {
+    text-align: right;
+    flex: 1;
+    margin-left: 20px;
+    background: #000;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.track-title {
+    color: var(--neon-blue);
+    font-weight: 700;
+    font-size: 1.6rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-meta {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* --- VINYL --- */
+.disc-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    min-height: 250px;
+}
+
+.vinyl-disc {
+    width: 80%;
+    /* Relative to container */
+    max-width: 350px;
+    /* Max size */
+    aspect-ratio: 1/1;
+    /* Keep circle */
+    height: auto;
+    /* Let aspect ratio define height */
+    border-radius: 50%;
+    background: repeating-radial-gradient(#111, #111 2px, #1a1a1a 3px);
+    border: 4px solid #080808;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+}
+
+.vinyl-disc.spinning {
+    animation: spin 1.8s linear infinite;
+}
+
+.disc-label {
+    width: 110px;
+    /* Increased size */
+    height: 110px;
+    /* Increased size */
+    border-radius: 50%;
+    background: var(--neon-pink);
+    border: 4px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+}
+
+/* --- CONTROLS --- */
+.deck-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.upload-section {
+    border: 2px dashed var(--panel-border);
+    border-radius: 8px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1.4rem;
+    /* Increased size */
+    font-weight: bold;
+}
+
+.control-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.play-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #222;
+    color: #fff;
+    font-size: 1.8rem;
+    cursor: pointer;
+    border: 3px solid #333;
+}
+
+.play-btn.active {
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+    box-shadow: 0 0 15px rgba(0, 255, 157, 0.4);
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    flex: 1;
+}
+
+.glass-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--panel-border);
+    color: var(--text-dim);
+    padding: 8px 0;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.glass-btn.active {
+    background: var(--neon-blue);
+    color: #000;
+}
+
+.stems-row {
+    display: flex;
+    gap: 5px;
+}
+
+.stem-btn {
+    flex: 1;
+    background: #111;
+    border: 1px solid #333;
+    color: #555;
+    padding: 6px;
+    cursor: pointer;
+}
+
+.stem-btn.active {
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+}
+
+/* Removed old mixer internal classes to avoid conflicts */
+.sync-btn:hover {
+    color: white;
+    background: #333;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.hidden-input {
+    display: none;
+}
+
+@keyframes blink-animation {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.blink {
+    animation: blink-animation 1s infinite;
+}
