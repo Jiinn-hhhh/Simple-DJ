@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import AudioPlayer from "./audioPlayer";
 import Deck from "./components/Deck";
 import Mixer from "./components/Mixer";
-import { analyzeAudioClient } from "./utils/audioAnalysis";
 import "./App.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -95,20 +94,13 @@ function App() {
     else setLoadingFileB(file.name);
 
     try {
-      // Analyze in browser using Pyodide + librosa
+      // Analyze on server (Hugging Face Spaces has 32GB RAM)
       setStatus(`ANALYZING...`);
-      let analysisData;
-      try {
-        analysisData = await analyzeAudioClient(file);
-      } catch (clientError) {
-        console.warn("Client-side analysis failed, falling back to server:", clientError);
-        // Fallback to server if client-side fails
-        const formData = new FormData();
-        formData.append("file", file);
-        const analyzeRes = await fetch(`${API_BASE}/analyze`, { method: "POST", body: formData });
-        if (!analyzeRes.ok) throw new Error("Analysis failed");
-        analysisData = await analyzeRes.json();
-      }
+      const formData = new FormData();
+      formData.append("file", file);
+      const analyzeRes = await fetch(`${API_BASE}/analyze`, { method: "POST", body: formData });
+      if (!analyzeRes.ok) throw new Error("Analysis failed");
+      const analysisData = await analyzeRes.json();
 
       const trackData = {
         id: "local_" + Date.now(),
