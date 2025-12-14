@@ -11,6 +11,7 @@ import tempfile
 import shutil
 
 import seperator
+import analysis
 
 app = FastAPI()
 
@@ -36,6 +37,28 @@ def read_root():
 @app.get("/ping")
 def ping():
     return {"status": "ok"}
+
+
+@app.post("/analyze")
+async def analyze(file: UploadFile = File(...)):
+    """
+    Analyze audio file to extract BPM, key, and other metadata.
+    Returns analysis results (BPM, key, duration, sample_rate).
+    """
+    temp_file = None
+    try:
+        contents = await file.read()
+        filename = file.filename
+        
+        # Run analysis using analysis.py
+        result = analysis.analyze_audio(contents, filename)
+        
+        return result
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 
 @app.post("/separate")
