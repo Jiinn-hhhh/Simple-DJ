@@ -4,8 +4,6 @@ python-multipart
 librosa
 soundfile
 numpy
-requests
-
-
-
+torch
+torchaudio
 

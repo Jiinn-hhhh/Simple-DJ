@@ -5,9 +5,10 @@ from pydantic import BaseModel
 import os
 import uuid
 from typing import Dict
+import requests
+import base64
 
 import analysis
-import seperator
 
 
 app = FastAPI()
@@ -107,63 +108,133 @@ async def analyze_track(track_id: str):
 RESULTS_DIR = "results"
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
+# Hugging Face Spaces URL (환경 변수에서 가져오기)
+HF_SPACE_URL = os.getenv("HUGGINGFACE_SPACE_URL", "")
+
 
 @app.post("/separate")
 async def separate(file: UploadFile = File(...)):
     """
     Separate audio file into stems (drums, bass, vocals, other).
+    Uses Hugging Face Spaces API for separation.
     Returns job ID and paths to separated stems.
     """
-    # Save uploaded file
+    if not HF_SPACE_URL:
+        return {"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
+    
+    # Read file contents
     contents = await file.read()
     filename = file.filename
-    file_path = os.path.join(UPLOAD_DIR, filename)
     
-    with open(file_path, "wb") as f:
-        f.write(contents)
-    
-    # Run separation
-    result = seperator.separate_file(file_path, output_root=RESULTS_DIR)
-    
-    # Convert absolute paths to relative paths for API response
-    sources = {}
-    for stem_name, stem_path in result["sources"].items():
-        # Store relative path from project root
-        sources[stem_name] = stem_path
-    
-    return {
-        "job_id": result["id"],
-        "sources": sources,
-        "filename": filename,
-    }
+    # Call Hugging Face Spaces API
+    try:
+        space_api_url = f"{HF_SPACE_URL}/separate"
+        
+        # Prepare file for upload
+        files = {"file": (filename, contents, file.content_type)}
+        
+        # Make request to Spaces API
+        response = requests.post(space_api_url, files=files, timeout=300)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Decode base64 data and save files
+        job_id = result.get("job_id", str(uuid.uuid4()))
+        job_dir = os.path.join(RESULTS_DIR, job_id)
+        os.makedirs(job_dir, exist_ok=True)
+        
+        sources = {}
+        sources_data = result.get("sources", {})
+        
+        for stem_name, stem_info in sources_data.items():
+            if isinstance(stem_info, dict) and "data" in stem_info:
+                # Decode base64 data
+                audio_data = base64.b64decode(stem_info["data"])
+                
+                # Save to file
+                stem_filename = stem_info.get("filename", f"{filename}_{stem_name}.wav")
+                stem_path = os.path.join(job_dir, stem_filename)
+                
+                with open(stem_path, "wb") as f:
+                    f.write(audio_data)
+                
+                sources[stem_name] = stem_path
+        
+        return {
+            "job_id": job_id,
+            "sources": sources,
+            "filename": filename,
+        }
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Error processing separation: {str(e)}"}
 
 
 @app.post("/separate/{track_id}")
 async def separate_track(track_id: str):
     """
     Separate a specific track into stems.
+    Uses Hugging Face Spaces API for separation.
     """
     if track_id not in tracks_db:
         return {"error": "Track not found"}
     
+    if not HF_SPACE_URL:
+        return {"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
+    
     track = tracks_db[track_id]
     file_path = track["file_path"]
     
-    # Run separation
-    result = seperator.separate_file(file_path, output_root=RESULTS_DIR)
-    
-    # Update track info with separation results
-    tracks_db[track_id].update({
-        "separated": True,
-        "separation_job_id": result["id"],
-        "stems": result["sources"],
-    })
-    
-    return {
-        "job_id": result["id"],
-        "sources": result["sources"],
-        "filename": track["filename"],
-    }
+    # Read file and call Spaces API
+    try:
+        with open(file_path, "rb") as f:
+            contents = f.read()
+        
+        space_api_url = f"{HF_SPACE_URL}/separate"
+        files = {"file": (track["filename"], contents, "audio/mpeg")}
+        
+        response = requests.post(space_api_url, files=files, timeout=300)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Decode and save stems
+        job_id = result.get("job_id", str(uuid.uuid4()))
+        job_dir = os.path.join(RESULTS_DIR, job_id)
+        os.makedirs(job_dir, exist_ok=True)
+        
+        sources = {}
+        sources_data = result.get("sources", {})
+        
+        for stem_name, stem_info in sources_data.items():
+            if isinstance(stem_info, dict) and "data" in stem_info:
+                audio_data = base64.b64decode(stem_info["data"])
+                stem_filename = stem_info.get("filename", f"{track['filename']}_{stem_name}.wav")
+                stem_path = os.path.join(job_dir, stem_filename)
+                
+                with open(stem_path, "wb") as f:
+                    f.write(audio_data)
+                
+                sources[stem_name] = stem_path
+        
+        # Update track info
+        tracks_db[track_id].update({
+            "separated": True,
+            "separation_job_id": job_id,
+            "stems": sources,
+        })
+        
+        return {
+            "job_id": job_id,
+            "sources": sources,
+            "filename": track["filename"],
+        }
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Error processing separation: {str(e)}"}
 
 
 @app.get("/stems/{job_id}/{stem_name}")
