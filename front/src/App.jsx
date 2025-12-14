@@ -97,11 +97,7 @@ function App() {
       const formData = new FormData();
       formData.append("file", file);
 
-      // 1. Upload
-      const uploadRes = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData });
-      if (!uploadRes.ok) throw new Error("Upload failed");
-
-      // 2. Analyze
+      // Analyze (BPM/Key)
       setStatus(`ANALYZING...`);
       const analyzeRes = await fetch(`${API_BASE}/analyze`, { method: "POST", body: formData });
       if (!analyzeRes.ok) throw new Error("Analysis failed");
@@ -136,7 +132,7 @@ function App() {
           }
         }
 
-        separateTrack('A', file, trackData, targetBpm);
+        // Note: Source separation is now optional - triggered when stem button is clicked
       } else {
         setTrackB(trackData);
         setStemsB({ drums: false, bass: false, vocals: false, other: false }); // Reset stems immediately
@@ -155,7 +151,7 @@ function App() {
           }
         }
 
-        separateTrack('B', file, trackData, targetBpm);
+        // Note: Source separation is now optional - triggered when stem button is clicked
       }
 
       setStatus("READY");
@@ -241,9 +237,21 @@ function App() {
     }
   };
 
-  const toggleStem = (deckId, stemName) => {
+  const toggleStem = async (deckId, stemName) => {
+    const track = deckId === 'A' ? trackA : trackB;
     const stems = deckId === 'A' ? stemsA : stemsB;
     const setStems = deckId === 'A' ? setStemsA : setStemsB;
+
+    // If track is not separated yet, separate it first
+    if (!track || !track.separated) {
+      if (!track || !track.file) {
+        console.warn("No track loaded for separation");
+        return;
+      }
+      
+      setStatus(`SEPARATING ${track.filename.toUpperCase()}...`);
+      await separateTrack(deckId, track.file, track, masterBpm);
+    }
 
     const newStems = { ...stems, [stemName]: !stems[stemName] };
     setStems(newStems);
