@@ -1,14 +1,19 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import os
 import uuid
 from typing import Dict
 import requests
 import base64
+import logging
 
 import analysis
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 app = FastAPI()
@@ -69,12 +74,24 @@ async def upload_file(file: UploadFile = File(...)):
     }
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
-    contents = await file.read()
-    filename = file.filename
-
-    result = analysis.analyze_audio(contents, filename)
-
-    return result
+    try:
+        logger.info(f"[ANALYZE] Request received - filename: {file.filename}, content_type: {file.content_type}")
+        
+        contents = await file.read()
+        filename = file.filename
+        logger.info(f"[ANALYZE] File size: {len(contents)} bytes ({len(contents) / 1024 / 1024:.2f} MB)")
+        
+        logger.info(f"[ANALYZE] Starting audio analysis...")
+        result = analysis.analyze_audio(contents, filename)
+        
+        logger.info(f"[ANALYZE] Analysis complete - BPM: {result.get('bpm')}, Key: {result.get('key')}, Duration: {result.get('duration')}")
+        return result
+    except Exception as e:
+        logger.error(f"[ANALYZE] Error occurred: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Analysis failed: {str(e)}"}
+        )
 
 
 @app.post("/analyze/{track_id}")
