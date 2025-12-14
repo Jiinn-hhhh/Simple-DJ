@@ -13,12 +13,14 @@ import analysis
 
 app = FastAPI()
 
+# CORS 설정: 모든 origin 허용 (Vercel 도메인 포함)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"],  # 모든 origin 허용
+    allow_credentials=False,  # credentials와 wildcard origin은 함께 사용 불가
+    allow_methods=["*"],  # 모든 HTTP 메서드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
+    expose_headers=["*"],  # 모든 헤더 노출
 )
 
 UPLOAD_DIR = "uploads"
