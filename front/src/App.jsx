@@ -147,9 +147,9 @@ function App() {
           }
         }
 
-        separateTrack('A', file, trackData, targetBpm);
         // Start separation immediately after analysis
         setStatus("SEPARATING...");
+        await separateTrack('A', file, trackData, targetBpm);
       } else {
         setTrackB(trackData);
         setStemsB({ drums: false, bass: false, vocals: false, other: false }); // Reset stems immediately
@@ -168,12 +168,10 @@ function App() {
           }
         }
 
-        separateTrack('B', file, trackData, targetBpm);
         // Start separation immediately after analysis
         setStatus("SEPARATING...");
+        await separateTrack('B', file, trackData, targetBpm);
       }
-
-      setStatus("READY");
 
     } catch (err) {
       console.error(err);
