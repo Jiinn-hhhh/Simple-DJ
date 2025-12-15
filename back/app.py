@@ -16,14 +16,12 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# CORS 설정: 모든 origin 허용 (Vercel 도메인 포함)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 모든 origin 허용
-    allow_credentials=False,  # credentials와 wildcard origin은 함께 사용 불가
-    allow_methods=["*"],  # 모든 HTTP 메서드 허용
-    allow_headers=["*"],  # 모든 헤더 허용
-    expose_headers=["*"],  # 모든 헤더 노출
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 UPLOAD_DIR = "uploads"
@@ -76,12 +74,6 @@ async def analyze(file: UploadFile = File(...)):
     Analyze audio file to extract BPM, key, and other metadata.
     Uses Hugging Face Spaces API for analysis.
     """
-    if not HF_SPACE_URL:
-        return JSONResponse(
-            status_code=500,
-            content={"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
-        )
-    
     try:
         logger.info(f"[ANALYZE] Request received - filename: {file.filename}, content_type: {file.content_type}")
         
@@ -89,26 +81,33 @@ async def analyze(file: UploadFile = File(...)):
         filename = file.filename
         logger.info(f"[ANALYZE] File size: {len(contents)} bytes ({len(contents) / 1024 / 1024:.2f} MB)")
         
-        # Call Hugging Face Spaces API
+        # Call Hugging Face Spaces API for analysis
+        if not HF_SPACE_URL:
+            logger.error("[ANALYZE] HUGGINGFACE_SPACE_URL environment variable not set")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
+            )
+        
         space_api_url = f"{HF_SPACE_URL}/analyze"
         files = {"file": (filename, contents, file.content_type)}
         
         logger.info(f"[ANALYZE] Calling Spaces API: {space_api_url}")
-        response = requests.post(space_api_url, files=files, timeout=300)
-        response.raise_for_status()
+        response = requests.post(space_api_url, files=files, timeout=300) # 5분 타임아웃
+        response.raise_for_status() # HTTP 에러 발생 시 예외 처리
         
         result = response.json()
         logger.info(f"[ANALYZE] Analysis complete - BPM: {result.get('bpm')}, Key: {result.get('key')}, Duration: {result.get('duration')}")
         
         return result
     except requests.exceptions.RequestException as e:
-        logger.error(f"[ANALYZE] Failed to call Hugging Face Spaces API: {str(e)}")
+        logger.error(f"[ANALYZE] Failed to call Hugging Face Spaces API: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
         )
     except Exception as e:
-        logger.error(f"[ANALYZE] Error: {str(e)}", exc_info=True)
+        logger.error(f"[ANALYZE] Error occurred: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": f"Analysis failed: {str(e)}"}
@@ -127,24 +126,26 @@ async def analyze_track(track_id: str):
             content={"error": "Track not found"}
         )
     
-    if not HF_SPACE_URL:
-        return JSONResponse(
-            status_code=500,
-            content={"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
-        )
+    track = tracks_db[track_id]
+    file_path = track["file_path"]
     
     try:
-        track = tracks_db[track_id]
-        file_path = track["file_path"]
-        
         # Read file contents
         with open(file_path, "rb") as f:
             contents = f.read()
         
-        # Call Hugging Face Spaces API
+        # Call Hugging Face Spaces API for analysis
+        if not HF_SPACE_URL:
+            logger.error("[ANALYZE_TRACK] HUGGINGFACE_SPACE_URL environment variable not set")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
+            )
+        
         space_api_url = f"{HF_SPACE_URL}/analyze"
         files = {"file": (track["filename"], contents, "audio/mpeg")}
         
+        logger.info(f"[ANALYZE_TRACK] Calling Spaces API for track {track_id}: {space_api_url}")
         response = requests.post(space_api_url, files=files, timeout=300)
         response.raise_for_status()
         
@@ -159,15 +160,17 @@ async def analyze_track(track_id: str):
             "sample_rate": result["sample_rate"],
         })
         
+        logger.info(f"[ANALYZE_TRACK] Analysis complete for track {track_id} - BPM: {result.get('bpm')}, Key: {result.get('key')}")
+        
         return result
     except requests.exceptions.RequestException as e:
-        logger.error(f"[ANALYZE/{track_id}] Failed to call Hugging Face Spaces API: {str(e)}")
+        logger.error(f"[ANALYZE_TRACK] Failed to call Hugging Face Spaces API: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
         )
     except Exception as e:
-        logger.error(f"[ANALYZE/{track_id}] Error: {str(e)}", exc_info=True)
+        logger.error(f"[ANALYZE_TRACK] Error occurred: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
             content={"error": f"Analysis failed: {str(e)}"}
