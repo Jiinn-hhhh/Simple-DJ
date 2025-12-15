@@ -24,16 +24,19 @@ Space가 생성되면 다음 파일들을 업로드합니다:
 1. **`app.py`** (Space 루트에)
    - `back/space_app.py`의 내용을 복사하여 `app.py`로 저장
    - 또는 Space에서 직접 편집
+   - ⚠️ **중요**: `import analysis`가 포함되어 있어야 함
 
-2. **`seperator.py`**
-   - `back/seperator.py` 파일을 그대로 업로드
-
-3. **`analysis.py`** (새로 추가)
+2. **`analysis.py`** (필수!)
    - `back/analysis.py` 파일을 그대로 업로드
-   - BPM/Key 분석에 필요
+   - BPM/Key 분석 기능에 필요
+
+3. **`seperator.py`**
+   - `back/seperator.py` 파일을 그대로 업로드
+   - 소스 분리 기능에 필요
 
 4. **`requirements.txt`**
    - `back/space_requirements.txt`의 내용을 복사하여 `requirements.txt`로 저장
+   - ⚠️ **중요**: `torch`, `torchaudio`, `librosa`, `soundfile`, `numpy` 포함되어야 함
 
 5. **`Dockerfile`** (Docker SDK 사용 시)
    ```
@@ -48,7 +51,7 @@ Space가 생성되면 다음 파일들을 업로드합니다:
 
    EXPOSE 7860
 
-   CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "port", "7860"]
+   CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
    ```
 
 ### 파일 업로드 방법
@@ -104,10 +107,19 @@ Space가 생성되면 다음 파일들을 업로드합니다:
 - 로그에서 에러 메시지 확인
 - Python 버전 확인 (3.11 권장)
 
-### API 호출 실패
+### API 호출 실패 (404 에러)
 - Space URL이 올바른지 확인
-- CORS 설정 확인
-- Space가 실행 중인지 확인 (Spaces는 일정 시간 미사용 시 절전 모드)
+- Space의 `app.py`에 `/analyze` 엔드포인트가 있는지 확인
+- Space에 `analysis.py` 파일이 있는지 확인
+- Space 빌드 로그에서 `analysis.py` import 에러 확인
+- Space 재배포 시도
+- 자세한 내용은 `SPACE_TROUBLESHOOTING.md` 참고
+
+### POST 요청이 Space 로그에 나타나지 않음
+- Space 빌드 로그 확인 (빌드 실패 가능성)
+- Space의 `app.py`가 최신 버전인지 확인
+- Space 재배포 시도
+- Render 서버 로그에서 실제 요청 URL 확인
 
 ### 메모리 부족
 - GPU 티어로 업그레이드
