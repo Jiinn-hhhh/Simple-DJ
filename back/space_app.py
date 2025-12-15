@@ -45,7 +45,6 @@ async def analyze(file: UploadFile = File(...)):
     Analyze audio file to extract BPM, key, and other metadata.
     Returns analysis results (BPM, key, duration, sample_rate).
     """
-    temp_file = None
     try:
         contents = await file.read()
         filename = file.filename
