@@ -228,12 +228,11 @@ function App() {
       setTrack(prev => ({
         ...prev,
         separated: true,
+        jobId: jobId
       }));
 
       // Update status when separation completes
       setStatus("READY");
-        jobId: jobId
-      }));
 
     } catch (err) {
       setStatus("ERROR: Separation failed");
