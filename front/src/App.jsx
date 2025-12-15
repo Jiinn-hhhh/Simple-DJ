@@ -99,16 +99,32 @@ function App() {
       const formData = new FormData();
       formData.append("file", file);
       const analyzeRes = await fetch(`${API_BASE}/analyze`, { method: "POST", body: formData });
-      if (!analyzeRes.ok) throw new Error("Analysis failed");
+      
+      if (!analyzeRes.ok) {
+        let errorMessage = "Analysis failed";
+        try {
+          const errorData = await analyzeRes.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          errorMessage = `Analysis failed with status ${analyzeRes.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+      
       const analysisData = await analyzeRes.json();
+      
+      // Validate response data
+      if (!analysisData || typeof analysisData.bpm !== 'number' || !analysisData.key) {
+        throw new Error("Invalid analysis response: missing required fields");
+      }
 
       const trackData = {
         id: "local_" + Date.now(),
         file: file,
         filename: file.name,
-        bpm: analysisData.bpm,
-        key: analysisData.key,
-        duration: analysisData.duration,
+        bpm: analysisData.bpm || 128,
+        key: analysisData.key || "C major",
+        duration: analysisData.duration || 0,
         separated: false,
         stems: {}
       };
