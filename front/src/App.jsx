@@ -228,6 +228,8 @@ function App() {
       setTrack(prev => ({
         ...prev,
         separated: true,
+      }));
+
       // Update status when separation completes
       setStatus("READY");
         jobId: jobId
