@@ -148,6 +148,8 @@ function App() {
         }
 
         separateTrack('A', file, trackData, targetBpm);
+        // Start separation immediately after analysis
+        setStatus("SEPARATING...");
       } else {
         setTrackB(trackData);
         setStemsB({ drums: false, bass: false, vocals: false, other: false }); // Reset stems immediately
@@ -167,6 +169,8 @@ function App() {
         }
 
         separateTrack('B', file, trackData, targetBpm);
+        // Start separation immediately after analysis
+        setStatus("SEPARATING...");
       }
 
       setStatus("READY");
@@ -224,10 +228,13 @@ function App() {
       setTrack(prev => ({
         ...prev,
         separated: true,
+      // Update status when separation completes
+      setStatus("READY");
         jobId: jobId
       }));
 
     } catch (err) {
+      setStatus("ERROR: Separation failed");
       console.error("Separation error:", err);
     } finally {
       setIsSeparating(false);
