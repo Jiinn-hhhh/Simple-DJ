@@ -9,6 +9,7 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 function App() {
   console.log("App Component Rendering...");
   const [status, setStatus] = useState("INSERT COIN");
+  const [isSystemReady, setIsSystemReady] = useState(false);
 
   // Track State
   const [trackA, setTrackA] = useState(null);
@@ -47,8 +48,14 @@ function App() {
     // Check backend status
     fetch(`${API_BASE}/ping`)
       .then(res => res.json())
-      .then(data => setStatus("SYSTEM READY"))
-      .catch(err => setStatus("OFFLINE"));
+      .then(data => {
+        setStatus("SYSTEM READY");
+        setIsSystemReady(true);
+      })
+      .catch(err => {
+        setStatus("OFFLINE");
+        setIsSystemReady(false);
+      });
 
     return () => {
       if (audioPlayerRef.current) {
@@ -62,6 +69,7 @@ function App() {
     const handleKeyDown = (e) => {
       // Ignore if typing in an input
       if (e.target.tagName === 'INPUT') return;
+      if (!isSystemReady) return;
 
       switch (e.key.toLowerCase()) {
         case 's': // Deck A Play/Pause
@@ -83,12 +91,17 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlayingA, isPlayingB, trackA, trackB]); // Dependencies for togglePlay closure
+  }, [isPlayingA, isPlayingB, trackA, trackB, isSystemReady]); // Dependencies for togglePlay closure
 
 
   // --- Audio Logic ---
 
   const loadTrack = async (deckId, file) => {
+    if (!isSystemReady) {
+      console.warn("System not ready, ignoring track load");
+      return;
+    }
+
     setStatus(`LOADING ${file.name.toUpperCase()}...`);
     if (deckId === 'A') setLoadingFileA(file.name);
     else setLoadingFileB(file.name);
@@ -149,7 +162,9 @@ function App() {
 
         // Start separation immediately after analysis
         setStatus("SEPARATING...");
+        console.log("[loadTrack] Starting separation for deck A");
         await separateTrack('A', file, trackData, targetBpm);
+        console.log("[loadTrack] Separation completed for deck A");
       } else {
         setTrackB(trackData);
         setStemsB({ drums: false, bass: false, vocals: false, other: false }); // Reset stems immediately
@@ -170,7 +185,9 @@ function App() {
 
         // Start separation immediately after analysis
         setStatus("SEPARATING...");
+        console.log("[loadTrack] Starting separation for deck B");
         await separateTrack('B', file, trackData, targetBpm);
+        console.log("[loadTrack] Separation completed for deck B");
       }
 
     } catch (err) {
@@ -183,6 +200,7 @@ function App() {
   };
 
   const separateTrack = async (deckId, file, trackData, bpmToUse) => {
+    console.log(`[separateTrack] Starting separation for deck ${deckId}`);
     const setIsSeparating = deckId === 'A' ? setIsSeparatingA : setIsSeparatingB;
     const setTrack = deckId === 'A' ? setTrackA : setTrackB;
 
@@ -192,16 +210,26 @@ function App() {
       const formData = new FormData();
       formData.append("file", file);
 
+      console.log(`[separateTrack] Sending separation request for deck ${deckId}`);
       const res = await fetch(`${API_BASE}/separate`, { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Separation failed");
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`[separateTrack] Separation request failed: ${res.status} - ${errorText}`);
+        throw new Error(`Separation failed: ${res.status}`);
+      }
 
       const data = await res.json();
       const jobId = data.job_id;
+      console.log(`[separateTrack] Separation job created: ${jobId} for deck ${deckId}`);
 
       audioPlayerRef.current.audioBuffers[deckId] = {};
 
-      const loadPromises = Object.keys(data.sources).map(async (stemName) => {
+      const stemNames = Object.keys(data.sources);
+      console.log(`[separateTrack] Loading ${stemNames.length} stems for deck ${deckId}:`, stemNames);
+
+      const loadPromises = stemNames.map(async (stemName) => {
         const url = `${API_BASE}/stems/${jobId}/${stemName}`;
+        console.log(`[separateTrack] Loading stem ${stemName} from ${url}`);
         await audioPlayerRef.current.loadAudio(deckId, stemName, url);
         // Ensure stems also get the rate
         if (trackData.bpm) {
@@ -209,9 +237,11 @@ function App() {
           // Use bpmToUse to avoid stale closure state of masterBpm
           audioPlayerRef.current.setPlaybackRate(deckId, bpmToUse / trackData.bpm);
         }
+        console.log(`[separateTrack] Stem ${stemName} loaded successfully`);
       });
 
       await Promise.all(loadPromises);
+      console.log(`[separateTrack] All stems loaded for deck ${deckId}`);
 
       // Default Stems to OFF (User Request)
       const defaultStems = { drums: false, bass: false, vocals: false, other: false };
@@ -241,6 +271,11 @@ function App() {
   };
 
   const togglePlay = async (deckId) => {
+    if (!isSystemReady) {
+      console.warn("System not ready, ignoring play/pause");
+      return;
+    }
+
     const isPlaying = deckId === 'A' ? isPlayingA : isPlayingB;
     const setPlaying = deckId === 'A' ? setIsPlayingA : setIsPlayingB;
     const track = deckId === 'A' ? trackA : trackB;
@@ -259,6 +294,8 @@ function App() {
   };
 
   const toggleStem = (deckId, stemName) => {
+    if (!isSystemReady) return;
+
     const stems = deckId === 'A' ? stemsA : stemsB;
     const setStems = deckId === 'A' ? setStemsA : setStemsB;
 
@@ -269,6 +306,8 @@ function App() {
   };
 
   const handleVolumeChange = (deckId, val) => {
+    if (!isSystemReady) return;
+
     if (deckId === 'A') setVolumeA(val);
     else setVolumeB(val);
 
@@ -276,11 +315,15 @@ function App() {
   };
 
   const handleCrossfaderChange = (val) => {
+    if (!isSystemReady) return;
+
     setCrossfader(val);
     updateVolumes(volumeA, volumeB, val, masterVolume);
   };
 
   const handleMasterVolumeChange = (val) => {
+    if (!isSystemReady) return;
+
     setMasterVolume(val);
     updateVolumes(volumeA, volumeB, crossfader, val);
   };
@@ -300,6 +343,8 @@ function App() {
   };
 
   const handleEqChange = (deckId, band, val) => {
+    if (!isSystemReady) return;
+
     const gain = val / 100;
 
     if (deckId === 'A') {
@@ -311,6 +356,8 @@ function App() {
   };
 
   const handleFilterChange = (deckId, val) => {
+    if (!isSystemReady) return;
+
     if (deckId === 'A') setFilterA(val);
     else setFilterB(val);
 
@@ -318,6 +365,8 @@ function App() {
   };
 
   const handleMasterBpmChange = (val) => {
+    if (!isSystemReady) return;
+
     setMasterBpm(val);
 
     if (trackA && trackA.bpm) {
@@ -329,6 +378,8 @@ function App() {
   };
 
   const handleLoopIn = (deckId) => {
+    if (!isSystemReady) return;
+
     const track = deckId === 'A' ? trackA : trackB;
     if (track && track.bpm) {
       audioPlayerRef.current.setLoopIn(deckId, track.bpm);
@@ -336,6 +387,8 @@ function App() {
   };
 
   const handleLoopOut = (deckId) => {
+    if (!isSystemReady) return;
+
     const track = deckId === 'A' ? trackA : trackB;
     if (track && track.bpm) {
       audioPlayerRef.current.setLoopOut(deckId, track.bpm);
@@ -343,10 +396,14 @@ function App() {
   };
 
   const handleExitLoop = (deckId) => {
+    if (!isSystemReady) return;
+
     audioPlayerRef.current.exitLoop(deckId);
   };
 
   const handleSeek = (deckId, percent) => {
+    if (!isSystemReady) return;
+
     audioPlayerRef.current.seek(deckId, percent);
   };
 
@@ -357,23 +414,56 @@ function App() {
   };
 
   const handleMasterEffect = (x, y) => {
+    if (!isSystemReady) return;
+
     // console.log("XY", x, y);
     audioPlayerRef.current.setMasterEffect(x, y);
   };
 
   const triggerSampler = (type) => {
+    if (!isSystemReady) return;
+
     if (type === 'airhorn') audioPlayerRef.current.playAirHorn();
     if (type === 'siren') audioPlayerRef.current.playSiren();
   };
 
   return (
     <div className="app-container">
+      {/* Loading Overlay */}
+      {!isSystemReady && (
+        <div className="loading-overlay">
+          <div 
+            className="pixel-font"
+            style={{
+              fontSize: '1.5rem',
+              color: status === 'OFFLINE' ? 'var(--neon-pink)' : 'var(--neon-green)',
+              textAlign: 'center',
+              marginBottom: '20px',
+              textShadow: `0 0 10px ${status === 'OFFLINE' ? 'rgba(255, 0, 85, 0.8)' : 'rgba(0, 255, 157, 0.8)'}`
+            }}
+          >
+            {status}
+          </div>
+          <div 
+            style={{
+              fontSize: '0.9rem',
+              color: 'var(--text-dim)',
+              fontFamily: 'Rajdhani, sans-serif'
+            }}
+          >
+            {status === 'OFFLINE' 
+              ? 'Backend server is offline. Please check your connection.' 
+              : 'Initializing system...'}
+          </div>
+        </div>
+      )}
+
       <div className="top-bar">
         <h1 className="pixel-font">Simple DJ</h1>
         <div className="status-bar pixel-font">{status}</div>
       </div>
 
-      <div className="console-layout">
+      <div className="console-layout" style={{ opacity: isSystemReady ? 1 : 0.3, pointerEvents: isSystemReady ? 'auto' : 'none' }}>
         <Deck
           deckId="A"
           track={trackA}
