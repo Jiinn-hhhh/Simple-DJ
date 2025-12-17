@@ -112,7 +112,7 @@ function App() {
       const formData = new FormData();
       formData.append("file", file);
       const analyzeRes = await fetch(`${API_BASE}/analyze`, { method: "POST", body: formData });
-      
+
       if (!analyzeRes.ok) {
         let errorMessage = "Analysis failed";
         try {
@@ -123,9 +123,9 @@ function App() {
         }
         throw new Error(errorMessage);
       }
-      
+
       const analysisData = await analyzeRes.json();
-      
+
       // Validate response data
       if (!analysisData || typeof analysisData.bpm !== 'number' || !analysisData.key) {
         throw new Error("Invalid analysis response: missing required fields");
@@ -213,12 +213,32 @@ function App() {
       console.log(`[separateTrack] Sending separation request for deck ${deckId}`);
       const res = await fetch(`${API_BASE}/separate`, { method: "POST", body: formData });
       if (!res.ok) {
-        const errorText = await res.text();
+        let errorText = "Separation failed";
+        try {
+          // Try to parse JSON error first
+          const errorJson = await res.json();
+          if (errorJson && errorJson.error) {
+            errorText = errorJson.error;
+          } else {
+            errorText = await res.text();
+          }
+        } catch (e) {
+          // If JSON parse fails, try text
+          try {
+            errorText = await res.text();
+          } catch (ignore) { }
+        }
         console.error(`[separateTrack] Separation request failed: ${res.status} - ${errorText}`);
-        throw new Error(`Separation failed: ${res.status}`);
+        throw new Error(`${errorText}`); // Throw the specific error text
       }
 
       const data = await res.json();
+
+      // Check for application-level error despite 200 OK
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
       const jobId = data.job_id;
       console.log(`[separateTrack] Separation job created: ${jobId} for deck ${deckId}`);
 
@@ -263,7 +283,7 @@ function App() {
       setStatus("READY");
 
     } catch (err) {
-      setStatus("ERROR: Separation failed");
+      setStatus("ERROR: " + err.message);
       console.error("Separation error:", err);
     } finally {
       setIsSeparating(false);
@@ -432,7 +452,7 @@ function App() {
       {/* Loading Overlay */}
       {!isSystemReady && (
         <div className="loading-overlay">
-          <div 
+          <div
             className="pixel-font"
             style={{
               fontSize: '1.5rem',
@@ -444,15 +464,15 @@ function App() {
           >
             {status}
           </div>
-          <div 
+          <div
             style={{
               fontSize: '0.9rem',
               color: 'var(--text-dim)',
               fontFamily: 'Rajdhani, sans-serif'
             }}
           >
-            {status === 'OFFLINE' 
-              ? 'Backend server is offline. Please check your connection.' 
+            {status === 'OFFLINE'
+              ? 'Backend server is offline. Please check your connection.'
               : 'Initializing system...'}
           </div>
         </div>
