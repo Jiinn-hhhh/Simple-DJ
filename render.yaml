@@ -8,7 +8,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.11
       - key: HUGGINGFACE_SPACE_URL
-        value: https://YOUR_SPACE_URL_HERE.hf.space
+        value: https://jiinn-hhhh-seperator.hf.space
 
 
 
