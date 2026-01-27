@@ -130,3 +130,4 @@ Space 페이지 → **"Logs"** 탭에서:
 2. Space의 `app.py` 파일 내용 재확인
 3. Render 서버 로그에서 실제 요청 URL 확인
 
+

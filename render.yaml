@@ -1,15 +1,20 @@
 services:
+  # Backend API Gateway (Render)
   - type: web
     name: dj-console-backend
-    env: python
+    runtime: python
     buildCommand: pip install -r back/requirements.txt
     startCommand: cd back && uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11
+        value: "3.11"
       - key: HUGGINGFACE_SPACE_URL
         value: https://jiinn-hhhh-seperator.hf.space
-
-
-
-
+    autoDeploy: true
+    # Free tier settings
+    plan: free
+    # Scaling (free tier = 1 instance)
+    scaling:
+      minInstances: 0
+      maxInstances: 1

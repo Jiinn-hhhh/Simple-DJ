@@ -15,6 +15,7 @@ const Deck = ({
     activeStems,
     onToggleStem,
     isSeparating,
+    separationProgress = 0,
     onLoopIn,
     onLoopOut,
     onExitLoop,
@@ -147,8 +148,34 @@ const Deck = ({
                 )}
 
                 {isSeparating && (
-                    <div className="separation-overlay" style={{ position: 'absolute', bottom: '10px', background: 'black', padding: '5px 10px', borderRadius: '4px', border: '1px solid var(--neon-green)', zIndex: 20 }}>
-                        <span className="pixel-font" style={{ color: 'var(--neon-green)', fontSize: '0.7rem' }}>SEPARATING...</span>
+                    <div className="separation-overlay" style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        background: 'black',
+                        padding: '8px 12px',
+                        borderRadius: '4px',
+                        border: '1px solid var(--neon-green)',
+                        zIndex: 20,
+                        minWidth: '120px'
+                    }}>
+                        <span className="pixel-font" style={{ color: 'var(--neon-green)', fontSize: '0.7rem', display: 'block', marginBottom: '4px' }}>
+                            SEPARATING... {separationProgress > 0 ? `${separationProgress}%` : ''}
+                        </span>
+                        <div style={{
+                            width: '100%',
+                            height: '4px',
+                            background: '#333',
+                            borderRadius: '2px',
+                            overflow: 'hidden'
+                        }}>
+                            <div style={{
+                                width: `${separationProgress}%`,
+                                height: '100%',
+                                background: 'var(--neon-green)',
+                                transition: 'width 0.3s ease',
+                                boxShadow: '0 0 8px var(--neon-green)'
+                            }}></div>
+                        </div>
                     </div>
                 )}
             </div>

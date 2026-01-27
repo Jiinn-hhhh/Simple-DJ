@@ -1,0 +1,21 @@
+# Hugging Face Spaces Requirements
+# Full ML stack for audio processing
+
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# File Upload
+python-multipart==0.0.9
+
+# Audio Analysis
+librosa==0.10.2
+soundfile==0.12.1
+numpy<2.0
+
+# ML / Stem Separation
+torch==2.2.2
+torchaudio==2.2.2
+
+# Note: On HF Spaces with GPU, torch will use CUDA automatically
+# For CPU-only spaces, these versions work without modification

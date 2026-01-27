@@ -1,128 +1,181 @@
 # Hugging Face Spaces 배포 가이드
 
-이 가이드는 소스 분리 기능을 Hugging Face Spaces에 배포하는 방법을 설명합니다.
+이 가이드는 Simple DJ의 오디오 처리 기능을 Hugging Face Spaces에 배포하는 방법을 설명합니다.
+
+## 아키텍처 개요
+
+```
+Frontend (Vercel) → Render Backend (Gateway) → HF Spaces (ML Processing)
+                           ↓                           ↓
+                    프록시 역할만               실제 오디오 처리
+                    (torch 불필요)              (HDemucs, Librosa)
+```
+
+### 새로운 비동기 처리 방식
+
+1. 클라이언트가 `/separate`에 파일 업로드
+2. 서버가 즉시 `job_id` 반환 (타임아웃 방지)
+3. 클라이언트가 `/job/{job_id}`를 폴링하여 상태 확인
+4. 완료 시 `/job/{job_id}/stems/{stem_name}`에서 다운로드
 
 ## 1. Hugging Face Space 생성
 
 1. [Hugging Face](https://huggingface.co/)에 로그인
-2. 우측 상단 **"+"** 버튼 클릭 → **"New Space"** 선택
+2. 우측 상단 **"+"** 버튼 → **"New Space"** 선택
 3. Space 설정:
-   - **Name**: `simple-dj-separator` (원하는 이름)
-   - **SDK**: **Docker** 선택 (FastAPI 사용을 위해)
+   - **Name**: `simple-dj-separator`
+   - **SDK**: **Docker** 선택
    - **Visibility**: `Public` 또는 `Private`
-   - **Hardware**: 
-     - 무료: `CPU basic` (느릴 수 있음)
-     - 유료: `GPU T4 small` (권장, 더 빠름)
+   - **Hardware**:
+     - 무료: `CPU basic` (느림, ~5분/곡)
+     - 유료 권장: `GPU T4 small` (~30초/곡)
 4. **"Create Space"** 클릭
 
-## 2. Space에 파일 업로드
+## 2. 필요한 파일들
 
-Space가 생성되면 다음 파일들을 업로드합니다:
+### Space에 업로드할 파일 목록
 
-### 필수 파일
+```
+your-space/
+├── README.md           # Space 메타데이터 (YAML frontmatter)
+├── Dockerfile          # Docker 빌드 설정
+├── requirements.txt    # Python 의존성 (space_requirements.txt 내용)
+├── app.py              # FastAPI 서버 (space_app.py 내용)
+├── analysis.py         # BPM/Key 분석 모듈
+└── seperator.py        # HDemucs 스템 분리 모듈
+```
 
-1. **`app.py`** (Space 루트에)
-   - `back/space_app.py`의 내용을 복사하여 `app.py`로 저장
-   - 또는 Space에서 직접 편집
-   - ⚠️ **중요**: `import analysis`가 포함되어 있어야 함
+### 파일 복사 방법
 
-2. **`analysis.py`** (필수!)
-   - `back/analysis.py` 파일을 그대로 업로드
-   - BPM/Key 분석 기능에 필요
+```bash
+# 터미널에서 실행
+cd back/
 
-3. **`seperator.py`**
-   - `back/seperator.py` 파일을 그대로 업로드
-   - 소스 분리 기능에 필요
+# README.md - 이미 준비됨
+cp README.md ../hf-space/README.md
 
-4. **`requirements.txt`**
-   - `back/space_requirements.txt`의 내용을 복사하여 `requirements.txt`로 저장
-   - ⚠️ **중요**: `torch`, `torchaudio`, `librosa`, `soundfile`, `numpy` 포함되어야 함
+# Dockerfile - 이미 준비됨
+cp Dockerfile ../hf-space/Dockerfile
 
-5. **`Dockerfile`** (Docker SDK 사용 시)
-   ```
-   FROM python:3.11-slim
+# requirements.txt
+cp space_requirements.txt ../hf-space/requirements.txt
 
-   WORKDIR /app
+# app.py (space_app.py를 app.py로)
+cp space_app.py ../hf-space/app.py
 
-   COPY requirements.txt .
-   RUN pip install --no-cache-dir -r requirements.txt
+# 분석 모듈
+cp analysis.py ../hf-space/
+cp seperator.py ../hf-space/
+```
 
-   COPY . .
-
-   EXPOSE 7860
-
-   CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
-   ```
-
-### 파일 업로드 방법
+## 3. 파일 업로드
 
 1. Space 페이지에서 **"Files and versions"** 탭 클릭
 2. **"Add file"** → **"Upload files"** 선택
-3. 파일들을 드래그 앤 드롭 또는 선택
+3. 위의 파일들을 모두 업로드
 4. **"Commit changes"** 클릭
 
-## 3. Space 배포 확인
+## 4. 배포 확인
 
 1. Space가 자동으로 빌드 시작
 2. **"Logs"** 탭에서 빌드 진행 상황 확인
-3. 배포 완료 후 **"API"** 탭에서 API 엔드포인트 확인
+3. 성공 시 **"Running"** 상태 표시
 
-## 4. Space API URL 확인
+### API URL 확인
 
-배포 완료 후:
 - Space URL: `https://huggingface.co/spaces/{username}/{space-name}`
 - API 엔드포인트: `https://{username}-{space-name}.hf.space`
 
 예시:
-- Space 이름: `simple-dj-separator`
-- 사용자명: `your-username`
-- API URL: `https://your-username-simple-dj-separator.hf.space`
+```
+Space: jiinn/hhhh-seperator
+API: https://jiinn-hhhh-seperator.hf.space
+```
 
 ## 5. Render 환경 변수 설정
 
 1. Render 대시보드 → `dj-console-backend` 서비스
 2. **Settings** → **Environment Variables**
-3. 새 변수 추가:
+3. 변수 설정:
    - **Key**: `HUGGINGFACE_SPACE_URL`
-   - **Value**: 위에서 확인한 Space API URL (예: `https://your-username-simple-dj-separator.hf.space`)
-4. **Save Changes**
+   - **Value**: `https://jiinn-hhhh-seperator.hf.space` (실제 URL로 변경)
+4. **Save Changes** → 서비스 자동 재시작
 
-## 6. 테스트
+## 6. Vercel 환경 변수 설정
 
-1. Render 서버 재시작 (환경 변수 적용)
-2. 프론트엔드에서 소스 분리 기능 테스트
-3. Spaces 로그에서 실행 확인
+1. Vercel 대시보드 → 프로젝트 선택
+2. **Settings** → **Environment Variables**
+3. 변수 설정:
+   - **Key**: `VITE_API_URL`
+   - **Value**: `https://dj-console-backend.onrender.com` (Render URL)
+4. **Redeploy** 실행
 
-## 주의사항
+## 7. 테스트
 
-- **무료 티어 제한**: CPU basic은 느릴 수 있습니다. GPU 사용을 권장합니다.
-- **타임아웃**: 긴 오디오 파일은 처리 시간이 오래 걸릴 수 있습니다.
-- **메모리**: Spaces의 메모리 제한을 확인하세요.
-- **API 호출 제한**: 무료 티어는 요청 수 제한이 있을 수 있습니다.
+### API 직접 테스트
+
+```bash
+# Health check
+curl https://jiinn-hhhh-seperator.hf.space/health
+
+# 분석 테스트
+curl -X POST https://jiinn-hhhh-seperator.hf.space/analyze \
+  -F "file=@test.mp3"
+
+# 분리 작업 시작
+curl -X POST https://jiinn-hhhh-seperator.hf.space/separate \
+  -F "file=@test.mp3"
+
+# 작업 상태 확인 (job_id를 실제 값으로 교체)
+curl https://jiinn-hhhh-seperator.hf.space/job/{job_id}
+```
+
+## 주요 개선사항 (v2.0)
+
+1. **비동기 처리**: 타임아웃 문제 해결
+2. **자동 파일 정리**: 30분 후 자동 삭제
+3. **진행률 표시**: 프론트엔드에서 진행 상황 확인 가능
+4. **에러 복구**: 네트워크 오류 시 자동 재시도
+5. **Health check**: 서비스 상태 모니터링
 
 ## 문제 해결
 
 ### 빌드 실패
-- `requirements.txt` 확인
-- 로그에서 에러 메시지 확인
-- Python 버전 확인 (3.11 권장)
 
-### API 호출 실패 (404 에러)
-- Space URL이 올바른지 확인
-- Space의 `app.py`에 `/analyze` 엔드포인트가 있는지 확인
-- Space에 `analysis.py` 파일이 있는지 확인
-- Space 빌드 로그에서 `analysis.py` import 에러 확인
-- Space 재배포 시도
-- 자세한 내용은 `SPACE_TROUBLESHOOTING.md` 참고
+```bash
+# 로그 확인
+# Spaces > Logs 탭에서 에러 메시지 확인
 
-### POST 요청이 Space 로그에 나타나지 않음
-- Space 빌드 로그 확인 (빌드 실패 가능성)
-- Space의 `app.py`가 최신 버전인지 확인
-- Space 재배포 시도
-- Render 서버 로그에서 실제 요청 URL 확인
+# 일반적인 원인:
+# - requirements.txt 의존성 충돌
+# - Dockerfile 문법 오류
+# - 파일 누락 (analysis.py, seperator.py)
+```
 
-### 메모리 부족
-- GPU 티어로 업그레이드
-- 오디오 파일 크기 줄이기
-- 모델 최적화
+### API 호출 실패 (502/504)
 
+- Space가 cold start 중일 수 있음 (1-2분 대기)
+- GPU 티어로 업그레이드 권장
+- 파일 크기가 50MB 이하인지 확인
+
+### 분리 작업 실패
+
+- GPU 메모리 부족 → 더 작은 파일 시도
+- 지원하지 않는 오디오 형식 → mp3/wav로 변환
+- Job 로그에서 상세 에러 확인
+
+### CORS 오류
+
+- Space의 CORS 설정 확인
+- Render 프록시를 통해 요청하도록 변경
+
+## 비용 참고
+
+| Hardware | 비용 | 처리 속도 (3분 곡) |
+|----------|------|-------------------|
+| CPU Basic | 무료 | ~5분 |
+| CPU Upgrade | $0.03/hr | ~3분 |
+| T4 Small | $0.40/hr | ~30초 |
+| T4 Medium | $0.60/hr | ~20초 |
+
+무료 티어는 48시간 비활성 시 슬립 모드로 전환됩니다.

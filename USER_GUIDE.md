@@ -46,9 +46,8 @@
 
 1. **`app.py`** - `back/space_app.py`의 내용을 복사
 2. **`seperator.py`** - `back/seperator.py` 파일 그대로
-3. **`analysis.py`** - `back/analysis.py` 파일 그대로 (BPM/Key 분석용)
-4. **`requirements.txt`** - `back/space_requirements.txt`의 내용을 복사
-5. **`Dockerfile`** - 아래 내용 사용
+3. **`requirements.txt`** - `back/space_requirements.txt`의 내용을 복사
+4. **`Dockerfile`** - 아래 내용 사용
 
 ### 2-2. Dockerfile 생성
 
@@ -78,7 +77,6 @@ CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
 3. 다음 파일들을 업로드:
    - `app.py` (내용: `back/space_app.py`)
    - `seperator.py` (내용: `back/seperator.py`)
-   - `analysis.py` (내용: `back/analysis.py`) - 새로 추가
    - `requirements.txt` (내용: `back/space_requirements.txt`)
    - `Dockerfile` (위 내용)
 4. **"Commit changes"** 클릭

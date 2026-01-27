@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import AudioPlayer from "./audioPlayer";
 import Deck from "./components/Deck";
 import Mixer from "./components/Mixer";
@@ -6,10 +6,15 @@ import "./App.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// Polling configuration
+const POLL_INTERVAL_MS = 2000; // Poll every 2 seconds
+const MAX_POLL_ATTEMPTS = 300; // Max 10 minutes (300 * 2s)
+
 function App() {
   console.log("App Component Rendering...");
   const [status, setStatus] = useState("INSERT COIN");
   const [isSystemReady, setIsSystemReady] = useState(false);
+  const [hfSpaceUrl, setHfSpaceUrl] = useState("");
 
   // Track State
   const [trackA, setTrackA] = useState(null);
@@ -39,23 +44,41 @@ function App() {
   // Loading States
   const [isSeparatingA, setIsSeparatingA] = useState(false);
   const [isSeparatingB, setIsSeparatingB] = useState(false);
+  const [separationProgressA, setSeparationProgressA] = useState(0);
+  const [separationProgressB, setSeparationProgressB] = useState(0);
   const [loadingFileA, setLoadingFileA] = useState(null);
   const [loadingFileB, setLoadingFileB] = useState(null);
 
   const audioPlayerRef = useRef(new AudioPlayer());
 
   useEffect(() => {
-    // Check backend status
-    fetch(`${API_BASE}/ping`)
-      .then(res => res.json())
-      .then(data => {
+    // Check backend status and get config
+    const initializeSystem = async () => {
+      try {
+        // Ping backend
+        const pingRes = await fetch(`${API_BASE}/ping`);
+        if (!pingRes.ok) throw new Error("Backend not responding");
+
+        // Get configuration (includes HF Space URL)
+        const configRes = await fetch(`${API_BASE}/config`);
+        if (configRes.ok) {
+          const config = await configRes.json();
+          if (config.hf_space_url) {
+            setHfSpaceUrl(config.hf_space_url);
+            console.log("[App] HF Space URL:", config.hf_space_url);
+          }
+        }
+
         setStatus("SYSTEM READY");
         setIsSystemReady(true);
-      })
-      .catch(err => {
+      } catch (err) {
+        console.error("System init error:", err);
         setStatus("OFFLINE");
         setIsSystemReady(false);
-      });
+      }
+    };
+
+    initializeSystem();
 
     return () => {
       if (audioPlayerRef.current) {
@@ -67,21 +90,20 @@ function App() {
   // Keyboard Controls
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignore if typing in an input
       if (e.target.tagName === 'INPUT') return;
       if (!isSystemReady) return;
 
       switch (e.key.toLowerCase()) {
-        case 's': // Deck A Play/Pause
+        case 's':
           togglePlay('A');
           break;
-        case 'l': // Deck B Play/Pause
+        case 'l':
           togglePlay('B');
           break;
-        case 'arrowleft': // Crossfader Left
+        case 'arrowleft':
           setCrossfader(prev => Math.max(0, prev - 0.1));
           break;
-        case 'arrowright': // Crossfader Right
+        case 'arrowright':
           setCrossfader(prev => Math.min(1, prev + 0.1));
           break;
         default:
@@ -91,11 +113,65 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPlayingA, isPlayingB, trackA, trackB, isSystemReady]); // Dependencies for togglePlay closure
+  }, [isPlayingA, isPlayingB, trackA, trackB, isSystemReady]);
 
 
-  // --- Audio Logic ---
+  // === Polling-based Job Status Check ===
+  const pollJobStatus = useCallback(async (jobId, baseUrl) => {
+    const url = baseUrl ? `${baseUrl}/job/${jobId}` : `${API_BASE}/job/${jobId}`;
 
+    let attempts = 0;
+
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        attempts++;
+
+        if (attempts > MAX_POLL_ATTEMPTS) {
+          reject(new Error("Separation timed out. Please try again."));
+          return;
+        }
+
+        try {
+          const res = await fetch(url);
+          if (!res.ok) {
+            if (res.status === 404) {
+              reject(new Error("Job not found"));
+              return;
+            }
+            throw new Error(`Status check failed: ${res.status}`);
+          }
+
+          const data = await res.json();
+
+          if (data.status === "completed") {
+            resolve(data);
+            return;
+          }
+
+          if (data.status === "failed") {
+            reject(new Error(data.error || "Separation failed"));
+            return;
+          }
+
+          // Still processing - continue polling
+          setTimeout(poll, POLL_INTERVAL_MS);
+
+        } catch (err) {
+          // Network error - retry a few times
+          if (attempts < 3) {
+            setTimeout(poll, POLL_INTERVAL_MS * 2);
+          } else {
+            reject(err);
+          }
+        }
+      };
+
+      poll();
+    });
+  }, []);
+
+
+  // === Audio Logic ===
   const loadTrack = async (deckId, file) => {
     if (!isSystemReady) {
       console.warn("System not ready, ignoring track load");
@@ -107,7 +183,7 @@ function App() {
     else setLoadingFileB(file.name);
 
     try {
-      // Analyze on server (Hugging Face Spaces has 32GB RAM)
+      // Analyze on server
       setStatus(`ANALYZING...`);
       const formData = new FormData();
       formData.append("file", file);
@@ -117,7 +193,7 @@ function App() {
         let errorMessage = "Analysis failed";
         try {
           const errorData = await analyzeRes.json();
-          errorMessage = errorData.error || errorMessage;
+          errorMessage = errorData.detail || errorData.error || errorMessage;
         } catch (e) {
           errorMessage = `Analysis failed with status ${analyzeRes.status}`;
         }
@@ -126,7 +202,6 @@ function App() {
 
       const analysisData = await analyzeRes.json();
 
-      // Validate response data
       if (!analysisData || typeof analysisData.bpm !== 'number' || !analysisData.key) {
         throw new Error("Invalid analysis response: missing required fields");
       }
@@ -144,46 +219,40 @@ function App() {
 
       if (deckId === 'A') {
         setTrackA(trackData);
-        setStemsA({ drums: false, bass: false, vocals: false, other: false }); // Reset stems immediately
-        // STRICT MASTER SYNC: New track must conform to current masterBpm immediately
+        setStemsA({ drums: false, bass: false, vocals: false, other: false });
+
         const objectUrl = URL.createObjectURL(file);
         await audioPlayerRef.current.loadAudio('A', 'full', objectUrl);
 
         const targetBpm = analysisData.bpm || masterBpm;
         if (analysisData.bpm) {
           setMasterBpm(targetBpm);
-          // Update self
           audioPlayerRef.current.setPlaybackRate('A', targetBpm / analysisData.bpm);
-          // Update other deck (B) if it exists so it stays in sync
           if (trackB && trackB.bpm) {
             audioPlayerRef.current.setPlaybackRate('B', targetBpm / trackB.bpm);
           }
         }
 
-        // Start separation immediately after analysis
         setStatus("SEPARATING...");
         console.log("[loadTrack] Starting separation for deck A");
         await separateTrack('A', file, trackData, targetBpm);
         console.log("[loadTrack] Separation completed for deck A");
       } else {
         setTrackB(trackData);
-        setStemsB({ drums: false, bass: false, vocals: false, other: false }); // Reset stems immediately
-        // STRICT MASTER SYNC: New track must conform to current masterBpm immediately
+        setStemsB({ drums: false, bass: false, vocals: false, other: false });
+
         const objectUrl = URL.createObjectURL(file);
         await audioPlayerRef.current.loadAudio('B', 'full', objectUrl);
 
         const targetBpm = analysisData.bpm || masterBpm;
         if (analysisData.bpm) {
           setMasterBpm(targetBpm);
-          // Update self
           audioPlayerRef.current.setPlaybackRate('B', targetBpm / analysisData.bpm);
-          // Update other deck (A) if it exists so it stays in sync
           if (trackA && trackA.bpm) {
             audioPlayerRef.current.setPlaybackRate('A', targetBpm / trackA.bpm);
           }
         }
 
-        // Start separation immediately after analysis
         setStatus("SEPARATING...");
         console.log("[loadTrack] Starting separation for deck B");
         await separateTrack('B', file, trackData, targetBpm);
@@ -202,59 +271,75 @@ function App() {
   const separateTrack = async (deckId, file, trackData, bpmToUse) => {
     console.log(`[separateTrack] Starting separation for deck ${deckId}`);
     const setIsSeparating = deckId === 'A' ? setIsSeparatingA : setIsSeparatingB;
+    const setSeparationProgress = deckId === 'A' ? setSeparationProgressA : setSeparationProgressB;
     const setTrack = deckId === 'A' ? setTrackA : setTrackB;
 
     setIsSeparating(true);
+    setSeparationProgress(0);
 
     try {
+      // Start separation job
       const formData = new FormData();
       formData.append("file", file);
 
       console.log(`[separateTrack] Sending separation request for deck ${deckId}`);
       const res = await fetch(`${API_BASE}/separate`, { method: "POST", body: formData });
+
       if (!res.ok) {
         let errorText = "Separation failed";
         try {
-          // Try to parse JSON error first
           const errorJson = await res.json();
-          if (errorJson && errorJson.error) {
-            errorText = errorJson.error;
-          } else {
-            errorText = await res.text();
-          }
+          errorText = errorJson.detail || errorJson.error || errorText;
         } catch (e) {
-          // If JSON parse fails, try text
           try {
             errorText = await res.text();
           } catch (ignore) { }
         }
         console.error(`[separateTrack] Separation request failed: ${res.status} - ${errorText}`);
-        throw new Error(`${errorText}`); // Throw the specific error text
+        throw new Error(errorText);
       }
 
       const data = await res.json();
 
-      // Check for application-level error despite 200 OK
       if (data.error) {
         throw new Error(data.error);
       }
 
       const jobId = data.job_id;
-      console.log(`[separateTrack] Separation job created: ${jobId} for deck ${deckId}`);
+      const pollUrl = data.hf_space_url || hfSpaceUrl || null;
 
+      console.log(`[separateTrack] Job started: ${jobId}, polling from: ${pollUrl || API_BASE}`);
+      setStatus(`SEPARATING... (Job: ${jobId.slice(0, 8)})`);
+      setSeparationProgress(10);
+
+      // Poll for completion
+      const progressInterval = setInterval(() => {
+        setSeparationProgress(prev => Math.min(prev + 5, 90));
+      }, 3000);
+
+      let jobResult;
+      try {
+        jobResult = await pollJobStatus(jobId, pollUrl);
+      } finally {
+        clearInterval(progressInterval);
+      }
+
+      setSeparationProgress(95);
+      console.log(`[separateTrack] Job completed, loading stems`);
+
+      // Load stems
       audioPlayerRef.current.audioBuffers[deckId] = {};
 
-      const stemNames = Object.keys(data.sources);
+      const stemNames = Object.keys(jobResult.stems || {});
       console.log(`[separateTrack] Loading ${stemNames.length} stems for deck ${deckId}:`, stemNames);
 
       const loadPromises = stemNames.map(async (stemName) => {
-        const url = `${API_BASE}/stems/${jobId}/${stemName}`;
+        const stemInfo = jobResult.stems[stemName];
+        const url = stemInfo.download_url;
         console.log(`[separateTrack] Loading stem ${stemName} from ${url}`);
         await audioPlayerRef.current.loadAudio(deckId, stemName, url);
-        // Ensure stems also get the rate
+
         if (trackData.bpm) {
-          // Re-apply rate just in case loadAudio resets it (depends on audioPlayer implementation)
-          // Use bpmToUse to avoid stale closure state of masterBpm
           audioPlayerRef.current.setPlaybackRate(deckId, bpmToUse / trackData.bpm);
         }
         console.log(`[separateTrack] Stem ${stemName} loaded successfully`);
@@ -263,12 +348,13 @@ function App() {
       await Promise.all(loadPromises);
       console.log(`[separateTrack] All stems loaded for deck ${deckId}`);
 
-      // Default Stems to OFF (User Request)
+      setSeparationProgress(100);
+
+      // Default Stems to OFF
       const defaultStems = { drums: false, bass: false, vocals: false, other: false };
       const setStems = deckId === 'A' ? setStemsA : setStemsB;
       setStems(defaultStems);
 
-      // Apply Mute to AudioPlayer
       Object.keys(defaultStems).forEach(stemName => {
         audioPlayerRef.current.muteStem(deckId, stemName, true);
       });
@@ -279,7 +365,6 @@ function App() {
         jobId: jobId
       }));
 
-      // Update status when separation completes
       setStatus("READY");
 
     } catch (err) {
@@ -287,6 +372,7 @@ function App() {
       console.error("Separation error:", err);
     } finally {
       setIsSeparating(false);
+      setSeparationProgress(0);
     }
   };
 
@@ -305,7 +391,6 @@ function App() {
       setPlaying(false);
     } else {
       if (track && track.bpm) {
-        // Enforce Sync on Play
         audioPlayerRef.current.setPlaybackRate(deckId, masterBpm / track.bpm);
       }
       await audioPlayerRef.current.play(deckId);
@@ -427,7 +512,6 @@ function App() {
     audioPlayerRef.current.seek(deckId, percent);
   };
 
-  // Calculate generic playback rate for visuals
   const getPlaybackRate = (track) => {
     if (!track || !track.bpm) return 0;
     return masterBpm / track.bpm;
@@ -436,7 +520,6 @@ function App() {
   const handleMasterEffect = (x, y) => {
     if (!isSystemReady) return;
 
-    // console.log("XY", x, y);
     audioPlayerRef.current.setMasterEffect(x, y);
   };
 
@@ -499,6 +582,7 @@ function App() {
           activeStems={stemsA}
           onToggleStem={(stem) => toggleStem('A', stem)}
           isSeparating={isSeparatingA}
+          separationProgress={separationProgressA}
           onLoopIn={() => handleLoopIn('A')}
           onLoopOut={() => handleLoopOut('A')}
           onExitLoop={() => handleExitLoop('A')}
@@ -544,6 +628,7 @@ function App() {
           activeStems={stemsB}
           onToggleStem={(stem) => toggleStem('B', stem)}
           isSeparating={isSeparatingB}
+          separationProgress={separationProgressB}
           onLoopIn={() => handleLoopIn('B')}
           onLoopOut={() => handleLoopOut('B')}
           onExitLoop={() => handleExitLoop('B')}
@@ -562,34 +647,23 @@ function getShiftedKey(originalKey, originalBpm, masterBpm) {
 
   const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-  // Normalize key (e.g. "Am" -> "A", "C Major" -> "C")
-  // Assuming analysis returns standard format
-  // Simple parser: take first 1-2 chars that match note
   let root = originalKey.split(' ')[0];
-  let minor = originalKey.includes('m') && !root.includes('m'); // rough check
+  let minor = originalKey.includes('m') && !root.includes('m');
 
-  // Clean root
-  if (root.length > 1 && root[1] === 'm') root = root[0]; // "Am" -> "A"
+  if (root.length > 1 && root[1] === 'm') root = root[0];
 
   let rootIndex = NOTE_NAMES.indexOf(root);
-  if (rootIndex === -1) return originalKey; // Fallback
+  if (rootIndex === -1) return originalKey;
 
-  // Calculate semitone shift from speed change
-  // rate = master / original
-  // semitones = 12 * log2(rate)
   const rate = masterBpm / originalBpm;
   const semitoneShift = 12 * Math.log2(rate);
 
-  // Round to nearest semitone
   const shiftInt = Math.round(semitoneShift);
 
   let newIndex = (rootIndex + shiftInt) % 12;
   if (newIndex < 0) newIndex += 12;
 
   const newRoot = NOTE_NAMES[newIndex];
-  // Retain minor/major suffix from original if detected (or just pass root)
-  // Let's assume originalKey string is returned if we can't parse perfectly, 
-  // but here we construct new one.
   const suffix = originalKey.includes('Major') || originalKey.includes('Maj') ? ' Maj' : (originalKey.includes('m') || originalKey.includes('Minor') ? 'm' : '');
 
   return `${newRoot}${suffix} (${shiftInt > 0 ? '+' : ''}${shiftInt})`;

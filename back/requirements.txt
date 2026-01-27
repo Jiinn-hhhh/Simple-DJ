@@ -1,9 +1,14 @@
-fastapi
-uvicorn[standard]
-python-multipart
-numpy
-requests
+# Render Backend Requirements
+# This is a lightweight gateway - no ML dependencies needed
 
+# Web Framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
 
+# File Upload
+python-multipart==0.0.9
 
+# HTTP Client (for HF Spaces proxy)
+requests==2.32.3
 
+# No torch/torchaudio/librosa needed - ML runs on HF Spaces

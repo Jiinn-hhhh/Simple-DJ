@@ -1,464 +1,361 @@
-from fastapi import FastAPI, UploadFile, File
+# app.py
+# Render Backend - API Gateway to Hugging Face Spaces
+# Handles routing, file cleanup, and acts as proxy to HF Spaces ML processing
+
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from typing import Dict, Optional
 import os
 import uuid
-from typing import Dict
+import shutil
+import threading
+import time
 import requests
-import base64
-import logging
+import traceback
+from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# === Configuration ===
+UPLOAD_DIR = "uploads"
+RESULTS_DIR = "results"
+MAX_FILE_SIZE_MB = 50
+FILE_TTL_MINUTES = 30
+CLEANUP_INTERVAL_SECONDS = 300
+REQUEST_TIMEOUT = 60  # Timeout for HF Spaces requests (seconds)
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+# HF Spaces URL from environment
+HF_SPACE_URL = os.getenv("HUGGINGFACE_SPACE_URL", "").rstrip("/")
 
 
-app = FastAPI()
+# === File Cleanup ===
+def cleanup_old_files():
+    """Periodically clean up old uploaded files and results."""
+    while True:
+        try:
+            time.sleep(CLEANUP_INTERVAL_SECONDS)
+            now = datetime.utcnow()
+            deleted_count = 0
+
+            # Clean uploads
+            for filename in os.listdir(UPLOAD_DIR):
+                filepath = os.path.join(UPLOAD_DIR, filename)
+                try:
+                    mtime = datetime.utcfromtimestamp(os.path.getmtime(filepath))
+                    if now - mtime > timedelta(minutes=FILE_TTL_MINUTES):
+                        os.remove(filepath)
+                        deleted_count += 1
+                except Exception:
+                    pass
+
+            # Clean results directories
+            for dirname in os.listdir(RESULTS_DIR):
+                dirpath = os.path.join(RESULTS_DIR, dirname)
+                try:
+                    if os.path.isdir(dirpath):
+                        mtime = datetime.utcfromtimestamp(os.path.getmtime(dirpath))
+                        if now - mtime > timedelta(minutes=FILE_TTL_MINUTES):
+                            shutil.rmtree(dirpath, ignore_errors=True)
+                            deleted_count += 1
+                except Exception:
+                    pass
+
+            if deleted_count > 0:
+                print(f"[cleanup] Deleted {deleted_count} old files/directories")
+
+        except Exception as e:
+            print(f"[cleanup] Error: {e}")
+
+
+# Start cleanup thread
+cleanup_thread = threading.Thread(target=cleanup_old_files, daemon=True)
+cleanup_thread.start()
+
+
+# === Lifespan ===
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[app] Starting up...")
+    print(f"[app] HF_SPACE_URL: {HF_SPACE_URL or 'NOT SET'}")
+    yield
+    print("[app] Shutting down...")
+
+
+# === FastAPI App ===
+app = FastAPI(
+    title="Simple DJ Backend",
+    description="API Gateway for DJ Console - routes to Hugging Face Spaces for ML processing",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+# CORS Configuration
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://simple-dj.vercel.app",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["*"],  # Allow all for simplicity; tighten in production if needed
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    max_age=86400,
 )
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# In-memory storage for track information
-# In production, use a database
-tracks_db: Dict[str, dict] = {}
-
-
+# === Health Endpoints ===
 @app.get("/")
-def read_root():
-    return {"message": "DJ backend is alive!"}
+def root():
+    return {
+        "service": "Simple DJ Backend",
+        "status": "running",
+        "version": "2.0.0",
+        "hf_space_configured": bool(HF_SPACE_URL),
+    }
+
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for Render."""
+    hf_status = "unknown"
+
+    if HF_SPACE_URL:
+        try:
+            resp = requests.get(f"{HF_SPACE_URL}/ping", timeout=5)
+            hf_status = "healthy" if resp.status_code == 200 else "unhealthy"
+        except:
+            hf_status = "unreachable"
+
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "hf_space_status": hf_status,
+    }
+
 
 @app.get("/ping")
 def ping():
     return {"status": "ok"}
 
-@app.get("/analyze-demo")
-def analyze_demo(track_name: str):
-    return {
-        "track_name": track_name,
-        "bpm": 128,
-        "key": "C minor",
-        "message": "This is a fake analysis result."
-    }
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    # 1) 업로드된 파일 내용을 한 번에 메모리로 읽기
-    contents = await file.read()
 
-    # 2) 저장할 경로 만들기
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
-
-    # 3) 파일을 디스크에 저장
-    with open(file_path, "wb") as f:
-        f.write(contents)
-
-    # 4) 파일 크기(바이트) 계산
-    file_size = len(contents)
-
-    # 5) 결과 반환 (이제 분석 정보 하나 추가!)
-    return {
-        "filename": file.filename,
-        "size_bytes": file_size,
-    }
+# === Analysis Endpoint (Proxy to HF Spaces) ===
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
     """
-    Analyze audio file to extract BPM, key, and other metadata.
-    Uses Hugging Face Spaces API for analysis.
+    Analyze audio file for BPM and key detection.
+    Proxies request to Hugging Face Spaces.
     """
+    if not HF_SPACE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="HF Spaces URL not configured. Set HUGGINGFACE_SPACE_URL environment variable."
+        )
+
     try:
-        logger.info(f"[ANALYZE] Request received - filename: {file.filename}, content_type: {file.content_type}")
-        
         contents = await file.read()
-        filename = file.filename
-        logger.info(f"[ANALYZE] File size: {len(contents)} bytes ({len(contents) / 1024 / 1024:.2f} MB)")
-        
-        # Call Hugging Face Spaces API for analysis
-        if not HF_SPACE_URL:
-            logger.error("[ANALYZE] HUGGINGFACE_SPACE_URL environment variable not set")
-            return JSONResponse(
-                status_code=500,
-                content={"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
+        file_size_mb = len(contents) / (1024 * 1024)
+
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB"
             )
-        
-        space_api_url = f"{HF_SPACE_URL}/analyze"
-        files = {"file": (filename, contents, file.content_type)}
-        
-        logger.info(f"[ANALYZE] Calling Spaces API: {space_api_url}")
-        response = requests.post(space_api_url, files=files, timeout=300) # 5분 타임아웃
-        response.raise_for_status() # HTTP 에러 발생 시 예외 처리
-        
-        result = response.json()
-        logger.info(f"[ANALYZE] Analysis complete - BPM: {result.get('bpm')}, Key: {result.get('key')}, Duration: {result.get('duration')}")
-        
-        return result
+
+        # Forward to HF Spaces
+        files = {"file": (file.filename, contents, file.content_type or "audio/mpeg")}
+        response = requests.post(
+            f"{HF_SPACE_URL}/analyze",
+            files=files,
+            timeout=REQUEST_TIMEOUT
+        )
+
+        if response.status_code != 200:
+            error_detail = "Analysis failed"
+            try:
+                error_data = response.json()
+                error_detail = error_data.get("detail", error_data.get("error", error_detail))
+            except:
+                error_detail = response.text[:200]
+            raise HTTPException(status_code=response.status_code, detail=error_detail)
+
+        return response.json()
+
+    except HTTPException:
+        raise
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="HF Spaces request timed out")
     except requests.exceptions.RequestException as e:
-        logger.error(f"[ANALYZE] Failed to call Hugging Face Spaces API: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
-        )
+        raise HTTPException(status_code=502, detail=f"Failed to connect to HF Spaces: {str(e)}")
     except Exception as e:
-        logger.error(f"[ANALYZE] Error occurred: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Analysis failed: {str(e)}"}
-        )
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/analyze/{track_id}")
-async def analyze_track(track_id: str):
-    """
-    Analyze a specific track (BPM, key, etc.).
-    Uses Hugging Face Spaces API for analysis.
-    """
-    if track_id not in tracks_db:
-        return JSONResponse(
-            status_code=404,
-            content={"error": "Track not found"}
-        )
-    
-    track = tracks_db[track_id]
-    file_path = track["file_path"]
-    
-    try:
-        # Read file contents
-        with open(file_path, "rb") as f:
-            contents = f.read()
-        
-        # Call Hugging Face Spaces API for analysis
-        if not HF_SPACE_URL:
-            logger.error("[ANALYZE_TRACK] HUGGINGFACE_SPACE_URL environment variable not set")
-            return JSONResponse(
-                status_code=500,
-                content={"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
-            )
-        
-        space_api_url = f"{HF_SPACE_URL}/analyze"
-        files = {"file": (track["filename"], contents, "audio/mpeg")}
-        
-        logger.info(f"[ANALYZE_TRACK] Calling Spaces API for track {track_id}: {space_api_url}")
-        response = requests.post(space_api_url, files=files, timeout=300)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Update track info with analysis results
-        tracks_db[track_id].update({
-            "analyzed": True,
-            "bpm": result["bpm"],
-            "key": result["key"],
-            "duration": result["duration"],
-            "sample_rate": result["sample_rate"],
-        })
-        
-        logger.info(f"[ANALYZE_TRACK] Analysis complete for track {track_id} - BPM: {result.get('bpm')}, Key: {result.get('key')}")
-        
-        return result
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[ANALYZE_TRACK] Failed to call Hugging Face Spaces API: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
-        )
-    except Exception as e:
-        logger.error(f"[ANALYZE_TRACK] Error occurred: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Analysis failed: {str(e)}"}
-        )
-
-
-RESULTS_DIR = "results"
-os.makedirs(RESULTS_DIR, exist_ok=True)
-
-# Hugging Face Spaces URL (환경 변수에서 가져오기)
-HF_SPACE_URL = os.getenv("HUGGINGFACE_SPACE_URL", "")
-
-
+# === Separation Endpoint (Proxy to HF Spaces) ===
 @app.post("/separate")
 async def separate(file: UploadFile = File(...)):
     """
-    Separate audio file into stems (drums, bass, vocals, other).
-    Uses Hugging Face Spaces API for separation.
-    Returns job ID and paths to separated stems.
+    Start audio separation job.
+    Proxies request to Hugging Face Spaces.
+    Returns job_id for polling.
+
+    Frontend should poll HF Spaces directly at:
+    {HF_SPACE_URL}/job/{job_id}
     """
     if not HF_SPACE_URL:
-        return {"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
-    
-    # Read file contents
-    contents = await file.read()
-    filename = file.filename
-    
-    # Call Hugging Face Spaces API
+        raise HTTPException(
+            status_code=503,
+            detail="HF Spaces URL not configured. Set HUGGINGFACE_SPACE_URL environment variable."
+        )
+
     try:
-        space_api_url = f"{HF_SPACE_URL}/separate"
-        
-        # Prepare file for upload
-        files = {"file": (filename, contents, file.content_type)}
-        
-        # Make request to Spaces API
-        response = requests.post(space_api_url, files=files, timeout=300)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Decode base64 data and save files
-        job_id = result.get("job_id", str(uuid.uuid4()))
-        job_dir = os.path.join(RESULTS_DIR, job_id)
-        os.makedirs(job_dir, exist_ok=True)
-        
-        sources = {}
-        sources_data = result.get("sources", {})
-        
-        for stem_name, stem_info in sources_data.items():
-            if isinstance(stem_info, dict) and "data" in stem_info:
-                # Decode base64 data
-                audio_data = base64.b64decode(stem_info["data"])
-                
-                # Save to file
-                stem_filename = stem_info.get("filename", f"{filename}_{stem_name}.wav")
-                stem_path = os.path.join(job_dir, stem_filename)
-                
-                with open(stem_path, "wb") as f:
-                    f.write(audio_data)
-                
-                sources[stem_name] = stem_path
-        
-        return {
-            "job_id": job_id,
-            "sources": sources,
-            "filename": filename,
-        }
-    except requests.exceptions.RequestException as e:
-        return {"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
-    except Exception as e:
-        return {"error": f"Error processing separation: {str(e)}"}
-
-
-@app.post("/separate/{track_id}")
-async def separate_track(track_id: str):
-    """
-    Separate a specific track into stems.
-    Uses Hugging Face Spaces API for separation.
-    """
-    if track_id not in tracks_db:
-        return {"error": "Track not found"}
-    
-    if not HF_SPACE_URL:
-        return {"error": "HUGGINGFACE_SPACE_URL environment variable not set"}
-    
-    track = tracks_db[track_id]
-    file_path = track["file_path"]
-    
-    # Read file and call Spaces API
-    try:
-        with open(file_path, "rb") as f:
-            contents = f.read()
-        
-        space_api_url = f"{HF_SPACE_URL}/separate"
-        files = {"file": (track["filename"], contents, "audio/mpeg")}
-        
-        response = requests.post(space_api_url, files=files, timeout=300)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Decode and save stems
-        job_id = result.get("job_id", str(uuid.uuid4()))
-        job_dir = os.path.join(RESULTS_DIR, job_id)
-        os.makedirs(job_dir, exist_ok=True)
-        
-        sources = {}
-        sources_data = result.get("sources", {})
-        
-        for stem_name, stem_info in sources_data.items():
-            if isinstance(stem_info, dict) and "data" in stem_info:
-                audio_data = base64.b64decode(stem_info["data"])
-                stem_filename = stem_info.get("filename", f"{track['filename']}_{stem_name}.wav")
-                stem_path = os.path.join(job_dir, stem_filename)
-                
-                with open(stem_path, "wb") as f:
-                    f.write(audio_data)
-                
-                sources[stem_name] = stem_path
-        
-        # Update track info
-        tracks_db[track_id].update({
-            "separated": True,
-            "separation_job_id": job_id,
-            "stems": sources,
-        })
-        
-        return {
-            "job_id": job_id,
-            "sources": sources,
-            "filename": track["filename"],
-        }
-    except requests.exceptions.RequestException as e:
-        return {"error": f"Failed to call Hugging Face Spaces API: {str(e)}"}
-    except Exception as e:
-        return {"error": f"Error processing separation: {str(e)}"}
-
-
-@app.get("/stems/{job_id}/{stem_name}")
-async def get_stem(job_id: str, stem_name: str):
-    """
-    Download a separated stem file.
-    
-    Args:
-        job_id: Job ID from separation result
-        stem_name: Name of the stem (drums, bass, vocals, other)
-    """
-    # Find the stem file
-    job_dir = os.path.join(RESULTS_DIR, job_id)
-    
-    # Look for files matching the pattern
-    if not os.path.exists(job_dir):
-        return {"error": "Job not found"}
-    
-    # Find the stem file
-    for file in os.listdir(job_dir):
-        if file.endswith(f"_{stem_name}.wav"):
-            file_path = os.path.join(job_dir, file)
-            return FileResponse(
-                file_path,
-                media_type="audio/wav",
-                filename=file
-            )
-    
-    return {"error": "Stem not found"}
-
-
-@app.post("/upload-tracks")
-async def upload_tracks(track1: UploadFile = File(...), track2: UploadFile = File(...)):
-    """
-    Upload two audio tracks for DJ mixing.
-    Returns track IDs for both tracks.
-    """
-    track_ids = []
-    
-    for idx, file in enumerate([track1, track2], 1):
-        # Generate unique track ID
-        track_id = str(uuid.uuid4())
-        
-        # Read file contents
         contents = await file.read()
-        filename = file.filename
-        
-        # Save file
-        file_path = os.path.join(UPLOAD_DIR, f"{track_id}_{filename}")
-        with open(file_path, "wb") as f:
-            f.write(contents)
-        
-        # Store track information
-        tracks_db[track_id] = {
-            "id": track_id,
-            "filename": filename,
-            "file_path": file_path,
-            "size_bytes": len(contents),
-            "analyzed": False,
-            "separated": False,
-        }
-        
-        track_ids.append(track_id)
-    
+        file_size_mb = len(contents) / (1024 * 1024)
+
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB"
+            )
+
+        # Forward to HF Spaces
+        files = {"file": (file.filename, contents, file.content_type or "audio/mpeg")}
+        response = requests.post(
+            f"{HF_SPACE_URL}/separate",
+            files=files,
+            timeout=REQUEST_TIMEOUT  # This should be quick as HF Spaces returns immediately
+        )
+
+        if response.status_code != 200:
+            error_detail = "Separation request failed"
+            try:
+                error_data = response.json()
+                error_detail = error_data.get("detail", error_data.get("error", error_detail))
+            except:
+                error_detail = response.text[:200]
+            raise HTTPException(status_code=response.status_code, detail=error_detail)
+
+        result = response.json()
+
+        # Add HF Spaces URL for frontend to poll directly
+        result["hf_space_url"] = HF_SPACE_URL
+
+        return result
+
+    except HTTPException:
+        raise
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="HF Spaces request timed out")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to HF Spaces: {str(e)}")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# === Job Status Proxy ===
+@app.get("/job/{job_id}")
+async def get_job_status(job_id: str):
+    """
+    Proxy job status request to HF Spaces.
+    Frontend can also call HF Spaces directly.
+    """
+    if not HF_SPACE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="HF Spaces URL not configured"
+        )
+
+    try:
+        response = requests.get(
+            f"{HF_SPACE_URL}/job/{job_id}",
+            timeout=10
+        )
+
+        if response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Failed to get job status")
+
+        result = response.json()
+
+        # Rewrite download URLs to go through this proxy or direct to HF Spaces
+        if "stems" in result:
+            for stem_name, stem_info in result["stems"].items():
+                # Option 1: Direct to HF Spaces (recommended for performance)
+                stem_info["download_url"] = f"{HF_SPACE_URL}/job/{job_id}/stems/{stem_name}"
+                # Option 2: Through this proxy (uncomment if CORS issues)
+                # stem_info["download_url"] = f"/job/{job_id}/stems/{stem_name}"
+
+        result["hf_space_url"] = HF_SPACE_URL
+
+        return result
+
+    except HTTPException:
+        raise
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to HF Spaces: {str(e)}")
+
+
+# === Stem Download Proxy ===
+@app.get("/job/{job_id}/stems/{stem_name}")
+async def download_stem(job_id: str, stem_name: str):
+    """
+    Proxy stem download from HF Spaces.
+    Useful if CORS is an issue with direct HF Spaces access.
+    """
+    if not HF_SPACE_URL:
+        raise HTTPException(status_code=503, detail="HF Spaces URL not configured")
+
+    try:
+        response = requests.get(
+            f"{HF_SPACE_URL}/job/{job_id}/stems/{stem_name}",
+            timeout=120,  # Longer timeout for file download
+            stream=True
+        )
+
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Failed to download stem")
+
+        # Stream the response
+        from fastapi.responses import StreamingResponse
+
+        return StreamingResponse(
+            response.iter_content(chunk_size=8192),
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition": f'attachment; filename="{stem_name}.wav"'
+            }
+        )
+
+    except HTTPException:
+        raise
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to download from HF Spaces: {str(e)}")
+
+
+# === Configuration Endpoint ===
+@app.get("/config")
+def get_config():
+    """
+    Returns configuration info for frontend.
+    Frontend uses this to know where to poll for job status.
+    """
     return {
-        "track1_id": track_ids[0],
-        "track2_id": track_ids[1],
-        "message": "Tracks uploaded successfully"
+        "hf_space_url": HF_SPACE_URL,
+        "max_file_size_mb": MAX_FILE_SIZE_MB,
+        "supported_formats": ["mp3", "wav", "flac", "ogg", "m4a"],
     }
 
 
-@app.get("/tracks/{track_id}/info")
-async def get_track_info(track_id: str):
-    """
-    Get information about an uploaded track.
-    Returns track metadata, analysis results, and separation status.
-    """
-    if track_id not in tracks_db:
-        return {"error": "Track not found"}
-    
-    track_info = tracks_db[track_id].copy()
-    
-    # Return track information
-    return track_info
-
-
-@app.get("/tracks/{track_id}/download")
-async def download_track(track_id: str):
-    """
-    Download the original audio file for a track.
-    """
-    if track_id not in tracks_db:
-        return {"error": "Track not found"}
-    
-    track = tracks_db[track_id]
-    file_path = track["file_path"]
-    
-    if not os.path.exists(file_path):
-        return {"error": "File not found"}
-    
-    return FileResponse(
-        file_path,
-        media_type="audio/mpeg",
-        filename=track["filename"]
-    )
-
-
-class BPMAdjustRequest(BaseModel):
-    track_id: str
-    target_bpm: float
-
-
-@app.post("/adjust-bpm")
-async def adjust_bpm_endpoint(request: BPMAdjustRequest):
-    """
-    Adjust BPM of a track using time stretching.
-    Returns the path to the adjusted file.
-    """
-    if request.track_id not in tracks_db:
-        return {"error": "Track not found"}
-    
-    track = tracks_db[request.track_id]
-    
-    if not track.get("analyzed"):
-        return {"error": "Track must be analyzed first to get original BPM"}
-    
-    original_bpm = track.get("bpm")
-    if not original_bpm:
-        return {"error": "Original BPM not found"}
-    
-    # Create output path
-    output_filename = f"{track['id']}_bpm_{request.target_bpm}.wav"
-    output_path = os.path.join(UPLOAD_DIR, output_filename)
-    
-    # Adjust BPM
-    analysis.adjust_bpm(
-        track["file_path"],
-        request.target_bpm,
-        original_bpm,
-        output_path
-    )
-    
-    return {
-        "track_id": request.track_id,
-        "original_bpm": original_bpm,
-        "target_bpm": request.target_bpm,
-        "output_file": output_filename,
-        "download_url": f"/tracks/{request.track_id}/bpm-adjusted"
-    }
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
