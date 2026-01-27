@@ -335,7 +335,14 @@ function App() {
 
       const loadPromises = stemNames.map(async (stemName) => {
         const stemInfo = jobResult.stems[stemName];
-        const url = stemInfo.download_url;
+        let url = stemInfo.download_url;
+
+        // Convert relative URL to absolute URL using HF Spaces base
+        if (url.startsWith('/')) {
+          const baseUrl = pollUrl || hfSpaceUrl || jobResult.hf_space_url;
+          url = `${baseUrl}${url}`;
+        }
+
         console.log(`[separateTrack] Loading stem ${stemName} from ${url}`);
         await audioPlayerRef.current.loadAudio(deckId, stemName, url);
 
