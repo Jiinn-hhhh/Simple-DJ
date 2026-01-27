@@ -62,18 +62,35 @@ class AudioPlayer {
     await this.init();
 
     try {
+      console.log(`[AudioPlayer] Loading ${trackId}/${stemName} from: ${audioUrl}`);
+
       const response = await fetch(audioUrl);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      console.log(`[AudioPlayer] ${trackId}/${stemName} content-type: ${contentType}`);
+
       const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+      console.log(`[AudioPlayer] ${trackId}/${stemName} buffer size: ${arrayBuffer.byteLength}`);
+
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('Empty audio buffer received');
+      }
+
+      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer.slice(0));
 
       if (!this.audioBuffers[trackId]) {
         this.audioBuffers[trackId] = {};
       }
       this.audioBuffers[trackId][stemName] = audioBuffer;
 
+      console.log(`[AudioPlayer] ${trackId}/${stemName} loaded successfully`);
       return audioBuffer;
     } catch (error) {
-      console.error(`Error loading audio for ${trackId}/${stemName}:`, error);
+      console.error(`[AudioPlayer] Error loading ${trackId}/${stemName} from ${audioUrl}:`, error);
       throw error;
     }
   }
