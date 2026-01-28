@@ -569,7 +569,9 @@ function App() {
       )}
 
       <div className="top-bar">
-        <h1 className="pixel-font">Simple DJ</h1>
+        <a href="https://jiinn-hhhh.github.io/homepage/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+          <h1 className="pixel-font">Simple DJ</h1>
+        </a>
         <div className="status-bar pixel-font">{status}</div>
       </div>
 
