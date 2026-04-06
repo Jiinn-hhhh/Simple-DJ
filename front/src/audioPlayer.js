@@ -721,6 +721,106 @@ class AudioPlayer {
     }
   }
 
+  // === Vinyl Scratch ===
+
+  getTrackDuration(deckId) {
+    const buffers = this.audioBuffers[deckId];
+    if (!buffers) return 0;
+    if (buffers['full']) return buffers['full'].duration;
+    const first = Object.values(buffers)[0];
+    return first ? first.duration : 0;
+  }
+
+  getCurrentPosition(deckId) {
+    if (!this.isPlaying[deckId] || this.startTimes[deckId] == null) {
+      return this.pauseOffsets[deckId] || 0;
+    }
+    const elapsed = this.audioContext.currentTime - this.startTimes[deckId];
+    const rate = this.playbackRates[deckId] || 1.0;
+    return (this.pauseOffsets[deckId] || 0) + elapsed * rate;
+  }
+
+  startScratch(deckId) {
+    this._scratchState = this._scratchState || {};
+    const pos = this.getCurrentPosition(deckId);
+    this.stop(deckId);
+    this._scratchState[deckId] = {
+      active: true,
+      position: pos,
+      lastRate: this.playbackRates[deckId] || 1.0,
+    };
+  }
+
+  updateScratch(deckId, angleDelta) {
+    if (!this._scratchState?.[deckId]?.active) return;
+    const state = this._scratchState[deckId];
+    const duration = this.getTrackDuration(deckId);
+    if (!duration) return;
+
+    // Map angle delta to position change
+    // Full rotation (2π) = ~2 seconds of audio
+    const positionDelta = (angleDelta / (2 * Math.PI)) * 2.0;
+    state.position = Math.max(0, Math.min(duration, state.position + positionDelta));
+
+    // Calculate scratch rate from angle delta (how fast they're scratching)
+    // angleDelta is per-frame, so we scale it up
+    const scratchRate = Math.max(0.01, Math.min(8, Math.abs(angleDelta) * 30));
+
+    // Play a short burst from the current position
+    this._playScratchBurst(deckId, state.position, angleDelta >= 0 ? scratchRate : scratchRate);
+  }
+
+  _playScratchBurst(deckId, position, rate) {
+    // Stop any existing scratch sources
+    if (this._scratchSources?.[deckId]) {
+      Object.values(this._scratchSources[deckId]).forEach(s => {
+        try { s.stop(); } catch {}
+      });
+    }
+    this._scratchSources = this._scratchSources || {};
+    this._scratchSources[deckId] = {};
+
+    if (!this.audioBuffers[deckId] || !this.audioContext) return;
+
+    this.setupTrackGraph(deckId);
+
+    Object.entries(this.audioBuffers[deckId]).forEach(([stemName, buffer]) => {
+      const source = this.audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.playbackRate.value = rate;
+
+      // Connect through existing stem gain → track gain chain
+      const stemGain = this.audioContext.createGain();
+      const isMuted = this.stemMuteStates[deckId]?.[stemName];
+      stemGain.gain.value = isMuted ? 0 : 1;
+      source.connect(stemGain);
+      stemGain.connect(this.trackGainNodes[deckId]);
+
+      const safePos = Math.max(0, Math.min(buffer.duration - 0.01, position));
+      source.start(0, safePos, 0.08); // play 80ms burst
+      this._scratchSources[deckId][stemName] = source;
+    });
+  }
+
+  endScratch(deckId) {
+    if (!this._scratchState?.[deckId]?.active) return;
+    const state = this._scratchState[deckId];
+    state.active = false;
+
+    // Stop scratch sources
+    if (this._scratchSources?.[deckId]) {
+      Object.values(this._scratchSources[deckId]).forEach(s => {
+        try { s.stop(); } catch {}
+      });
+      this._scratchSources[deckId] = {};
+    }
+
+    // Resume normal playback from scratch position
+    this.pauseOffsets[deckId] = state.position;
+    this.playbackRates[deckId] = state.lastRate;
+    this.play(deckId, state.position);
+  }
+
   // Seek: Jump to percentage (0.0 - 1.0)
   async seek(deckId, percent) {
     // 1. Stop current

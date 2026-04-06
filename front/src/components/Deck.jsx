@@ -11,7 +11,7 @@ const Deck = ({
     playbackRate = 1.0,
     effectiveKey,
     onPlayPause,
-    onLoadTrack,
+    onLoadFromLibrary,
     activeStems,
     onToggleStem,
     isSeparating,
@@ -20,44 +20,44 @@ const Deck = ({
     onLoopOut,
     onExitLoop,
     onSeek,
+    onScratchStart,
+    onScratchMove,
+    onScratchEnd,
     visualizerNode,
     loadingTrack
 }) => {
-    const [isDragging, setIsDragging] = useState(false);
-    const [loopState, setLoopState] = useState('inactive'); // inactive, in, active
-
-    // Stem Dragging State
-    // active: boolean, targetState: boolean (true=turn on, false=turn off)
+    const [isDragOver, setIsDragOver] = useState(false);
+    const [loopState, setLoopState] = useState('inactive');
     const [stemDrag, setStemDrag] = useState({ active: false, targetState: true });
-
-    const fileInputRef = useRef(null);
+    const [isScratching, setIsScratching] = useState(false);
     const waveformRef = useRef(null);
+    const vinylRef = useRef(null);
+    const scratchRef = useRef({ lastAngle: null });
 
-    const handleFileChange = (e) => {
-        const file = e.target.files[0];
-        if (file) onLoadTrack(file);
+    // Accept library track drops (from TrackItem drag)
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        if (e.dataTransfer.types.includes('application/x-library-track')) {
+            setIsDragOver(true);
+        }
     };
-
-    const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
-    const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+    const handleDragLeave = () => setIsDragOver(false);
     const handleDrop = (e) => {
         e.preventDefault();
-        setIsDragging(false);
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('audio/')) onLoadTrack(file);
+        setIsDragOver(false);
+        const data = e.dataTransfer.getData('application/x-library-track');
+        if (data) {
+            try {
+                const libraryTrack = JSON.parse(data);
+                if (onLoadFromLibrary) onLoadFromLibrary(deckId, libraryTrack);
+            } catch {}
+        }
     };
 
     const handleLoopToggle = () => {
-        if (loopState === 'inactive') {
-            setLoopState('in');
-            onLoopIn();
-        } else if (loopState === 'in') {
-            setLoopState('active');
-            onLoopOut();
-        } else {
-            setLoopState('inactive');
-            onExitLoop();
-        }
+        if (loopState === 'inactive') { setLoopState('in'); onLoopIn(); }
+        else if (loopState === 'in') { setLoopState('active'); onLoopOut(); }
+        else { setLoopState('inactive'); onExitLoop(); }
     };
 
     const handleWaveformClick = (e) => {
@@ -67,12 +67,51 @@ const Deck = ({
         onSeek(percent);
     };
 
-    // Animation speed
-    const rotationDuration = isPlaying && playbackRate > 0 ? `${2 / playbackRate}s` : '0s';
+    // --- Vinyl scratch handlers ---
+    const getAngle = (e, rect) => {
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        return Math.atan2(e.clientY - cy, e.clientX - cx);
+    };
+
+    const handleVinylMouseDown = (e) => {
+        if (!track || !isPlaying) return;
+        e.preventDefault();
+        const rect = vinylRef.current.getBoundingClientRect();
+        scratchRef.current.lastAngle = getAngle(e, rect);
+        setIsScratching(true);
+        if (onScratchStart) onScratchStart(deckId);
+
+        const handleMouseMove = (ev) => {
+            const r = vinylRef.current?.getBoundingClientRect();
+            if (!r) return;
+            const angle = getAngle(ev, r);
+            const delta = angle - scratchRef.current.lastAngle;
+            // Normalize delta to handle ±π wraparound
+            let normalized = delta;
+            if (normalized > Math.PI) normalized -= 2 * Math.PI;
+            if (normalized < -Math.PI) normalized += 2 * Math.PI;
+            scratchRef.current.lastAngle = angle;
+            if (onScratchMove) onScratchMove(deckId, normalized);
+        };
+
+        const handleMouseUp = () => {
+            setIsScratching(false);
+            scratchRef.current.lastAngle = null;
+            if (onScratchEnd) onScratchEnd(deckId);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const rotationDuration = isPlaying && !isScratching && playbackRate > 0 ? `${2 / playbackRate}s` : '0s';
 
     return (
         <div
-            className={`deck-container ${isDragging ? 'dragging' : ''}`}
+            className={`deck-container ${isDragOver ? 'dragging' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -102,129 +141,82 @@ const Deck = ({
 
             <div className="disc-container" style={{ position: 'relative' }}>
                 <div
-                    className={`vinyl-disc ${isPlaying ? 'spinning' : ''}`}
-                    style={{ animationDuration: rotationDuration }}
+                    ref={vinylRef}
+                    className={`vinyl-disc ${isPlaying && !isScratching ? 'spinning' : ''} ${isScratching ? 'scratching' : ''}`}
+                    style={{ animationDuration: rotationDuration, cursor: track && isPlaying ? 'grab' : 'default' }}
+                    onMouseDown={handleVinylMouseDown}
                 >
                     <div className="disc-label">
                         {deckId === 'A' ? 'LEFT' : 'RIGHT'}
                     </div>
                 </div>
 
-                {/* Spectrum Analyzer Overlay - Retro Box Style */}
                 {track && (
                     <div style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '50%',
-                        transform: 'translate(-50%, 0)',
-                        width: '100%',
-                        height: '80px',
-                        boxSizing: 'border-box',
-                        background: '#000',
+                        position: 'absolute', top: '10px', left: '50%',
+                        transform: 'translate(-50%, 0)', width: '100%', height: '80px',
+                        boxSizing: 'border-box', background: '#000',
                         border: isPlaying ? `3px solid ${deckId === 'A' ? 'var(--neon-green)' : 'var(--neon-pink)'}` : '3px solid #333',
-                        borderRadius: '6px',
-                        zIndex: 10,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        borderRadius: '6px', zIndex: 10, display: 'flex',
+                        justifyContent: 'center', alignItems: 'center',
                         boxShadow: isPlaying ? `0 0 15px ${deckId === 'A' ? 'rgba(0, 255, 157, 0.6)' : 'rgba(255, 0, 85, 0.6)'}` : 'none',
                         overflow: 'hidden'
                     }}>
-                        <SpectrumAnalyzer
-                            analyserNode={visualizerNode}
-                            color={deckId === 'A' ? '#00ff00' : '#ff00ff'}
-                        />
-                        {/* Retro Glare Effect */}
+                        <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
                         <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
+                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                             background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%)',
                             pointerEvents: 'none'
-                        }}></div>
+                        }} />
                     </div>
                 )}
 
                 {isSeparating && (
-                    <div className="separation-overlay" style={{
-                        position: 'absolute',
-                        bottom: '10px',
-                        background: 'black',
-                        padding: '8px 12px',
-                        borderRadius: '4px',
-                        border: '1px solid var(--neon-green)',
-                        zIndex: 20,
-                        minWidth: '120px'
+                    <div style={{
+                        position: 'absolute', bottom: '10px', background: 'black',
+                        padding: '8px 12px', borderRadius: '4px',
+                        border: '1px solid var(--neon-green)', zIndex: 20, minWidth: '120px'
                     }}>
                         <span className="pixel-font" style={{ color: 'var(--neon-green)', fontSize: '0.7rem', display: 'block', marginBottom: '4px' }}>
                             SEPARATING... {separationProgress > 0 ? `${separationProgress}%` : ''}
                         </span>
-                        <div style={{
-                            width: '100%',
-                            height: '4px',
-                            background: '#333',
-                            borderRadius: '2px',
-                            overflow: 'hidden'
-                        }}>
+                        <div style={{ width: '100%', height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{
-                                width: `${separationProgress}%`,
-                                height: '100%',
-                                background: 'var(--neon-green)',
-                                transition: 'width 0.3s ease',
+                                width: `${separationProgress}%`, height: '100%',
+                                background: 'var(--neon-green)', transition: 'width 0.3s ease',
                                 boxShadow: '0 0 8px var(--neon-green)'
-                            }}></div>
+                            }} />
                         </div>
                     </div>
                 )}
             </div>
 
             <div className="deck-controls">
-                <input
-                    type="file"
-                    accept="audio/*"
-                    onChange={handleFileChange}
-                    ref={fileInputRef}
-                    className="hidden-input"
-                />
                 {!track ? (
                     <div className="deck-empty-hint">
-                        <span>Drop audio or load from Library</span>
+                        <span>Drag a track from Library</span>
                     </div>
                 ) : (
                     <>
-                        <div
-                            className="waveform-container"
-                            ref={waveformRef}
-                            onClick={handleWaveformClick}
-                        >
-                            <div className="waveform-grid"></div>
-                            <div className="waveform-progress" style={{ width: '0%' /* Needs state connection for real progress if available */ }}></div>
+                        <div className="waveform-container" ref={waveformRef} onClick={handleWaveformClick}>
+                            <div className="waveform-grid" />
+                            <div className="waveform-progress" style={{ width: '0%' }} />
                         </div>
 
                         <div className="control-row">
-                            <button
-                                className={`play-btn ${isPlaying ? 'active' : ''}`}
-                                onClick={onPlayPause}
-                            >
+                            <button className={`play-btn ${isPlaying ? 'active' : ''}`} onClick={onPlayPause}>
                                 {isPlaying ? '||' : '▶'}
                             </button>
-
                             <div className="feature-grid">
                                 <button
                                     className={`glass-btn loop ${loopState !== 'inactive' ? 'active' : ''}`}
                                     onClick={handleLoopToggle}
-                                    style={{
-                                        gridColumn: 'span 4',
-                                        border: loopState === 'in' ? '2px dashed var(--neon-yellow)' : undefined
-                                    }}
+                                    style={{ gridColumn: 'span 4', border: loopState === 'in' ? '2px dashed var(--neon-yellow)' : undefined }}
                                 >
                                     {loopState === 'inactive' ? 'LOOP IN' : (loopState === 'in' ? 'LOOP OUT' : 'EXIT LOOP')}
                                 </button>
                             </div>
                         </div>
-
 
                         <div className="stems-row" onMouseLeave={() => setStemDrag({ ...stemDrag, active: false })}>
                             {STEMS.map(stem => (
@@ -234,12 +226,10 @@ const Deck = ({
                                     onMouseDown={() => {
                                         const newState = !activeStems[stem];
                                         setStemDrag({ active: true, targetState: newState });
-                                        onToggleStem(stem); // Toggle current immediately
+                                        onToggleStem(stem);
                                     }}
                                     onMouseEnter={() => {
-                                        if (stemDrag.active && activeStems[stem] !== stemDrag.targetState) {
-                                            onToggleStem(stem);
-                                        }
+                                        if (stemDrag.active && activeStems[stem] !== stemDrag.targetState) onToggleStem(stem);
                                     }}
                                     onMouseUp={() => setStemDrag({ ...stemDrag, active: false })}
                                     disabled={!track.separated}
@@ -251,7 +241,7 @@ const Deck = ({
                     </>
                 )}
             </div>
-        </div >
+        </div>
     );
 };
 

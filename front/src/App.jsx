@@ -85,6 +85,11 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSystemReady, decks.togglePlay, setCrossfader]);
 
+  // --- Scratch handlers ---
+  const handleScratchStart = (deckId) => audioPlayerRef.current.startScratch(deckId);
+  const handleScratchMove = (deckId, angleDelta) => audioPlayerRef.current.updateScratch(deckId, angleDelta);
+  const handleScratchEnd = (deckId) => audioPlayerRef.current.endScratch(deckId);
+
   // --- Guard wrapper for deck/mixer actions ---
   const guard = (fn) => (...args) => { if (isSystemReady) fn(...args); };
 
@@ -157,7 +162,7 @@ function App() {
                 playbackRate={getPlaybackRate(decks.trackA, masterBpm)}
                 effectiveKey={getShiftedKey(decks.trackA?.key, decks.trackA?.bpm, masterBpm)}
                 onPlayPause={() => guard(decks.togglePlay)('A')}
-                onLoadTrack={(file) => guard(decks.loadTrack)('A', file)}
+                onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
                 volume={volumeA}
                 onVolumeChange={(val) => guard(handleVolumeChange)('A', val)}
                 filter={filterA}
@@ -170,6 +175,9 @@ function App() {
                 onLoopOut={() => guard(decks.handleLoopOut)('A')}
                 onExitLoop={() => guard(decks.handleExitLoop)('A')}
                 onSeek={(p) => guard(decks.handleSeek)('A', p)}
+                onScratchStart={handleScratchStart}
+                onScratchMove={handleScratchMove}
+                onScratchEnd={handleScratchEnd}
                 visualizerNode={audioPlayerRef.current.getAnalyser('A')}
                 loadingTrack={decks.loadingFileA}
               />
@@ -216,6 +224,9 @@ function App() {
                 onLoopOut={() => guard(decks.handleLoopOut)('B')}
                 onExitLoop={() => guard(decks.handleExitLoop)('B')}
                 onSeek={(p) => guard(decks.handleSeek)('B', p)}
+                onScratchStart={handleScratchStart}
+                onScratchMove={handleScratchMove}
+                onScratchEnd={handleScratchEnd}
                 visualizerNode={audioPlayerRef.current.getAnalyser('B')}
                 loadingTrack={decks.loadingFileB}
               />

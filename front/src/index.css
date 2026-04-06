@@ -527,6 +527,13 @@ body {
     animation: spin 1.8s linear infinite;
 }
 
+.vinyl-disc.scratching {
+    animation: none;
+    border-color: var(--neon-yellow);
+    box-shadow: 0 0 20px rgba(240, 255, 0, 0.3);
+    cursor: grabbing !important;
+}
+
 .disc-label {
     width: 110px;
     /* Increased size */

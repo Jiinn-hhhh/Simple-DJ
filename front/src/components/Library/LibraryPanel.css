@@ -47,7 +47,6 @@
 .library-title {
   font-size: 0.65rem;
   color: var(--neon-green, #00ff9d);
-  text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
   margin: 0;
   white-space: nowrap;
 }
@@ -203,6 +202,30 @@
 .track-delete-btn:hover {
   color: var(--neon-pink, #ff0055);
   border-color: var(--neon-pink, #ff0055);
+}
+
+/* Track Item — draggable */
+.track-item.draggable {
+  cursor: grab;
+}
+
+.track-item.draggable:active {
+  cursor: grabbing;
+}
+
+/* Title inline edit */
+.track-item-title-input {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #e0e0e0;
+  background: #111116;
+  border: 1px solid var(--neon-green, #00ff9d);
+  border-radius: 3px;
+  padding: 2px 6px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
 }
 
 /* Track Item Error */

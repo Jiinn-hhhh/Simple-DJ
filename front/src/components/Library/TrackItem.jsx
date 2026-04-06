@@ -1,4 +1,10 @@
+import { useState } from 'react';
+import { supabase } from '../../lib/supabase';
+
 export default function TrackItem({ track, onDelete, onLoadToDeck }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(track.title);
+
   const formatDuration = (seconds) => {
     if (!seconds) return '--:--';
     const m = Math.floor(seconds / 60);
@@ -6,9 +12,46 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handleTitleSave = async () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== track.title) {
+      await supabase.from('tracks').update({ title: trimmed }).eq('id', track.id);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleTitleSave();
+    if (e.key === 'Escape') { setEditTitle(track.title); setIsEditing(false); }
+  };
+
+  // HTML5 drag for deck loading
+  const handleDragStart = (e) => {
+    if (track.status !== 'ready') { e.preventDefault(); return; }
+    e.dataTransfer.setData('application/x-library-track', JSON.stringify(track));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
-    <div className="track-item">
-      <div className="track-item-title">{track.title}</div>
+    <div
+      className={`track-item ${track.status === 'ready' ? 'draggable' : ''}`}
+      draggable={track.status === 'ready'}
+      onDragStart={handleDragStart}
+    >
+      {isEditing ? (
+        <input
+          className="track-item-title-input"
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          onBlur={handleTitleSave}
+          onKeyDown={handleKeyDown}
+          autoFocus
+        />
+      ) : (
+        <div className="track-item-title" onDoubleClick={() => setIsEditing(true)}>
+          {track.title}
+        </div>
+      )}
       <div className="track-item-meta">
         {track.bpm && <span>{Math.round(track.bpm)} BPM</span>}
         {track.key && <span>{track.key}</span>}
