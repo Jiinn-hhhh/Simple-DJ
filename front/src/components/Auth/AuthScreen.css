@@ -140,6 +140,53 @@
   text-align: center;
 }
 
+/* Divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #33333f;
+}
+
+.auth-divider span {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #555566;
+}
+
+/* Google Button */
+.auth-google {
+  background: transparent;
+  color: #e0e0e0;
+  border: 1px solid #33333f;
+  border-radius: 6px;
+  padding: 14px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.55rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.auth-google:hover:not(:disabled) {
+  border-color: var(--neon-blue, #00e5ff);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+  color: var(--neon-blue, #00e5ff);
+}
+
+.auth-google:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Success Message */
 .auth-success {
   font-family: 'Rajdhani', sans-serif;

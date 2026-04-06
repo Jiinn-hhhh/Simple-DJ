@@ -16,7 +16,7 @@ const MAX_POLL_ATTEMPTS = 300; // Max 10 minutes (300 * 2s)
 
 function App() {
   console.log("App Component Rendering...");
-  const { user, loading: authLoading, signUp, signIn, signOut } = useAuth();
+  const { user, loading: authLoading, signUp, signIn, signInWithGoogle, signOut } = useAuth();
   const { tracks: libraryTracks, loading: libraryLoading, uploadTrack, deleteTrack, getStemUrls } = useLibrary(user);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [status, setStatus] = useState("INSERT COIN");
@@ -631,7 +631,7 @@ function App() {
           </div>
         </div>
       ) : !user ? (
-        <AuthScreen onSignIn={signIn} onSignUp={signUp} />
+        <AuthScreen onSignIn={signIn} onSignUp={signUp} onSignInWithGoogle={signInWithGoogle} />
       ) : (
         <>
           <LibraryPanel

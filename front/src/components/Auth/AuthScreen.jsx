@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './AuthScreen.css';
 
-export default function AuthScreen({ onSignIn, onSignUp }) {
+export default function AuthScreen({ onSignIn, onSignUp, onSignInWithGoogle }) {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -121,6 +121,19 @@ export default function AuthScreen({ onSignIn, onSignUp }) {
               : mode === 'login'
                 ? 'LOGIN'
                 : 'CREATE ACCOUNT'}
+          </button>
+
+          <div className="auth-divider">
+            <span>OR</span>
+          </div>
+
+          <button
+            type="button"
+            className="auth-google"
+            onClick={onSignInWithGoogle}
+            disabled={submitting}
+          >
+            CONTINUE WITH GOOGLE
           </button>
         </form>
       </div>
