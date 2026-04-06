@@ -1,51 +1,70 @@
-/* Library Panel */
-.library-panel {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 360px;
-  background: #16161a;
-  border-right: 1px solid #33333f;
-  box-shadow: 5px 0 20px rgba(0,0,0,0.5);
-  z-index: 1000;
+/* Main Layout — push mode */
+.main-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  background: radial-gradient(circle at center, #1a1a20 0%, #0d0d10 100%);
+  transition: margin-left 0.3s ease;
+}
+
+/* Library Panel — inline sidebar */
+.library-panel {
+  width: 0;
+  min-width: 0;
+  background: #16161a;
+  border-right: 1px solid #33333f;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.3s ease, min-width 0.3s ease;
+  flex-shrink: 0;
 }
 
 .library-panel.open {
-  transform: translateX(0);
+  width: 300px;
+  min-width: 300px;
 }
 
 .library-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: 16px;
   border-bottom: 1px solid #33333f;
+  flex-shrink: 0;
 }
 
 .library-title {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: var(--neon-green, #00ff9d);
   text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
   margin: 0;
+  white-space: nowrap;
 }
 
 .library-close {
   background: transparent;
   border: 1px solid #33333f;
   color: #888899;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   cursor: pointer;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   transition: color 0.2s, border-color 0.2s;
 }
 
@@ -57,36 +76,38 @@
 .library-tracks {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  overflow-x: hidden;
+  padding: 6px;
 }
 
 .library-empty {
   color: #555566;
   text-align: center;
-  padding: 40px 20px;
-  font-size: 0.85rem;
+  padding: 30px 12px;
+  font-size: 0.8rem;
 }
 
 .library-section {
-  padding: 0 10px;
+  padding: 0 6px;
 }
 
 .library-section-label {
   font-family: 'Press Start 2P', cursive;
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   color: var(--neon-pink, #ff0055);
-  padding: 10px 0 5px;
+  padding: 8px 0 4px;
   text-transform: uppercase;
 }
 
 /* Upload Area */
 .upload-area {
-  margin: 15px;
+  margin: 10px;
   border: 2px dashed #33333f;
   border-radius: 8px;
-  padding: 20px;
+  padding: 14px;
   text-align: center;
   cursor: pointer;
+  flex-shrink: 0;
   transition: border-color 0.2s, background 0.2s;
 }
 
@@ -97,11 +118,12 @@
 
 .upload-area-text {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #555566;
   text-transform: uppercase;
   letter-spacing: 1px;
+  white-space: nowrap;
 }
 
 .upload-area.dragging .upload-area-text {
@@ -110,7 +132,7 @@
 
 /* Track Item */
 .track-item {
-  padding: 12px;
+  padding: 10px;
   border-bottom: 1px solid #22222a;
   transition: background 0.15s;
 }
@@ -122,34 +144,34 @@
 .track-item-title {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #e0e0e0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .track-item-meta {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #888899;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .track-item-actions {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 5px;
+  margin-top: 6px;
 }
 
 .track-deck-btn {
   font-family: 'Press Start 2P', cursive;
-  font-size: 0.55rem;
-  padding: 6px 12px;
+  font-size: 0.5rem;
+  padding: 5px 10px;
   background: transparent;
   border: 1px solid #33333f;
   color: #888899;
@@ -166,9 +188,9 @@
 
 .track-delete-btn {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  padding: 6px 10px;
+  padding: 5px 8px;
   background: transparent;
   border: 1px solid #33333f;
   color: #555566;
@@ -185,28 +207,30 @@
 
 /* Track Item Error */
 .track-item-error {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--neon-pink, #ff0055);
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 /* Processing Queue */
 .processing-queue {
-  padding: 10px 15px;
+  padding: 8px 10px;
   border-bottom: 1px solid #22222a;
+  flex-shrink: 0;
 }
 
 .processing-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  gap: 8px;
+  padding: 6px 0;
 }
 
 .processing-status {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .processing-status.uploading { color: var(--neon-yellow, #f0ff00); }
@@ -216,7 +240,7 @@
 
 .processing-title {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #888899;
   flex: 1;
   white-space: nowrap;
@@ -257,5 +281,5 @@
 }
 
 .library-toggle.panel-open {
-  left: 360px;
+  left: 300px;
 }

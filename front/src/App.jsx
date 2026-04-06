@@ -633,7 +633,7 @@ function App() {
       ) : !user ? (
         <AuthScreen onSignIn={signIn} onSignUp={signUp} onSignInWithGoogle={signInWithGoogle} />
       ) : (
-        <>
+        <div className={`main-layout ${isLibraryOpen ? 'library-open' : ''}`}>
           <LibraryPanel
             isOpen={isLibraryOpen}
             onClose={() => setIsLibraryOpen(false)}
@@ -650,131 +650,133 @@ function App() {
             LIBRARY
           </button>
 
-          {/* Loading Overlay */}
-          {!isSystemReady && (
-            <div className="loading-overlay">
-              <div
-                className="pixel-font"
-                style={{
-                  fontSize: '1.5rem',
-                  color: status === 'OFFLINE' ? 'var(--neon-pink)' : 'var(--neon-green)',
-                  textAlign: 'center',
-                  marginBottom: '20px',
-                  textShadow: `0 0 10px ${status === 'OFFLINE' ? 'rgba(255, 0, 85, 0.8)' : 'rgba(0, 255, 157, 0.8)'}`,
-                }}
-              >
-                {status}
+          <div className="main-content">
+            {/* Loading Overlay */}
+            {!isSystemReady && (
+              <div className="loading-overlay">
+                <div
+                  className="pixel-font"
+                  style={{
+                    fontSize: '1.5rem',
+                    color: status === 'OFFLINE' ? 'var(--neon-pink)' : 'var(--neon-green)',
+                    textAlign: 'center',
+                    marginBottom: '20px',
+                    textShadow: `0 0 10px ${status === 'OFFLINE' ? 'rgba(255, 0, 85, 0.8)' : 'rgba(0, 255, 157, 0.8)'}`,
+                  }}
+                >
+                  {status}
+                </div>
+                <div
+                  style={{
+                    fontSize: '0.9rem',
+                    color: 'var(--text-dim)',
+                    fontFamily: 'Rajdhani, sans-serif',
+                  }}
+                >
+                  {status === 'OFFLINE'
+                    ? 'Backend server is offline. Please check your connection.'
+                    : 'Initializing system...'}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: '0.9rem',
-                  color: 'var(--text-dim)',
-                  fontFamily: 'Rajdhani, sans-serif',
-                }}
-              >
-                {status === 'OFFLINE'
-                  ? 'Backend server is offline. Please check your connection.'
-                  : 'Initializing system...'}
+            )}
+
+            <div className="top-bar">
+              <a href="https://jiinn-hhhh.github.io/homepage/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                <h1 className="pixel-font">Simple DJ</h1>
+              </a>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <div className="status-bar pixel-font">{status}</div>
+                <button
+                  onClick={signOut}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--neon-pink)',
+                    color: 'var(--neon-pink)',
+                    fontFamily: "'Press Start 2P', cursive",
+                    fontSize: '0.6rem',
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                  }}
+                >
+                  LOGOUT
+                </button>
               </div>
             </div>
-          )}
 
-          <div className="top-bar">
-            <a href="https://jiinn-hhhh.github.io/homepage/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <h1 className="pixel-font">Simple DJ</h1>
-            </a>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <div className="status-bar pixel-font">{status}</div>
-              <button
-                onClick={signOut}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--neon-pink)',
-                  color: 'var(--neon-pink)',
-                  fontFamily: "'Press Start 2P', cursive",
-                  fontSize: '0.6rem',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                }}
-              >
-                LOGOUT
-              </button>
+            <div className="console-layout" style={{ opacity: isSystemReady ? 1 : 0.3, pointerEvents: isSystemReady ? 'auto' : 'none' }}>
+              <Deck
+                deckId="A"
+                track={trackA}
+                isPlaying={isPlayingA}
+                playbackRate={getPlaybackRate(trackA)}
+                effectiveKey={getShiftedKey(trackA?.key, trackA?.bpm, masterBpm)}
+                onPlayPause={() => togglePlay('A')}
+                onLoadTrack={(file) => loadTrack('A', file)}
+                volume={volumeA}
+                onVolumeChange={(val) => handleVolumeChange('A', val)}
+                filter={filterA}
+                onFilterChange={(val) => handleFilterChange('A', val)}
+                activeStems={stemsA}
+                onToggleStem={(stem) => toggleStem('A', stem)}
+                isSeparating={isSeparatingA}
+                separationProgress={separationProgressA}
+                onLoopIn={() => handleLoopIn('A')}
+                onLoopOut={() => handleLoopOut('A')}
+                onExitLoop={() => handleExitLoop('A')}
+                onSeek={(p) => handleSeek('A', p)}
+                visualizerNode={audioPlayerRef.current.getAnalyser('A')}
+                loadingTrack={loadingFileA}
+              />
+
+              <Mixer
+                crossfader={crossfader}
+                onCrossfaderChange={handleCrossfaderChange}
+                volumeA={volumeA}
+                onVolumeAChange={(val) => handleVolumeChange('A', val)}
+                volumeB={volumeB}
+                onVolumeBChange={(val) => handleVolumeChange('B', val)}
+                filterA={filterA}
+                onFilterAChange={(val) => handleFilterChange('A', val)}
+                filterB={filterB}
+                onFilterBChange={(val) => handleFilterChange('B', val)}
+                eqA={eqA}
+                eqB={eqB}
+                onEqChange={handleEqChange}
+                masterBpm={masterBpm}
+                onBpmChange={handleMasterBpmChange}
+                masterVolume={masterVolume}
+                onMasterVolumeChange={handleMasterVolumeChange}
+                onMasterEffect={handleMasterEffect}
+                onTriggerSampler={triggerSampler}
+              />
+
+              <Deck
+                deckId="B"
+                track={trackB}
+                isPlaying={isPlayingB}
+                playbackRate={getPlaybackRate(trackB)}
+                effectiveKey={getShiftedKey(trackB?.key, trackB?.bpm, masterBpm)}
+                onPlayPause={() => togglePlay('B')}
+                onLoadTrack={(file) => loadTrack('B', file)}
+                volume={volumeB}
+                onVolumeChange={(val) => handleVolumeChange('B', val)}
+                filter={filterB}
+                onFilterChange={(val) => handleFilterChange('B', val)}
+                activeStems={stemsB}
+                onToggleStem={(stem) => toggleStem('B', stem)}
+                isSeparating={isSeparatingB}
+                separationProgress={separationProgressB}
+                onLoopIn={() => handleLoopIn('B')}
+                onLoopOut={() => handleLoopOut('B')}
+                onExitLoop={() => handleExitLoop('B')}
+                onSeek={(p) => handleSeek('B', p)}
+                visualizerNode={audioPlayerRef.current.getAnalyser('B')}
+                loadingTrack={loadingFileB}
+              />
             </div>
           </div>
-
-          <div className="console-layout" style={{ opacity: isSystemReady ? 1 : 0.3, pointerEvents: isSystemReady ? 'auto' : 'none' }}>
-            <Deck
-              deckId="A"
-              track={trackA}
-              isPlaying={isPlayingA}
-              playbackRate={getPlaybackRate(trackA)}
-              effectiveKey={getShiftedKey(trackA?.key, trackA?.bpm, masterBpm)}
-              onPlayPause={() => togglePlay('A')}
-              onLoadTrack={(file) => loadTrack('A', file)}
-              volume={volumeA}
-              onVolumeChange={(val) => handleVolumeChange('A', val)}
-              filter={filterA}
-              onFilterChange={(val) => handleFilterChange('A', val)}
-              activeStems={stemsA}
-              onToggleStem={(stem) => toggleStem('A', stem)}
-              isSeparating={isSeparatingA}
-              separationProgress={separationProgressA}
-              onLoopIn={() => handleLoopIn('A')}
-              onLoopOut={() => handleLoopOut('A')}
-              onExitLoop={() => handleExitLoop('A')}
-              onSeek={(p) => handleSeek('A', p)}
-              visualizerNode={audioPlayerRef.current.getAnalyser('A')}
-              loadingTrack={loadingFileA}
-            />
-
-            <Mixer
-              crossfader={crossfader}
-              onCrossfaderChange={handleCrossfaderChange}
-              volumeA={volumeA}
-              onVolumeAChange={(val) => handleVolumeChange('A', val)}
-              volumeB={volumeB}
-              onVolumeBChange={(val) => handleVolumeChange('B', val)}
-              filterA={filterA}
-              onFilterAChange={(val) => handleFilterChange('A', val)}
-              filterB={filterB}
-              onFilterBChange={(val) => handleFilterChange('B', val)}
-              eqA={eqA}
-              eqB={eqB}
-              onEqChange={handleEqChange}
-              masterBpm={masterBpm}
-              onBpmChange={handleMasterBpmChange}
-              masterVolume={masterVolume}
-              onMasterVolumeChange={handleMasterVolumeChange}
-              onMasterEffect={handleMasterEffect}
-              onTriggerSampler={triggerSampler}
-            />
-
-            <Deck
-              deckId="B"
-              track={trackB}
-              isPlaying={isPlayingB}
-              playbackRate={getPlaybackRate(trackB)}
-              effectiveKey={getShiftedKey(trackB?.key, trackB?.bpm, masterBpm)}
-              onPlayPause={() => togglePlay('B')}
-              onLoadTrack={(file) => loadTrack('B', file)}
-              volume={volumeB}
-              onVolumeChange={(val) => handleVolumeChange('B', val)}
-              filter={filterB}
-              onFilterChange={(val) => handleFilterChange('B', val)}
-              activeStems={stemsB}
-              onToggleStem={(stem) => toggleStem('B', stem)}
-              isSeparating={isSeparatingB}
-              separationProgress={separationProgressB}
-              onLoopIn={() => handleLoopIn('B')}
-              onLoopOut={() => handleLoopOut('B')}
-              onExitLoop={() => handleExitLoop('B')}
-              onSeek={(p) => handleSeek('B', p)}
-              visualizerNode={audioPlayerRef.current.getAnalyser('B')}
-              loadingTrack={loadingFileB}
-            />
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
