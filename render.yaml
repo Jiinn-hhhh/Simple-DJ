@@ -11,6 +11,10 @@ services:
         value: "3.11"
       - key: HUGGINGFACE_SPACE_URL
         value: https://jiinn-hhhh-seperator.hf.space
+      - key: SUPABASE_URL
+        value: https://avoixyazqnlxxdjlrajm.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # Set manually in Render dashboard (secret)
     autoDeploy: true
     # Free tier settings
     plan: free

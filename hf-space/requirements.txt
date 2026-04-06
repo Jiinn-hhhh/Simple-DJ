@@ -20,3 +20,6 @@ torchaudio==2.2.2
 
 # Note: On HF Spaces with GPU, torch will use CUDA automatically
 # For CPU-only spaces, these versions work without modification
+
+# Supabase Client (for library track processing)
+supabase>=2.0.0

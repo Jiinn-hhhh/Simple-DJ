@@ -2,7 +2,7 @@
 # Render Backend - API Gateway to Hugging Face Spaces
 # Handles routing, file cleanup, and acts as proxy to HF Spaces ML processing
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -340,6 +340,87 @@ async def download_stem(job_id: str, stem_name: str):
         raise
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Failed to download from HF Spaces: {str(e)}")
+
+
+# === Library Upload Endpoint ===
+@app.post("/library/upload")
+async def library_upload(file: UploadFile = File(...), track_id: str = Form(...), authorization: str = Header(None)):
+    """
+    Proxy library track upload to HF Spaces.
+    Adds SUPABASE_SERVICE_ROLE_KEY for backend processing.
+    Frontend sends file + track_id + JWT (in Authorization header).
+    """
+    if not HF_SPACE_URL:
+        raise HTTPException(status_code=503, detail="HF Spaces URL not configured")
+
+    # Get Supabase config from environment
+    supabase_url = os.getenv("SUPABASE_URL", "")
+    supabase_service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    if not supabase_url or not supabase_service_key:
+        raise HTTPException(status_code=503, detail="Supabase not configured on backend")
+
+    # Extract user_id from JWT (verify with Supabase)
+    # For now, we trust the JWT and decode it to get user_id
+    import json, base64
+    try:
+        if authorization and authorization.startswith("Bearer "):
+            token = authorization.split(" ")[1]
+            # Decode JWT payload (base64)
+            payload = token.split(".")[1]
+            # Add padding
+            payload += "=" * (4 - len(payload) % 4)
+            decoded = json.loads(base64.urlsafe_b64decode(payload))
+            user_id = decoded.get("sub", "")
+        else:
+            raise HTTPException(status_code=401, detail="Missing authorization")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid authorization token")
+
+    try:
+        contents = await file.read()
+        file_size_mb = len(contents) / (1024 * 1024)
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB")
+
+        # Forward to HF Spaces with service credentials
+        files = {"file": (file.filename, contents, file.content_type or "audio/mpeg")}
+        data = {
+            "track_id": track_id,
+            "user_id": user_id,
+            "supabase_url": supabase_url,
+            "supabase_service_key": supabase_service_key,
+        }
+
+        response = requests.post(
+            f"{HF_SPACE_URL}/process-library-track",
+            files=files,
+            data=data,
+            timeout=REQUEST_TIMEOUT
+        )
+
+        if response.status_code != 200:
+            error_detail = "Library upload failed"
+            try:
+                error_data = response.json()
+                error_detail = error_data.get("detail", error_detail)
+            except:
+                error_detail = response.text[:200]
+            raise HTTPException(status_code=response.status_code, detail=error_detail)
+
+        return response.json()
+
+    except HTTPException:
+        raise
+    except requests.exceptions.Timeout:
+        raise HTTPException(status_code=504, detail="HF Spaces request timed out")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to HF Spaces: {str(e)}")
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # === Configuration Endpoint ===

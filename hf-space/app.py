@@ -2,7 +2,7 @@
 # Hugging Face Spaces - Audio Processing Server
 # Handles BPM/Key analysis and stem separation with async job queue
 
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
@@ -12,6 +12,7 @@ import os
 import uuid
 import tempfile
 import shutil
+import subprocess
 import threading
 import time
 import traceback
@@ -404,6 +405,131 @@ async def download_stem(job_id: str, stem_name: str):
         media_type="audio/wav",
         filename=stem_info["filename"],
     )
+
+
+# === Library Track Processing ===
+def process_library_track(job_id, file_path, filename, track_id, user_id, supabase_url, supabase_service_key):
+    """Background task to process a library track: analyze -> separate -> convert -> upload."""
+    from supabase import create_client
+
+    sb = create_client(supabase_url, supabase_service_key)
+
+    try:
+        # 1. Analyze
+        sb.table('tracks').update({'status': 'analyzing'}).eq('id', track_id).execute()
+        result = analysis.analyze_audio(open(file_path, 'rb').read(), filename)
+        bpm = result.get('bpm')
+        key = result.get('key')
+        duration = result.get('duration')
+
+        # 2. Separate
+        sb.table('tracks').update({'status': 'separating'}).eq('id', track_id).execute()
+        sep = get_separator()
+        sep_result = sep.separate_file(file_path, output_root=RESULTS_DIR)
+
+        # 3. Convert WAV -> OGG and upload
+        sb.table('tracks').update({'status': 'converting'}).eq('id', track_id).execute()
+        stem_urls = {}
+
+        for stem_name, stem_path in sep_result['sources'].items():
+            # Convert to OGG
+            ogg_path = stem_path.replace('.wav', '.ogg')
+            subprocess.run([
+                'ffmpeg', '-i', stem_path,
+                '-c:a', 'libvorbis', '-b:a', '256k',
+                '-y', ogg_path
+            ], check=True, capture_output=True)
+
+            # Upload to Supabase Storage
+            storage_path = f"{user_id}/{track_id}/{stem_name}.ogg"
+            with open(ogg_path, 'rb') as f:
+                sb.storage.from_('stems').upload(
+                    storage_path,
+                    f.read(),
+                    file_options={"content-type": "audio/ogg"}
+                )
+
+            stem_urls[stem_name] = storage_path
+
+            # Clean up local files
+            for p in [stem_path, ogg_path]:
+                if os.path.exists(p):
+                    os.unlink(p)
+
+        # 4. Update track as ready
+        sb.table('tracks').update({
+            'bpm': bpm,
+            'key': key,
+            'duration': duration,
+            'stem_urls': stem_urls,
+            'status': 'ready'
+        }).eq('id', track_id).execute()
+
+        print(f"[library] Track {track_id} processed successfully")
+
+    except Exception as e:
+        traceback.print_exc()
+        try:
+            sb.table('tracks').update({
+                'status': 'error',
+                'error_message': str(e)[:500]
+            }).eq('id', track_id).execute()
+        except:
+            pass
+        print(f"[library] Track {track_id} failed: {e}")
+
+    finally:
+        # Clean up input file and job directory
+        if os.path.exists(file_path):
+            try:
+                os.unlink(file_path)
+            except:
+                pass
+        job_dir = os.path.join(RESULTS_DIR, job_id)
+        if os.path.exists(job_dir):
+            shutil.rmtree(job_dir, ignore_errors=True)
+
+
+@app.post("/process-library-track")
+async def process_library_track_endpoint(
+    file: UploadFile = File(...),
+    track_id: str = Form(...),
+    user_id: str = Form(...),
+    supabase_url: str = Form(...),
+    supabase_service_key: str = Form(...),
+):
+    """Process a library track: analyze, separate, convert to OGG, upload to Supabase Storage."""
+    try:
+        contents = await file.read()
+        file_size_mb = len(contents) / (1024 * 1024)
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB")
+
+        filename = file.filename or "unknown.mp3"
+        job_id = str(uuid.uuid4())
+        job_dir = os.path.join(RESULTS_DIR, job_id)
+        os.makedirs(job_dir, exist_ok=True)
+
+        ext = os.path.splitext(filename)[1] or ".mp3"
+        temp_file = os.path.join(job_dir, f"input{ext}")
+        with open(temp_file, "wb") as f:
+            f.write(contents)
+
+        # Start background processing
+        thread = threading.Thread(
+            target=process_library_track,
+            args=(job_id, temp_file, filename, track_id, user_id, supabase_url, supabase_service_key),
+            daemon=True
+        )
+        thread.start()
+
+        return {"success": True, "message": "Processing started"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # === Admin Endpoints ===

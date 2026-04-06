@@ -1,0 +1,154 @@
+.auth-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #121214;
+  background: radial-gradient(circle at center, #1a1a20 0%, #0d0d10 100%);
+}
+
+.auth-card {
+  background: #1e1e24;
+  border: 1px solid #33333f;
+  border-radius: 12px;
+  padding: 40px 36px 36px;
+  width: 380px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* Title */
+.auth-title {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1.6rem;
+  color: var(--neon-blue, #00e5ff);
+  text-align: center;
+  margin: 0 0 32px;
+  text-shadow: 0 0 20px rgba(0, 229, 255, 0.8);
+  letter-spacing: -1px;
+}
+
+/* Tab Toggle */
+.auth-tabs {
+  display: flex;
+  margin-bottom: 28px;
+  border-bottom: 2px solid #33333f;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 12px 0;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.65rem;
+  color: #888899;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.auth-tab:hover {
+  color: #ccccdd;
+}
+
+.auth-tab.active {
+  color: var(--neon-green, #00ff9d);
+  border-bottom-color: var(--neon-green, #00ff9d);
+}
+
+/* Form */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #888899;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.auth-input {
+  background: #111116;
+  border: 1px solid #33333f;
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: #e0e0e0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input::placeholder {
+  color: #555566;
+}
+
+.auth-input:focus {
+  border-color: var(--neon-green, #00ff9d);
+  box-shadow: 0 0 8px rgba(0, 255, 157, 0.3);
+}
+
+/* Submit Button */
+.auth-submit {
+  background: var(--neon-green, #00ff9d);
+  color: #000000;
+  border: none;
+  border-radius: 6px;
+  padding: 14px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.7rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background: #33ffb5;
+  box-shadow: 0 0 16px rgba(0, 255, 157, 0.5);
+}
+
+.auth-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Error Message */
+.auth-error {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--neon-pink, #ff0055);
+  background: rgba(255, 0, 85, 0.08);
+  border: 1px solid rgba(255, 0, 85, 0.25);
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: center;
+}
+
+/* Success Message */
+.auth-success {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--neon-green, #00ff9d);
+  background: rgba(0, 255, 157, 0.08);
+  border: 1px solid rgba(0, 255, 157, 0.25);
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: center;
+}
