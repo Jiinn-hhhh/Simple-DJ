@@ -1,0 +1,79 @@
+// hooks/useMixer.js — Mixer, crossfader, EQ, filter, BPM, effects
+
+import { useState, useCallback } from 'react';
+
+export default function useMixer(audioPlayerRef, trackA, trackB) {
+  const [volumeA, setVolumeA] = useState(1.0);
+  const [volumeB, setVolumeB] = useState(1.0);
+  const [crossfader, setCrossfader] = useState(0.5);
+  const [filterA, setFilterA] = useState(0.5);
+  const [filterB, setFilterB] = useState(0.5);
+  const [eqA, setEqA] = useState({ high: 100, mid: 100, low: 100 });
+  const [eqB, setEqB] = useState({ high: 100, mid: 100, low: 100 });
+  const [masterVolume, setMasterVolume] = useState(1.0);
+  const [masterBpm, setMasterBpm] = useState(128);
+
+  // --- Volume math with crossfader curve ---
+  const applyVolumes = useCallback((volA, volB, xf, masterVol) => {
+    let gainA = volA * masterVol;
+    let gainB = volB * masterVol;
+    if (xf < 0.5) gainB *= xf * 2;
+    else gainA *= (1 - xf) * 2;
+    audioPlayerRef.current.setVolume('A', gainA);
+    audioPlayerRef.current.setVolume('B', gainB);
+  }, [audioPlayerRef]);
+
+  const handleVolumeChange = useCallback((deckId, val) => {
+    if (deckId === 'A') setVolumeA(val); else setVolumeB(val);
+    applyVolumes(deckId === 'A' ? val : volumeA, deckId === 'B' ? val : volumeB, crossfader, masterVolume);
+  }, [volumeA, volumeB, crossfader, masterVolume, applyVolumes]);
+
+  const handleCrossfaderChange = useCallback((val) => {
+    setCrossfader(val);
+    applyVolumes(volumeA, volumeB, val, masterVolume);
+  }, [volumeA, volumeB, masterVolume, applyVolumes]);
+
+  const handleMasterVolumeChange = useCallback((val) => {
+    setMasterVolume(val);
+    applyVolumes(volumeA, volumeB, crossfader, val);
+  }, [volumeA, volumeB, crossfader, applyVolumes]);
+
+  // --- EQ ---
+  const handleEqChange = useCallback((deckId, band, val) => {
+    if (deckId === 'A') setEqA(prev => ({ ...prev, [band]: val }));
+    else setEqB(prev => ({ ...prev, [band]: val }));
+    audioPlayerRef.current.setEq(deckId, band, val / 100);
+  }, [audioPlayerRef]);
+
+  // --- Filter ---
+  const handleFilterChange = useCallback((deckId, val) => {
+    if (deckId === 'A') setFilterA(val); else setFilterB(val);
+    audioPlayerRef.current.setFilter(deckId, val);
+  }, [audioPlayerRef]);
+
+  // --- Master BPM ---
+  const handleMasterBpmChange = useCallback((val) => {
+    setMasterBpm(val);
+    if (trackA?.bpm) audioPlayerRef.current.setPlaybackRate('A', val / trackA.bpm);
+    if (trackB?.bpm) audioPlayerRef.current.setPlaybackRate('B', val / trackB.bpm);
+  }, [audioPlayerRef, trackA, trackB]);
+
+  // --- Effects & Sampler ---
+  const handleMasterEffect = useCallback((x, y) => {
+    audioPlayerRef.current.setMasterEffect(x, y);
+  }, [audioPlayerRef]);
+
+  const triggerSampler = useCallback((type) => {
+    if (type === 'airhorn') audioPlayerRef.current.playAirHorn();
+    if (type === 'siren') audioPlayerRef.current.playSiren();
+  }, [audioPlayerRef]);
+
+  return {
+    volumeA, volumeB, crossfader, filterA, filterB,
+    eqA, eqB, masterVolume, masterBpm, setMasterBpm,
+    setCrossfader,
+    handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
+    handleEqChange, handleFilterChange, handleMasterBpmChange,
+    handleMasterEffect, triggerSampler,
+  };
+}

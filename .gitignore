@@ -41,3 +41,4 @@ landing-page/
 
 # Cursor IDE
 .cursor/
+.worktrees/
