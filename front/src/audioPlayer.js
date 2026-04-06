@@ -24,6 +24,9 @@ class AudioPlayer {
     // Default stems if not specified
     this.defaultStems = ['drums', 'bass', 'vocals', 'other'];
 
+    // Reversed buffers for scratch { trackId: { stemName: AudioBuffer } }
+    this.reversedBuffers = {};
+
     // Mute State Persistence { trackId: { stemName: boolean } }
     this.stemMuteStates = {};
 
@@ -86,6 +89,20 @@ class AudioPlayer {
         this.audioBuffers[trackId] = {};
       }
       this.audioBuffers[trackId][stemName] = audioBuffer;
+
+      // Pre-create reversed buffer for scratching
+      if (!this.reversedBuffers[trackId]) this.reversedBuffers[trackId] = {};
+      const reversed = this.audioContext.createBuffer(
+        audioBuffer.numberOfChannels, audioBuffer.length, audioBuffer.sampleRate
+      );
+      for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+        const src = audioBuffer.getChannelData(ch);
+        const dst = reversed.getChannelData(ch);
+        for (let i = 0; i < src.length; i++) {
+          dst[i] = src[src.length - 1 - i];
+        }
+      }
+      this.reversedBuffers[trackId][stemName] = reversed;
 
       console.log(`[AudioPlayer] ${trackId}/${stemName} loaded successfully`);
       return audioBuffer;
@@ -745,30 +762,43 @@ class AudioPlayer {
     const pos = this.getCurrentPosition(deckId);
     const savedRate = this.playbackRates[deckId] || 1.0;
 
-    // Stop normal playback
     this.stop(deckId);
 
     this._scratchState[deckId] = {
       active: true,
       position: pos,
       savedRate,
+      direction: 'forward', // 'forward' or 'reverse'
     };
 
-    // Start scratch playback sources (continuous, rate-controlled)
-    this._startScratchSources(deckId, pos);
+    this._startScratchSources(deckId, pos, 'forward');
   }
 
-  _startScratchSources(deckId, offset) {
+  _stopScratchSources(deckId) {
+    if (this._scratchSources?.[deckId]) {
+      Object.values(this._scratchSources[deckId]).forEach(s => {
+        try { s.stop(); } catch {}
+      });
+      this._scratchSources[deckId] = {};
+    }
+  }
+
+  _startScratchSources(deckId, offset, direction) {
+    this._stopScratchSources(deckId);
     if (!this.audioBuffers[deckId] || !this.audioContext) return;
     this.setupTrackGraph(deckId);
 
     this._scratchSources = this._scratchSources || {};
     this._scratchSources[deckId] = {};
 
-    Object.entries(this.audioBuffers[deckId]).forEach(([stemName, buffer]) => {
+    const buffers = direction === 'forward'
+      ? this.audioBuffers[deckId]
+      : (this.reversedBuffers[deckId] || this.audioBuffers[deckId]);
+
+    Object.entries(buffers).forEach(([stemName, buffer]) => {
       const source = this.audioContext.createBufferSource();
       source.buffer = buffer;
-      source.playbackRate.value = 0.001; // near-stopped initially
+      source.playbackRate.value = 0.001;
 
       const stemGain = this.audioContext.createGain();
       const isMuted = this.stemMuteStates[deckId]?.[stemName];
@@ -776,7 +806,13 @@ class AudioPlayer {
       source.connect(stemGain);
       stemGain.connect(this.trackGainNodes[deckId]);
 
-      const safeOffset = Math.max(0, Math.min(buffer.duration - 0.01, offset));
+      // For reversed buffer, offset is measured from the end
+      let safeOffset;
+      if (direction === 'reverse') {
+        safeOffset = Math.max(0, Math.min(buffer.duration - 0.01, buffer.duration - offset));
+      } else {
+        safeOffset = Math.max(0, Math.min(buffer.duration - 0.01, offset));
+      }
       source.start(0, safeOffset);
       this._scratchSources[deckId][stemName] = source;
     });
@@ -784,51 +820,52 @@ class AudioPlayer {
 
   updateScratch(deckId, angleDelta) {
     if (!this._scratchState?.[deckId]?.active) return;
-    if (!this._scratchSources?.[deckId]) return;
+    const state = this._scratchState[deckId];
 
-    // Map angular velocity to playback rate
-    // Positive angleDelta = forward rotation = positive rate
-    // Negative angleDelta = backward rotation = negative rate (reverse playback)
-    // Scale: a moderate drag should map to roughly 1x playback
-    const rate = angleDelta * 25;
+    // Map angular velocity to playback rate (positive only — direction handled by buffer choice)
+    const rawRate = angleDelta * 25;
+    const absRate = Math.min(8, Math.abs(rawRate));
+    const newDirection = rawRate >= 0 ? 'forward' : 'reverse';
 
-    // Clamp to reasonable range
-    const clampedRate = Math.max(-8, Math.min(8, rate));
+    // Switch buffers if direction changed
+    if (newDirection !== state.direction) {
+      state.direction = newDirection;
+      this._startScratchSources(deckId, state.position, newDirection);
+    }
 
-    // If nearly zero, use a tiny value to avoid complete silence
-    const finalRate = Math.abs(clampedRate) < 0.05 ? 0.001 : clampedRate;
-
-    // Update all scratch source playback rates
-    Object.values(this._scratchSources[deckId]).forEach(source => {
-      try {
-        source.playbackRate.setValueAtTime(finalRate, this.audioContext.currentTime);
-      } catch {}
-    });
+    // Apply positive rate to the (possibly reversed) sources
+    const finalRate = absRate < 0.05 ? 0.001 : absRate;
+    if (this._scratchSources?.[deckId]) {
+      Object.values(this._scratchSources[deckId]).forEach(source => {
+        try { source.playbackRate.setValueAtTime(finalRate, this.audioContext.currentTime); } catch {}
+      });
+    }
 
     // Track position for resume
     const duration = this.getTrackDuration(deckId);
     const posDelta = (angleDelta / (2 * Math.PI)) * 2.0;
-    this._scratchState[deckId].position = Math.max(0, Math.min(duration,
-      this._scratchState[deckId].position + posDelta));
+    state.position = Math.max(0, Math.min(duration, state.position + posDelta));
   }
 
-  endScratch(deckId) {
+  endScratch(deckId, bpm) {
     if (!this._scratchState?.[deckId]?.active) return;
     const state = this._scratchState[deckId];
     state.active = false;
 
-    // Stop scratch sources
-    if (this._scratchSources?.[deckId]) {
-      Object.values(this._scratchSources[deckId]).forEach(s => {
-        try { s.stop(); } catch {}
-      });
-      this._scratchSources[deckId] = {};
+    this._stopScratchSources(deckId);
+
+    // Snap to nearest beat if BPM is known
+    let resumePos = state.position;
+    if (bpm && bpm > 0) {
+      const beatLength = 60 / bpm;
+      resumePos = Math.round(resumePos / beatLength) * beatLength;
+      const duration = this.getTrackDuration(deckId);
+      resumePos = Math.max(0, Math.min(duration, resumePos));
     }
 
-    // Resume normal playback from scratch position
-    this.pauseOffsets[deckId] = state.position;
+    this.pauseOffsets[deckId] = resumePos;
     this.playbackRates[deckId] = state.savedRate;
-    this.play(deckId, state.position);
+    this.play(deckId, resumePos);
   }
 
   // Seek: Jump to percentage (0.0 - 1.0)

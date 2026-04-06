@@ -98,7 +98,7 @@ const Deck = ({
         const handleMouseUp = () => {
             setIsScratching(false);
             scratchRef.current.lastAngle = null;
-            if (onScratchEnd) onScratchEnd(deckId);
+            if (onScratchEnd) onScratchEnd(deckId, track?.bpm);
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };

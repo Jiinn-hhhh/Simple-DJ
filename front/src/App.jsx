@@ -88,7 +88,7 @@ function App() {
   // --- Scratch handlers ---
   const handleScratchStart = (deckId) => audioPlayerRef.current.startScratch(deckId);
   const handleScratchMove = (deckId, angleDelta) => audioPlayerRef.current.updateScratch(deckId, angleDelta);
-  const handleScratchEnd = (deckId) => audioPlayerRef.current.endScratch(deckId);
+  const handleScratchEnd = (deckId, bpm) => audioPlayerRef.current.endScratch(deckId, bpm);
 
   // --- Guard wrapper for deck/mixer actions ---
   const guard = (fn) => (...args) => { if (isSystemReady) fn(...args); };
