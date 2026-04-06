@@ -181,16 +181,16 @@ const Deck = ({
             </div>
 
             <div className="deck-controls">
+                <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleFileChange}
+                    ref={fileInputRef}
+                    className="hidden-input"
+                />
                 {!track ? (
-                    <div className="upload-section" onClick={() => fileInputRef.current.click()}>
-                        <input
-                            type="file"
-                            accept="audio/*"
-                            onChange={handleFileChange}
-                            ref={fileInputRef}
-                            className="hidden-input"
-                        />
-                        <span>Click or Drop Audio Here</span>
+                    <div className="deck-empty-hint">
+                        <span>Drop audio or load from Library</span>
                     </div>
                 ) : (
                     <>
