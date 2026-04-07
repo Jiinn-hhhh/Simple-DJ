@@ -24,11 +24,11 @@ export default function RecordBar({
 
       {!isRecording ? (
         <>
-          <button className="record-btn audio" onClick={onStartAudio} title="Record audio mix">
-            REC
+          <button className="record-btn audio" onClick={onStartAudio} title="Mix audio recording (.wav)">
+            AUDIO REC
           </button>
-          <button className="record-btn video" onClick={onStartVideo} title="Record screen + audio">
-            SCREEN
+          <button className="record-btn video" onClick={onStartVideo} title="Screen + audio recording (.mp4)">
+            VIDEO REC
           </button>
         </>
       ) : (
