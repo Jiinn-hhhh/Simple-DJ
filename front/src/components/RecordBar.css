@@ -1,0 +1,66 @@
+.record-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.record-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.record-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neon-pink, #ff0055);
+  animation: blink-animation 1s infinite;
+}
+
+.record-time {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.55rem;
+  color: var(--neon-pink, #ff0055);
+}
+
+.record-btn {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.5rem;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid;
+  background: transparent;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.record-btn.audio {
+  color: var(--neon-pink, #ff0055);
+  border-color: var(--neon-pink, #ff0055);
+}
+
+.record-btn.audio:hover {
+  background: rgba(255, 0, 85, 0.1);
+  box-shadow: 0 0 8px rgba(255, 0, 85, 0.3);
+}
+
+.record-btn.video {
+  color: var(--neon-blue, #00e5ff);
+  border-color: var(--neon-blue, #00e5ff);
+}
+
+.record-btn.video:hover {
+  background: rgba(0, 229, 255, 0.1);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
+.record-btn.stop {
+  color: #fff;
+  border-color: var(--neon-pink, #ff0055);
+  background: var(--neon-pink, #ff0055);
+}
+
+.record-btn.stop:hover {
+  box-shadow: 0 0 12px rgba(255, 0, 85, 0.5);
+}

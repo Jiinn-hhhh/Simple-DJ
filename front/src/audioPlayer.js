@@ -163,7 +163,18 @@ class AudioPlayer {
     this.masterNodes.distortion.connect(this.masterNodes.distortionGain);
     this.masterNodes.distortionGain.connect(this.audioContext.destination);
 
+    // 6. MediaStream destination for recording
+    this.masterNodes.streamDest = this.audioContext.createMediaStreamDestination();
+    this.masterNodes.filter.connect(this.masterNodes.streamDest);
+    this.masterNodes.reverbGain.connect(this.masterNodes.streamDest);
+    this.masterNodes.distortionGain.connect(this.masterNodes.streamDest);
+
     this.masterBusInitialized = true;
+  }
+
+  getOutputStream() {
+    if (!this.masterNodes?.streamDest) return null;
+    return this.masterNodes.streamDest.stream;
   }
 
   _createReverbImpulse(duration, decay) {

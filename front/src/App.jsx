@@ -8,8 +8,10 @@ import useDecks from "./hooks/useDecks";
 import useMixer from "./hooks/useMixer";
 import { initSystem } from "./lib/api";
 import { getShiftedKey, getPlaybackRate } from "./utils/music";
+import useRecorder from "./hooks/useRecorder";
 import AuthScreen from "./components/Auth/AuthScreen";
 import LibraryPanel from "./components/Library/LibraryPanel";
+import RecordBar from "./components/RecordBar";
 import "./App.css";
 
 function App() {
@@ -85,6 +87,9 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSystemReady, decks.togglePlay, setCrossfader]);
 
+  // --- Recorder ---
+  const recorder = useRecorder(audioPlayerRef);
+
   // --- Scratch handlers ---
   const handleScratchStart = (deckId) => audioPlayerRef.current.startScratch(deckId);
   const handleScratchMove = (deckId, angleDelta) => audioPlayerRef.current.updateScratch(deckId, angleDelta);
@@ -144,6 +149,15 @@ function App() {
                 <h1 className="pixel-font">Simple DJ</h1>
               </a>
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                <RecordBar
+                  isRecordingAudio={recorder.isRecordingAudio}
+                  isRecordingVideo={recorder.isRecordingVideo}
+                  recordingTime={recorder.recordingTime}
+                  onStartAudio={recorder.startAudioRecording}
+                  onStopAudio={recorder.stopAudioRecording}
+                  onStartVideo={recorder.startVideoRecording}
+                  onStopVideo={recorder.stopVideoRecording}
+                />
                 <div className="status-bar pixel-font">{status}</div>
                 <button onClick={signOut} style={{
                   background: 'transparent', border: '1px solid var(--neon-pink)', color: 'var(--neon-pink)',
