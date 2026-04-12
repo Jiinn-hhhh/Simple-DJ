@@ -1,3 +1,5 @@
+import PitchShifter from './lib/pitchShifter';
+
 // Audio Player using Web Audio API
 class AudioPlayer {
   constructor() {
@@ -33,6 +35,25 @@ class AudioPlayer {
     // Offset state for time tracking
     this.pauseOffsets = {};
     this.loopPoints = {};
+
+    // Quantize state
+    this.quantizeEnabled = {}; // { deckId: boolean }
+
+    // Hot Cues: { deckId: Array<{position, color} | null>[8] }
+    this.hotCues = {};
+
+    // Key Lock state
+    this.keyLockEnabled = {}; // { deckId: boolean }
+    this.pitchShifters = {}; // { deckId: PitchShifter }
+
+    // Slip Mode state
+    this.slipMode = {}; // { deckId: boolean }
+    this.slipVirtualStart = {}; // { deckId: contextTime when slip started }
+    this.slipVirtualOffset = {}; // { deckId: buffer offset when slip started }
+    this.slipSavedRate = {}; // { deckId: rate at slip start }
+
+    // Loop Roll state
+    this.loopRollActive = {}; // { deckId: boolean }
   }
 
   // Initialize Audio Context
@@ -506,6 +527,7 @@ class AudioPlayer {
       this.sourceNodes[trackId] = {};
       this.stemGainNodes[trackId] = {};
     }
+    this._cleanupPitchShifter(trackId);
     this.isPlaying[trackId] = false;
   }
 
@@ -540,7 +562,7 @@ class AudioPlayer {
   setPlaybackRate(trackId, rate) {
     if (this.isPlaying[trackId] && this.startTimes[trackId] !== null) {
       // Re-anchor time tracking to prevent drift when rate changes
-      const oldRate = this.playbackRates[trackId] || 1.0;
+      const oldRate = this.keyLockEnabled[trackId] ? 1.0 : (this.playbackRates[trackId] || 1.0);
       const currentTime = this.audioContext.currentTime;
       const elapsed = currentTime - this.startTimes[trackId];
       const currentBufferPos = (this.pauseOffsets[trackId] || 0) + (elapsed * oldRate);
@@ -550,7 +572,13 @@ class AudioPlayer {
     }
 
     this.playbackRates[trackId] = rate;
-    if (this.sourceNodes[trackId]) {
+
+    if (this.keyLockEnabled[trackId] && this.pitchShifters[trackId]) {
+      // Key Lock on: update SoundTouch tempo, keep source at 1.0
+      Object.values(this.pitchShifters[trackId]).forEach(shifter => {
+        shifter.setTempo(rate);
+      });
+    } else if (this.sourceNodes[trackId]) {
       Object.values(this.sourceNodes[trackId]).forEach(source => {
         source.playbackRate.value = rate;
       });
@@ -620,6 +648,272 @@ class AudioPlayer {
 
   getIsPlaying(trackId) {
     return this.isPlaying[trackId] || false;
+  }
+
+  // --- Quantize Utility ---
+
+  quantizeToBeat(time, bpm, direction = 'nearest') {
+    if (!bpm || bpm <= 0) return time;
+    const beatDuration = 60 / bpm;
+    if (direction === 'nearest') {
+      return Math.round(time / beatDuration) * beatDuration;
+    } else if (direction === 'floor') {
+      return Math.floor(time / beatDuration) * beatDuration;
+    } else if (direction === 'ceil') {
+      return Math.ceil(time / beatDuration) * beatDuration;
+    }
+    return time;
+  }
+
+  setQuantize(deckId, enabled) {
+    this.quantizeEnabled[deckId] = enabled;
+  }
+
+  // --- Hot Cues ---
+
+  setHotCue(deckId, index, bpm) {
+    if (!this.hotCues[deckId]) {
+      this.hotCues[deckId] = new Array(8).fill(null);
+    }
+    const colors = ['#ff0000', '#ff8800', '#ffff00', '#00cc00', '#00ccff', '#0066ff', '#9900ff', '#ff00aa'];
+    let position = this.getCurrentPosition(deckId);
+    if (this.quantizeEnabled[deckId] && bpm) {
+      position = this.quantizeToBeat(position, bpm);
+    }
+    this.hotCues[deckId][index] = { position, color: colors[index] };
+    return this.hotCues[deckId][index];
+  }
+
+  jumpToHotCue(deckId, index) {
+    if (!this.hotCues[deckId]?.[index]) return;
+    const { position } = this.hotCues[deckId][index];
+    const duration = this.getTrackDuration(deckId);
+    const safePos = Math.max(0, Math.min(duration, position));
+
+    this.pauseOffsets[deckId] = safePos;
+    if (this.isPlaying[deckId]) {
+      this.stop(deckId);
+      this._resumePlayback(deckId, safePos);
+    }
+  }
+
+  deleteHotCue(deckId, index) {
+    if (this.hotCues[deckId]) {
+      this.hotCues[deckId][index] = null;
+    }
+  }
+
+  getHotCues(deckId) {
+    return this.hotCues[deckId] || new Array(8).fill(null);
+  }
+
+  // --- Beat Jump ---
+
+  beatJump(deckId, beats, bpm) {
+    if (!bpm || bpm <= 0) return;
+    const beatDuration = 60 / bpm;
+    const jumpAmount = beats * beatDuration;
+    const currentPos = this.getCurrentPosition(deckId);
+    const duration = this.getTrackDuration(deckId);
+
+    let newPos = currentPos + jumpAmount;
+    if (this.quantizeEnabled[deckId]) {
+      newPos = this.quantizeToBeat(newPos, bpm);
+    }
+    newPos = Math.max(0, Math.min(duration, newPos));
+
+    this.pauseOffsets[deckId] = newPos;
+    if (this.isPlaying[deckId]) {
+      this.stop(deckId);
+      this._resumePlayback(deckId, newPos);
+    }
+  }
+
+  // --- Key Lock ---
+
+  setKeyLock(deckId, enabled) {
+    this.keyLockEnabled[deckId] = enabled;
+
+    if (enabled) {
+      // When enabling key lock, the current playback rate becomes the tempo
+      // but we keep source playbackRate at 1.0 and use SoundTouch for time-stretching
+      const rate = this.playbackRates[deckId] || 1.0;
+
+      // If playing, we need to restart with the pitch shifter in the chain
+      if (this.isPlaying[deckId]) {
+        const currentPos = this.getCurrentPosition(deckId);
+        this.stop(deckId);
+        this.pauseOffsets[deckId] = currentPos;
+        this._startKeyLockPlayback(deckId, currentPos, rate);
+      }
+    } else {
+      // Disable key lock — clean up pitch shifter, restart with normal playback
+      this._cleanupPitchShifter(deckId);
+      if (this.isPlaying[deckId]) {
+        const currentPos = this.getCurrentPosition(deckId);
+        this.stop(deckId);
+        this.pauseOffsets[deckId] = currentPos;
+        this.play(deckId, currentPos);
+      }
+    }
+  }
+
+  _startKeyLockPlayback(deckId, offset, rate) {
+    if (!this.audioContext || !this.audioBuffers[deckId]) return;
+    this.setupTrackGraph(deckId);
+
+    // Create pitch shifter for the first available buffer (to feed into SoundTouch)
+    const buffers = this.audioBuffers[deckId];
+    const stemNames = Object.keys(buffers);
+    if (stemNames.length === 0) return;
+
+    // For key lock, we use a single merged approach:
+    // Each stem gets its own SoundTouch-based ScriptProcessor
+    if (!this.pitchShifters[deckId]) this.pitchShifters[deckId] = {};
+
+    const startTime = this.audioContext.currentTime;
+
+    stemNames.forEach(stemName => {
+      const buffer = buffers[stemName];
+      if (!buffer) return;
+
+      const shifter = new PitchShifter(this.audioContext);
+      shifter.setTempo(rate);
+      const processorNode = shifter.connectSource(buffer, offset);
+
+      if (!processorNode) return;
+
+      // Create stem gain
+      const stemGain = this.audioContext.createGain();
+      const isMuted = this.stemMuteStates[deckId]?.[stemName];
+      stemGain.gain.value = isMuted ? 0.0 : 1.0;
+
+      processorNode.connect(stemGain);
+      stemGain.connect(this.trackGainNodes[deckId]);
+
+      if (!this.stemGainNodes[deckId]) this.stemGainNodes[deckId] = {};
+      this.stemGainNodes[deckId][stemName] = stemGain;
+
+      this.pitchShifters[deckId][stemName] = shifter;
+    });
+
+    this.isPlaying[deckId] = true;
+    // Position tracking: pauseOffsets stores the buffer position at the anchor time
+    // getCurrentPosition = pauseOffsets + elapsed * rate
+    this.pauseOffsets[deckId] = offset;
+    this.startTimes[deckId] = startTime;
+  }
+
+  // Unified resume — routes to key-lock path or normal play
+  _resumePlayback(deckId, offset) {
+    if (this.keyLockEnabled[deckId]) {
+      const rate = this.playbackRates[deckId] || 1.0;
+      this._startKeyLockPlayback(deckId, offset, rate);
+    } else {
+      this.play(deckId, offset);
+    }
+  }
+
+  _cleanupPitchShifter(deckId) {
+    if (this.pitchShifters[deckId]) {
+      Object.values(this.pitchShifters[deckId]).forEach(shifter => {
+        shifter.disconnect();
+      });
+      delete this.pitchShifters[deckId];
+    }
+  }
+
+  // --- Slip Mode ---
+
+  setSlipMode(deckId, enabled) {
+    this.slipMode[deckId] = enabled;
+    if (enabled) {
+      // Anchor virtual position at current time
+      this.slipVirtualStart[deckId] = this.audioContext?.currentTime || 0;
+      this.slipVirtualOffset[deckId] = this.getCurrentPosition(deckId);
+      this.slipSavedRate[deckId] = this.playbackRates[deckId] || 1.0;
+    }
+  }
+
+  getVirtualPosition(deckId) {
+    if (!this.slipMode[deckId]) return this.getCurrentPosition(deckId);
+    const elapsed = (this.audioContext?.currentTime || 0) - (this.slipVirtualStart[deckId] || 0);
+    const rate = this.slipSavedRate[deckId] || 1.0;
+    return (this.slipVirtualOffset[deckId] || 0) + elapsed * rate;
+  }
+
+  slipReturn(deckId) {
+    if (!this.slipMode[deckId]) return;
+    const virtualPos = this.getVirtualPosition(deckId);
+    const duration = this.getTrackDuration(deckId);
+    const safePos = Math.max(0, Math.min(duration, virtualPos));
+
+    this.pauseOffsets[deckId] = safePos;
+    if (this.isPlaying[deckId]) {
+      this.stop(deckId);
+      this._resumePlayback(deckId, safePos);
+    }
+    // Re-anchor virtual position
+    this.slipVirtualStart[deckId] = this.audioContext?.currentTime || 0;
+    this.slipVirtualOffset[deckId] = safePos;
+  }
+
+  // --- Loop Roll ---
+
+  startLoopRoll(deckId, beats, bpm) {
+    if (!bpm || bpm <= 0) return;
+
+    // Auto-enable slip if not already on
+    if (!this.slipMode[deckId]) {
+      this.setSlipMode(deckId, true);
+      this.loopRollActive[deckId] = true; // track that we auto-enabled slip
+    } else {
+      this.loopRollActive[deckId] = true;
+    }
+
+    // Set a short loop at current position
+    const beatDuration = 60 / bpm;
+    const currentPos = this.getCurrentPosition(deckId);
+    const loopStart = this.quantizeToBeat(currentPos, bpm, 'floor');
+    const loopEnd = loopStart + (beats * beatDuration);
+
+    if (!this.loopPoints[deckId]) this.loopPoints[deckId] = {};
+    this.loopPoints[deckId].start = loopStart;
+
+    // Apply to all sources
+    if (this.sourceNodes[deckId]) {
+      Object.values(this.sourceNodes[deckId]).forEach(source => {
+        if (!source || !source.buffer) return;
+        const safeStart = Math.max(0, loopStart);
+        const safeEnd = Math.min(source.buffer.duration, loopEnd);
+        if (safeEnd <= safeStart) return;
+        source.loopStart = safeStart;
+        source.loopEnd = safeEnd;
+        source.loop = true;
+      });
+    }
+    this.loopPoints[deckId].active = true;
+  }
+
+  endLoopRoll(deckId) {
+    if (!this.loopRollActive[deckId]) return;
+
+    // Exit loop
+    if (this.sourceNodes[deckId]) {
+      Object.values(this.sourceNodes[deckId]).forEach(source => {
+        if (source) source.loop = false;
+      });
+    }
+    if (this.loopPoints[deckId]) {
+      delete this.loopPoints[deckId];
+    }
+
+    // Return to virtual position
+    this.slipReturn(deckId);
+
+    // If we auto-enabled slip, disable it
+    this.loopRollActive[deckId] = false;
+    this.slipMode[deckId] = false;
   }
 
   // --- Effect & Logic ---
@@ -747,6 +1041,11 @@ class AudioPlayer {
       // Reset state completely so next loop starts fresh
       delete this.loopPoints[deckId];
     }
+
+    // Slip mode: return to virtual position after exiting loop
+    if (this.slipMode[deckId] && !this.loopRollActive[deckId]) {
+      this.slipReturn(deckId);
+    }
   }
 
   // === Vinyl Scratch ===
@@ -764,6 +1063,8 @@ class AudioPlayer {
       return this.pauseOffsets[deckId] || 0;
     }
     const elapsed = this.audioContext.currentTime - this.startTimes[deckId];
+    // When key lock is on, SoundTouch delivers audio at tempo rate but source runs at 1.0
+    // The effective rate for position tracking is still the playback rate (=tempo)
     const rate = this.playbackRates[deckId] || 1.0;
     return (this.pauseOffsets[deckId] || 0) + elapsed * rate;
   }
@@ -865,6 +1166,14 @@ class AudioPlayer {
 
     this._stopScratchSources(deckId);
 
+    this.playbackRates[deckId] = state.savedRate;
+
+    // Slip mode: return to virtual position instead of scratch position
+    if (this.slipMode[deckId]) {
+      this.slipReturn(deckId);
+      return;
+    }
+
     // Snap to nearest beat if BPM is known
     let resumePos = state.position;
     if (bpm && bpm > 0) {
@@ -875,8 +1184,7 @@ class AudioPlayer {
     }
 
     this.pauseOffsets[deckId] = resumePos;
-    this.playbackRates[deckId] = state.savedRate;
-    this.play(deckId, resumePos);
+    this._resumePlayback(deckId, resumePos);
   }
 
   // Seek: Jump to percentage (0.0 - 1.0)
@@ -907,8 +1215,29 @@ class AudioPlayer {
       await this.stop(deckId);
       // Restore "Playing" state immediately
       // We need to call play() but play() uses stored offset.
-      this.play(deckId); // This uses existing play logic which reads pauseOffsets
+      this._resumePlayback(deckId, this.pauseOffsets[deckId]);
     }
+  }
+
+  getNormalizedPosition(deckId) {
+    const duration = this.getTrackDuration(deckId);
+    if (duration <= 0) return 0;
+    return Math.min(1, Math.max(0, this.getCurrentPosition(deckId) / duration));
+  }
+
+  getLoopPointsNormalized(deckId) {
+    const loopInfo = this.loopPoints?.[deckId];
+    if (!loopInfo || !loopInfo.active) return null;
+    // Get actual loop start/end from source nodes
+    const sources = this.sourceNodes[deckId];
+    if (!sources) return null;
+    const firstSource = Object.values(sources)[0];
+    if (!firstSource || !firstSource.loop) return null;
+    return {
+      start: firstSource.loopStart,
+      end: firstSource.loopEnd,
+      active: true,
+    };
   }
 
   cleanup() {

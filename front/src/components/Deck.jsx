@@ -1,6 +1,10 @@
 import React, { useState, useRef } from 'react';
 import HelpPopup from './HelpPopup';
 import SpectrumAnalyzer from './SpectrumAnalyzer';
+import HotCuePads from './HotCuePads';
+import BeatJumpControls from './BeatJumpControls';
+import LoopRollPads from './LoopRollPads';
+import ColorWaveform from './ColorWaveform';
 
 const STEMS = ['drums', 'bass', 'vocals', 'other'];
 
@@ -24,12 +28,35 @@ const Deck = ({
     onScratchMove,
     onScratchEnd,
     visualizerNode,
-    loadingTrack
+    loadingTrack,
+    // B1: new props
+    quantizeEnabled,
+    onToggleQuantize,
+    hotCues,
+    onSetHotCue,
+    onJumpHotCue,
+    onDeleteHotCue,
+    beatJumpSize,
+    onSetBeatJumpSize,
+    onBeatJump,
+    // B2: Key Lock
+    keyLockEnabled,
+    onToggleKeyLock,
+    // B4: Color Waveform
+    waveformData,
+    playbackPosition,
+    // B3: Slip Mode + Loop Roll
+    slipModeEnabled,
+    onToggleSlipMode,
+    activeLoopRoll,
+    onStartLoopRoll,
+    onEndLoopRoll,
 }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [loopState, setLoopState] = useState('inactive');
     const [stemDrag, setStemDrag] = useState({ active: false, targetState: true });
     const [isScratching, setIsScratching] = useState(false);
+    const [padMode, setPadMode] = useState('hotcue'); // 'hotcue' | 'looproll'
     const waveformRef = useRef(null);
     const vinylRef = useRef(null);
     const scratchRef = useRef({ lastAngle: null });
@@ -198,10 +225,15 @@ const Deck = ({
                     </div>
                 ) : (
                     <>
-                        <div className="waveform-container" ref={waveformRef} onClick={handleWaveformClick}>
-                            <div className="waveform-grid" />
-                            <div className="waveform-progress" style={{ width: '0%' }} />
-                        </div>
+                        <ColorWaveform
+                            waveformData={waveformData}
+                            position={playbackPosition || 0}
+                            hotCues={hotCues}
+                            duration={track?.duration}
+                            bpm={track?.bpm}
+                            deckId={deckId}
+                            onSeek={onSeek}
+                        />
 
                         <div className="control-row">
                             <button className={`play-btn ${isPlaying ? 'active' : ''}`} onClick={onPlayPause}>
@@ -209,14 +241,73 @@ const Deck = ({
                             </button>
                             <div className="feature-grid">
                                 <button
+                                    className={`glass-btn quantize ${quantizeEnabled ? 'active' : ''}`}
+                                    onClick={onToggleQuantize}
+                                    title="Quantize"
+                                >
+                                    Q
+                                </button>
+                                <button
+                                    className={`glass-btn slip ${slipModeEnabled ? 'active' : ''}`}
+                                    onClick={onToggleSlipMode}
+                                    title="Slip Mode"
+                                >
+                                    SLIP
+                                </button>
+                                <button
+                                    className={`glass-btn keylock ${keyLockEnabled ? 'active' : ''}`}
+                                    onClick={onToggleKeyLock}
+                                    title="Key Lock"
+                                >
+                                    KEY
+                                </button>
+                                <button
                                     className={`glass-btn loop ${loopState !== 'inactive' ? 'active' : ''}`}
                                     onClick={handleLoopToggle}
-                                    style={{ gridColumn: 'span 4', border: loopState === 'in' ? '2px dashed var(--neon-yellow)' : undefined }}
+                                    style={{ border: loopState === 'in' ? '2px dashed var(--neon-yellow)' : undefined }}
                                 >
-                                    {loopState === 'inactive' ? 'LOOP IN' : (loopState === 'in' ? 'LOOP OUT' : 'EXIT LOOP')}
+                                    {loopState === 'inactive' ? 'LOOP' : (loopState === 'in' ? 'OUT' : 'EXIT')}
                                 </button>
                             </div>
                         </div>
+
+                        <div className="pad-mode-toggle">
+                            <button
+                                className={`pad-mode-btn ${padMode === 'hotcue' ? 'active' : ''}`}
+                                onClick={() => setPadMode('hotcue')}
+                            >
+                                HOT CUE
+                            </button>
+                            <button
+                                className={`pad-mode-btn ${padMode === 'looproll' ? 'active' : ''}`}
+                                onClick={() => setPadMode('looproll')}
+                            >
+                                LOOP ROLL
+                            </button>
+                        </div>
+
+                        {padMode === 'hotcue' && hotCues && (
+                            <HotCuePads
+                                hotCues={hotCues}
+                                onSetCue={onSetHotCue}
+                                onJumpCue={onJumpHotCue}
+                                onDeleteCue={onDeleteHotCue}
+                            />
+                        )}
+
+                        {padMode === 'looproll' && (
+                            <LoopRollPads
+                                activeRoll={activeLoopRoll}
+                                onStart={onStartLoopRoll}
+                                onEnd={onEndLoopRoll}
+                            />
+                        )}
+
+                        <BeatJumpControls
+                            beatJumpSize={beatJumpSize || 1}
+                            onSetSize={onSetBeatJumpSize}
+                            onJump={onBeatJump}
+                        />
 
                         <div className="stems-row" onMouseLeave={() => setStemDrag({ ...stemDrag, active: false })}>
                             {STEMS.map(stem => (

@@ -1,7 +1,8 @@
 // hooks/useDecks.js — Dual deck state, track loading, separation, playback
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { analyzeTrack, startSeparation, pollJobStatus } from '../lib/api';
+import { analyzeWaveform } from '../lib/waveformAnalyzer';
 
 const STEMS_OFF = { drums: false, bass: false, vocals: false, other: false };
 const STEMS_ON = { drums: true, bass: true, vocals: true, other: true };
@@ -19,6 +20,14 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
   const [separationProgressB, setSeparationProgressB] = useState(0);
   const [loadingFileA, setLoadingFileA] = useState(null);
   const [loadingFileB, setLoadingFileB] = useState(null);
+  const [quantizeA, setQuantizeA] = useState(false);
+  const [quantizeB, setQuantizeB] = useState(false);
+  const [beatJumpSizeA, setBeatJumpSizeA] = useState(1);
+  const [beatJumpSizeB, setBeatJumpSizeB] = useState(1);
+  const [slipModeA, setSlipModeA] = useState(false);
+  const [slipModeB, setSlipModeB] = useState(false);
+  const [waveformDataA, setWaveformDataA] = useState(null);
+  const [waveformDataB, setWaveformDataB] = useState(null);
 
   // --- helpers to pick A/B setters ---
   const deckState = useCallback((deckId) => ({
@@ -69,6 +78,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
 
       const objectUrl = URL.createObjectURL(file);
       await audioPlayerRef.current.loadAudio(deckId, 'full', objectUrl);
+      analyzeWaveformForDeck(deckId);
 
       if (analysis.bpm) syncBpm(analysis.bpm, deckId, analysis.bpm);
 
@@ -158,6 +168,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       ap.audioBuffers[deckId] = {};
       const stemNames = Object.keys(stemUrls);
       await Promise.all(stemNames.map(s => ap.loadAudio(deckId, s, stemUrls[s])));
+      analyzeWaveformForDeck(deckId);
 
       if (libraryTrack.bpm) syncBpm(libraryTrack.bpm, deckId, libraryTrack.bpm);
 
@@ -211,6 +222,64 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     audioPlayerRef.current.seek(deckId, percent);
   }, [audioPlayerRef]);
 
+  // --- Quantize ---
+  const toggleQuantize = useCallback((deckId) => {
+    const ap = audioPlayerRef.current;
+    if (deckId === 'A') {
+      setQuantizeA(prev => {
+        ap.setQuantize('A', !prev);
+        return !prev;
+      });
+    } else {
+      setQuantizeB(prev => {
+        ap.setQuantize('B', !prev);
+        return !prev;
+      });
+    }
+  }, [audioPlayerRef]);
+
+  // --- Beat Jump ---
+  const setBeatJumpSize = useCallback((deckId, size) => {
+    if (deckId === 'A') setBeatJumpSizeA(size);
+    else setBeatJumpSizeB(size);
+  }, []);
+
+  const handleBeatJump = useCallback((deckId, direction) => {
+    const t = deckId === 'A' ? trackA : trackB;
+    const size = deckId === 'A' ? beatJumpSizeA : beatJumpSizeB;
+    if (!t?.bpm) return;
+    audioPlayerRef.current.beatJump(deckId, direction * size, t.bpm);
+  }, [audioPlayerRef, trackA, trackB, beatJumpSizeA, beatJumpSizeB]);
+
+  // --- Waveform Analysis ---
+  const analyzeWaveformForDeck = useCallback((deckId) => {
+    const ap = audioPlayerRef.current;
+    const buffers = ap.audioBuffers[deckId];
+    if (!buffers) return;
+    // Use 'full' buffer or first stem
+    const buffer = buffers['full'] || Object.values(buffers)[0];
+    if (!buffer) return;
+    const data = analyzeWaveform(buffer);
+    if (deckId === 'A') setWaveformDataA(data);
+    else setWaveformDataB(data);
+  }, [audioPlayerRef]);
+
+  // --- Slip Mode ---
+  const toggleSlipMode = useCallback((deckId) => {
+    const ap = audioPlayerRef.current;
+    if (deckId === 'A') {
+      setSlipModeA(prev => {
+        ap.setSlipMode('A', !prev);
+        return !prev;
+      });
+    } else {
+      setSlipModeB(prev => {
+        ap.setSlipMode('B', !prev);
+        return !prev;
+      });
+    }
+  }, [audioPlayerRef]);
+
   return {
     trackA, trackB, isPlayingA, isPlayingB,
     stemsA, stemsB,
@@ -220,5 +289,9 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     loadTrack, loadTrackFromLibrary,
     togglePlay, toggleStem,
     handleLoopIn, handleLoopOut, handleExitLoop, handleSeek,
+    quantizeA, quantizeB, toggleQuantize,
+    beatJumpSizeA, beatJumpSizeB, setBeatJumpSize, handleBeatJump,
+    slipModeA, slipModeB, toggleSlipMode,
+    waveformDataA, waveformDataB,
   };
 }

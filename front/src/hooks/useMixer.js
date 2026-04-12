@@ -12,6 +12,8 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
   const [eqB, setEqB] = useState({ high: 100, mid: 100, low: 100 });
   const [masterVolume, setMasterVolume] = useState(1.0);
   const [masterBpm, setMasterBpm] = useState(128);
+  const [keyLockA, setKeyLockA] = useState(false);
+  const [keyLockB, setKeyLockB] = useState(false);
 
   // --- Volume math with crossfader curve ---
   const applyVolumes = useCallback((volA, volB, xf, masterVol) => {
@@ -58,6 +60,22 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
     if (trackB?.bpm) audioPlayerRef.current.setPlaybackRate('B', val / trackB.bpm);
   }, [audioPlayerRef, trackA, trackB]);
 
+  // --- Key Lock ---
+  const toggleKeyLock = useCallback((deckId) => {
+    const ap = audioPlayerRef.current;
+    if (deckId === 'A') {
+      setKeyLockA(prev => {
+        ap.setKeyLock('A', !prev);
+        return !prev;
+      });
+    } else {
+      setKeyLockB(prev => {
+        ap.setKeyLock('B', !prev);
+        return !prev;
+      });
+    }
+  }, [audioPlayerRef]);
+
   // --- Effects & Sampler ---
   const handleMasterEffect = useCallback((x, y) => {
     audioPlayerRef.current.setMasterEffect(x, y);
@@ -75,5 +93,6 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
+    keyLockA, keyLockB, toggleKeyLock,
   };
 }

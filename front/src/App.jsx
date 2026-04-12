@@ -9,6 +9,9 @@ import useMixer from "./hooks/useMixer";
 import { initSystem } from "./lib/api";
 import { getShiftedKey, getPlaybackRate } from "./utils/music";
 import useRecorder from "./hooks/useRecorder";
+import useHotCues from "./hooks/useHotCues";
+import useLoopRoll from "./hooks/useLoopRoll";
+import usePlaybackPosition from "./hooks/usePlaybackPosition";
 import AuthScreen from "./components/Auth/AuthScreen";
 import LibraryPanel from "./components/Library/LibraryPanel";
 import RecordBar from "./components/RecordBar";
@@ -52,6 +55,7 @@ function App() {
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
+    keyLockA, keyLockB, toggleKeyLock,
   } = mixerWithTracks;
 
   // --- System init ---
@@ -86,6 +90,23 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isSystemReady, decks.togglePlay, setCrossfader]);
+
+  // --- Hot Cues ---
+  const hotCues = useHotCues(audioPlayerRef);
+
+  // Load cues when tracks change
+  useEffect(() => {
+    hotCues.loadCuesForTrack('A', decks.trackA);
+  }, [decks.trackA?.id, decks.trackA?.filename]);
+  useEffect(() => {
+    hotCues.loadCuesForTrack('B', decks.trackB);
+  }, [decks.trackB?.id, decks.trackB?.filename]);
+
+  // --- Loop Roll ---
+  const loopRoll = useLoopRoll(audioPlayerRef);
+
+  // --- Playback Position (for waveform) ---
+  const { positionA, positionB } = usePlaybackPosition(audioPlayerRef, decks.isPlayingA, decks.isPlayingB);
 
   // --- Recorder ---
   const recorder = useRecorder(audioPlayerRef);
@@ -174,9 +195,11 @@ function App() {
                 track={decks.trackA}
                 isPlaying={decks.isPlayingA}
                 playbackRate={getPlaybackRate(decks.trackA, masterBpm)}
-                effectiveKey={getShiftedKey(decks.trackA?.key, decks.trackA?.bpm, masterBpm)}
+                effectiveKey={keyLockA ? decks.trackA?.key : getShiftedKey(decks.trackA?.key, decks.trackA?.bpm, masterBpm)}
                 onPlayPause={() => guard(decks.togglePlay)('A')}
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
+                waveformData={decks.waveformDataA}
+                playbackPosition={positionA}
                 volume={volumeA}
                 onVolumeChange={(val) => guard(handleVolumeChange)('A', val)}
                 filter={filterA}
@@ -194,6 +217,22 @@ function App() {
                 onScratchEnd={handleScratchEnd}
                 visualizerNode={audioPlayerRef.current.getAnalyser('A')}
                 loadingTrack={decks.loadingFileA}
+                quantizeEnabled={decks.quantizeA}
+                onToggleQuantize={() => guard(decks.toggleQuantize)('A')}
+                hotCues={hotCues.hotCuesA}
+                onSetHotCue={(idx) => guard(hotCues.setHotCue)('A', idx, decks.trackA?.bpm, decks.trackA)}
+                onJumpHotCue={(idx) => guard(hotCues.jumpToHotCue)('A', idx)}
+                onDeleteHotCue={(idx) => guard(hotCues.deleteHotCue)('A', idx, decks.trackA)}
+                beatJumpSize={decks.beatJumpSizeA}
+                onSetBeatJumpSize={(size) => decks.setBeatJumpSize('A', size)}
+                onBeatJump={(dir) => guard(decks.handleBeatJump)('A', dir)}
+                keyLockEnabled={keyLockA}
+                onToggleKeyLock={() => guard(toggleKeyLock)('A')}
+                slipModeEnabled={decks.slipModeA}
+                onToggleSlipMode={() => guard(decks.toggleSlipMode)('A')}
+                activeLoopRoll={loopRoll.activeRollA}
+                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('A', beats, decks.trackA?.bpm)}
+                onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('A')}
               />
 
               <Mixer
@@ -223,9 +262,11 @@ function App() {
                 track={decks.trackB}
                 isPlaying={decks.isPlayingB}
                 playbackRate={getPlaybackRate(decks.trackB, masterBpm)}
-                effectiveKey={getShiftedKey(decks.trackB?.key, decks.trackB?.bpm, masterBpm)}
+                effectiveKey={keyLockB ? decks.trackB?.key : getShiftedKey(decks.trackB?.key, decks.trackB?.bpm, masterBpm)}
                 onPlayPause={() => guard(decks.togglePlay)('B')}
-                onLoadTrack={(file) => guard(decks.loadTrack)('B', file)}
+                onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
+                waveformData={decks.waveformDataB}
+                playbackPosition={positionB}
                 volume={volumeB}
                 onVolumeChange={(val) => guard(handleVolumeChange)('B', val)}
                 filter={filterB}
@@ -243,6 +284,22 @@ function App() {
                 onScratchEnd={handleScratchEnd}
                 visualizerNode={audioPlayerRef.current.getAnalyser('B')}
                 loadingTrack={decks.loadingFileB}
+                quantizeEnabled={decks.quantizeB}
+                onToggleQuantize={() => guard(decks.toggleQuantize)('B')}
+                hotCues={hotCues.hotCuesB}
+                onSetHotCue={(idx) => guard(hotCues.setHotCue)('B', idx, decks.trackB?.bpm, decks.trackB)}
+                onJumpHotCue={(idx) => guard(hotCues.jumpToHotCue)('B', idx)}
+                onDeleteHotCue={(idx) => guard(hotCues.deleteHotCue)('B', idx, decks.trackB)}
+                beatJumpSize={decks.beatJumpSizeB}
+                onSetBeatJumpSize={(size) => decks.setBeatJumpSize('B', size)}
+                onBeatJump={(dir) => guard(decks.handleBeatJump)('B', dir)}
+                keyLockEnabled={keyLockB}
+                onToggleKeyLock={() => guard(toggleKeyLock)('B')}
+                slipModeEnabled={decks.slipModeB}
+                onToggleSlipMode={() => guard(decks.toggleSlipMode)('B')}
+                activeLoopRoll={loopRoll.activeRollB}
+                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('B', beats, decks.trackB?.bpm)}
+                onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('B')}
               />
             </div>
           </div>

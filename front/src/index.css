@@ -697,3 +697,211 @@ body {
     cursor: not-allowed;
     backdrop-filter: blur(4px);
 }
+
+/* --- HOT CUE PADS --- */
+.hotcue-pads {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.hotcue-pad {
+    padding: 8px 0;
+    border: 2px solid #333;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #666;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.6rem;
+    cursor: pointer;
+    transition: all 0.1s ease;
+}
+
+.hotcue-pad.active {
+    color: #fff;
+    text-shadow: 0 0 8px var(--pad-color);
+    box-shadow: 0 0 8px var(--pad-color), inset 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
+.hotcue-pad:hover {
+    border-color: #555;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.hotcue-pad.active:hover {
+    filter: brightness(1.2);
+}
+
+/* --- BEAT JUMP CONTROLS --- */
+.beat-jump-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.beat-jump-btn {
+    flex: 1;
+    padding: 6px 0;
+    background: #111;
+    border: 1px solid #333;
+    color: var(--neon-blue);
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.1s ease;
+}
+
+.beat-jump-btn:hover {
+    border-color: var(--neon-blue);
+    background: rgba(0, 229, 255, 0.1);
+}
+
+.beat-jump-btn:active {
+    background: rgba(0, 229, 255, 0.2);
+}
+
+.beat-jump-size {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.beat-jump-size-value {
+    color: var(--neon-blue);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.6rem;
+    min-width: 32px;
+    text-align: center;
+    padding: 4px 2px;
+}
+
+.beat-jump-size-arrow {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    line-height: 1;
+}
+
+.beat-jump-size-arrow:hover {
+    color: var(--neon-blue);
+}
+
+/* --- QUANTIZE BUTTON --- */
+.glass-btn.quantize.active {
+    background: var(--neon-yellow);
+    color: #000;
+    border-color: var(--neon-yellow);
+    box-shadow: 0 0 8px rgba(240, 255, 0, 0.4);
+    font-weight: bold;
+}
+
+/* --- KEY LOCK BUTTON --- */
+.glass-btn.keylock.active {
+    background: var(--neon-pink);
+    color: #fff;
+    border-color: var(--neon-pink);
+    box-shadow: 0 0 8px rgba(255, 0, 85, 0.4);
+    font-weight: bold;
+}
+
+/* --- SLIP MODE BUTTON --- */
+.glass-btn.slip.active {
+    background: #ff6600;
+    color: #fff;
+    border-color: #ff6600;
+    box-shadow: 0 0 8px rgba(255, 102, 0, 0.4);
+    font-weight: bold;
+}
+
+/* --- PAD MODE TOGGLE --- */
+.pad-mode-toggle {
+    display: flex;
+    gap: 2px;
+    background: #111;
+    border-radius: 4px;
+    padding: 2px;
+    border: 1px solid #222;
+}
+
+.pad-mode-btn {
+    flex: 1;
+    padding: 4px 0;
+    background: transparent;
+    border: none;
+    color: #666;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.5rem;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+}
+
+.pad-mode-btn.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--neon-blue);
+}
+
+.pad-mode-btn:hover {
+    color: #aaa;
+}
+
+/* --- LOOP ROLL PADS --- */
+.looproll-pads {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+}
+
+.looproll-pad {
+    padding: 8px 0;
+    border: 2px solid #333;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #888;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.5rem;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    user-select: none;
+}
+
+.looproll-pad.active {
+    background: rgba(0, 229, 255, 0.2);
+    color: var(--neon-blue);
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
+.looproll-pad:hover {
+    border-color: #555;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.looproll-pad:active {
+    background: rgba(0, 229, 255, 0.15);
+    border-color: var(--neon-blue);
+}
+
+/* --- COLOR WAVEFORM --- */
+.color-waveform-container {
+    width: 100%;
+    height: 60px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #0a0a0e;
+    position: relative;
+}
+
+.color-waveform-container canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
