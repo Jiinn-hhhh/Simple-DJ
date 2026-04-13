@@ -4,10 +4,12 @@ import UploadArea from './UploadArea';
 import ProcessingQueue from './ProcessingQueue';
 import './LibraryPanel.css';
 
-export default function LibraryPanel({ isOpen, onClose, tracks, loading, onUpload, onDelete, onLoadToDeck, uploadQueueInfo }) {
+export default function LibraryPanel({
+  isOpen, onClose, tracks, loading, onUpload, onDelete, onLoadToDeck,
+  uploadQueueInfo, onCancelProcessing, onClearQueue
+}) {
   const [panelDragging, setPanelDragging] = useState(false);
 
-  // Filter tracks by status
   const readyTracks = tracks.filter(t => t.status === 'ready');
   const processingTracks = tracks.filter(t => ['uploading', 'analyzing', 'separating', 'converting'].includes(t.status));
   const errorTracks = tracks.filter(t => t.status === 'error');
@@ -46,11 +48,14 @@ export default function LibraryPanel({ isOpen, onClose, tracks, loading, onUploa
         <div className="upload-queue-status">
           <span className="processing-spinner">&#9654;</span>
           {' '}Queued: {queuePending - 1} waiting
+          {onClearQueue && (
+            <button className="clear-queue-btn" onClick={onClearQueue}>CLEAR</button>
+          )}
         </div>
       )}
 
       {processingTracks.length > 0 && (
-        <ProcessingQueue tracks={processingTracks} />
+        <ProcessingQueue tracks={processingTracks} onCancel={onCancelProcessing} />
       )}
 
       {errorTracks.length > 0 && (

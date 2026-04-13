@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function useLibrary(user) {
   const [tracks, setTracks] = useState([]);
@@ -10,6 +11,8 @@ export default function useLibrary(user) {
   // --- Upload queue state ---
   const queueRef = useRef([]);
   const processingRef = useRef(false);
+  const abortRef = useRef(null); // AbortController for current upload
+  const currentTrackIdRef = useRef(null); // track ID of current upload
   const [uploadQueueInfo, setUploadQueueInfo] = useState({ pending: 0, currentFile: null });
 
   // Fetch user's tracks from Supabase
@@ -25,7 +28,6 @@ export default function useLibrary(user) {
 
   useEffect(() => {
     if (!user) {
-      // Clear state on logout
       setTracks([]);
       setLoading(false);
       return;
@@ -33,7 +35,6 @@ export default function useLibrary(user) {
 
     fetchTracks();
 
-    // Subscribe to realtime changes on tracks table for this user
     const channel = supabase
       .channel('tracks-changes')
       .on('postgres_changes', {
@@ -55,14 +56,13 @@ export default function useLibrary(user) {
     return () => { supabase.removeChannel(channel); };
   }, [user, fetchTracks]);
 
-  // Upload a single track to the library (internal)
-  const uploadSingle = useCallback(async (file) => {
+  // Upload a single track (internal) — with AbortController + timeout
+  const uploadSingle = useCallback(async (file, signal) => {
     if (!user) return;
 
-    // 1. Extract title from filename (remove extension)
     const title = file.name.replace(/\.[^.]+$/, '');
 
-    // 2. Create track record in Supabase (status: uploading)
+    // Create track record
     const { data: track, error: insertError } = await supabase
       .from('tracks')
       .insert({
@@ -76,24 +76,34 @@ export default function useLibrary(user) {
 
     if (insertError) throw insertError;
 
-    // 3. Get session token for auth
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error('Not authenticated');
+    currentTrackIdRef.current = track.id;
 
-    // 4. Send to backend for processing
+    // Check abort before network call
+    if (signal?.aborted) {
+      await supabase.from('tracks').delete().eq('id', track.id);
+      throw new DOMException('Upload cancelled', 'AbortError');
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      await supabase.from('tracks').update({ status: 'error' }).eq('id', track.id);
+      throw new Error('Not authenticated');
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('track_id', track.id);
 
     const res = await fetch(`${API_BASE}/library/upload`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`
-      },
-      body: formData
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: formData,
+      signal
     });
 
     if (!res.ok) {
+      // Mark track as error in DB
+      await supabase.from('tracks').update({ status: 'error' }).eq('id', track.id);
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || 'Upload failed');
     }
@@ -110,12 +120,31 @@ export default function useLibrary(user) {
       const file = queueRef.current[0];
       setUploadQueueInfo({ pending: queueRef.current.length, currentFile: file.name });
 
+      // Create AbortController for this upload
+      const controller = new AbortController();
+      abortRef.current = controller;
+      currentTrackIdRef.current = null;
+
+      // Set up timeout
+      const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+
       try {
-        await uploadSingle(file);
+        await uploadSingle(file, controller.signal);
       } catch (err) {
-        console.error(`Upload queue: skipping "${file.name}"`, err);
+        if (err.name === 'AbortError') {
+          console.warn(`Upload cancelled or timed out: "${file.name}"`);
+          // Clean up the track record if it was created
+          if (currentTrackIdRef.current) {
+            await supabase.from('tracks').delete().eq('id', currentTrackIdRef.current).catch(() => {});
+          }
+        } else {
+          console.error(`Upload failed, skipping: "${file.name}"`, err);
+        }
       }
 
+      clearTimeout(timeoutId);
+      abortRef.current = null;
+      currentTrackIdRef.current = null;
       queueRef.current.shift();
     }
 
@@ -123,21 +152,43 @@ export default function useLibrary(user) {
     processingRef.current = false;
   }, [uploadSingle]);
 
-  // Public API: enqueue a file for upload (replaces direct uploadTrack)
+  // Public: enqueue a file for upload
   const uploadTrack = useCallback((file) => {
     queueRef.current.push(file);
     setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length }));
     processQueue();
   }, [processQueue]);
 
+  // Cancel the current in-flight upload
+  const cancelCurrentUpload = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+  }, []);
+
+  // Cancel a specific processing track (already in Supabase)
+  const cancelProcessingTrack = useCallback(async (trackId) => {
+    // If this is the currently uploading track, abort the fetch
+    if (currentTrackIdRef.current === trackId && abortRef.current) {
+      abortRef.current.abort();
+      return; // cleanup handled by processQueue catch block
+    }
+    // Otherwise just delete/error the track in DB
+    await supabase.from('tracks').delete().eq('id', trackId).catch(() => {});
+  }, []);
+
+  // Clear all pending items from the queue (does not cancel current)
+  const clearQueue = useCallback(() => {
+    queueRef.current.splice(1); // keep index 0 (currently processing), remove rest
+    setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length }));
+  }, []);
+
   // Delete a track (DB + Storage)
   const deleteTrack = useCallback(async (trackId) => {
     if (!user) return;
 
-    // Find track to get stem_urls for storage cleanup
     const track = tracks.find(t => t.id === trackId);
 
-    // Delete storage files if stem_urls exist
     if (track?.stem_urls) {
       const paths = Object.values(track.stem_urls).map(p => p);
       if (paths.length > 0) {
@@ -145,7 +196,6 @@ export default function useLibrary(user) {
       }
     }
 
-    // Delete DB record (cascades via RLS)
     await supabase.from('tracks').delete().eq('id', trackId);
   }, [user, tracks]);
 
@@ -157,7 +207,7 @@ export default function useLibrary(user) {
     for (const [stemName, path] of Object.entries(track.stem_urls)) {
       const { data } = await supabase.storage
         .from('stems')
-        .createSignedUrl(path, 3600); // 1 hour expiry
+        .createSignedUrl(path, 3600);
       if (data?.signedUrl) {
         urls[stemName] = data.signedUrl;
       }
@@ -165,5 +215,9 @@ export default function useLibrary(user) {
     return urls;
   }, []);
 
-  return { tracks, loading, uploadTrack, deleteTrack, getStemUrls, refreshTracks: fetchTracks, uploadQueueInfo };
+  return {
+    tracks, loading, uploadTrack, deleteTrack, getStemUrls,
+    refreshTracks: fetchTracks, uploadQueueInfo,
+    cancelCurrentUpload, cancelProcessingTrack, clearQueue
+  };
 }

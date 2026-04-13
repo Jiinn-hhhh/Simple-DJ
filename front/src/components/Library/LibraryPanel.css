@@ -290,6 +290,45 @@
   text-overflow: ellipsis;
 }
 
+.processing-cancel-btn {
+  background: transparent;
+  border: 1px solid #444;
+  color: #666;
+  font-size: 0.9rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.processing-cancel-btn:hover {
+  color: var(--neon-pink, #ff0055);
+  border-color: var(--neon-pink, #ff0055);
+}
+
+.clear-queue-btn {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.4rem;
+  background: transparent;
+  border: 1px solid rgba(240, 255, 0, 0.3);
+  color: var(--neon-yellow, #f0ff00);
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-left: auto;
+  float: right;
+  transition: background 0.2s;
+}
+
+.clear-queue-btn:hover {
+  background: rgba(240, 255, 0, 0.1);
+}
+
 .processing-spinner {
   display: inline-block;
   animation: blink-animation 1s infinite;
