@@ -3,24 +3,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
 
 :root {
-    /* --- COLOR PALETTE: Cyber Charcoal & Neon --- */
-    --bg-color: #121214;
-    --panel-bg: #1e1e24;
-    --panel-border: #33333f;
+    /* --- COLOR PALETTE: Premium Glass & Slate --- */
+    --bg-color: #020617;
+    --panel-bg: rgba(15, 23, 42, 0.65);
+    --panel-border: rgba(255, 255, 255, 0.08);
 
-    --text-main: #e0e0e0;
-    --text-dim: #888899;
+    --text-main: #f8fafc;
+    --text-dim: #94a3b8;
 
     /* Accents */
-    --neon-green: #00ff9d;
-    --neon-pink: #ff0055;
-    --neon-blue: #00e5ff;
-    --neon-yellow: #f0ff00;
+    --neon-green: #10b981;
+    --neon-pink: #ec4899;
+    --neon-blue: #0ea5e9;
+    --neon-yellow: #eab308;
 
     /* UI Elements */
     --knob-size: 40px;
     --fader-width: 40px;
-    --fader-height: 180px;
+    --fader-height: 200px;
 }
 
 body {
@@ -53,7 +53,7 @@ body {
     flex-direction: column;
     height: 100%;
     box-sizing: border-box;
-    background: radial-gradient(circle at center, #1a1a20 0%, #0d0d10 100%);
+    background: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 100%);
 }
 
 /* --- TOP BAR --- */
@@ -61,38 +61,38 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding: 0 10px 15px 10px;
-    border-bottom: 2px solid var(--panel-border);
+    margin-bottom: 12px;
+    padding: 8px 16px 10px 16px;
+    border-bottom: 1px solid var(--panel-border);
 }
 
 .top-bar h1 {
     margin: 0;
-    font-size: 1.8rem;
+    font-size: 1.6rem;
     color: var(--text-main);
-    text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
-    letter-spacing: -2px;
+    text-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
+    letter-spacing: -1px;
 }
 
 .status-bar {
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: var(--neon-green);
-    background: rgba(0, 255, 157, 0.1);
-    padding: 8px 15px;
-    border: 1px solid var(--neon-green);
-    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.1);
+    padding: 6px 12px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
 }
 
 /* --- CONSOLE LAYOUT --- */
 .console-layout {
     flex: 1;
     display: grid;
-    /* Deck : Mixer : Deck = 1 : 1.3 : 1 */
-    grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.3fr) minmax(300px, 1fr);
-    gap: 20px;
-    padding: 0 10px 20px 10px;
+    grid-template-columns: 1fr minmax(340px, 380px) 1fr;
+    gap: 16px;
+    padding: 0 16px 12px 16px;
     align-items: stretch;
+    min-height: 0;
 }
 
 /* --- DECK & MIXER CONTAINERS --- */
@@ -100,11 +100,12 @@ body {
 .mixer-container {
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     position: relative;
     min-height: 0;
 }
@@ -112,22 +113,19 @@ body {
 /* Deck */
 .deck-container {
     justify-content: space-between;
+    padding: 14px;
 }
 
 .deck-container.dragging {
     border-color: var(--neon-green);
-    background: rgba(0, 255, 157, 0.05);
+    background: rgba(16, 185, 129, 0.08);
 }
 
-/* Mixer */
 /* Mixer Main Container */
 .mixer-container {
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    background: #16161a;
-    gap: 15px;
-    align-items: stretch;
+    padding: 16px 14px;
+    gap: 12px;
+    justify-content: space-between;
 }
 
 /* 1. HEADER: MASTER BPM & VOLUME */
@@ -135,45 +133,42 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 8px;
 }
 
 .bpm-display-large {
     width: 100%;
-    background: #000;
-    border: 2px solid #333;
-    padding: 10px;
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--panel-border);
+    padding: 8px;
+    border-radius: 8px;
     text-align: center;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
 }
 
 .bpm-slider {
     width: 90%;
-    height: 6px;
+    height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: #333;
-    border-radius: 3px;
-    margin-top: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    margin-top: 4px;
 }
 
 .bpm-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
-    background: var(--neon-green);
-    border: 2px solid #fff;
+    background: var(--text-main);
     cursor: pointer;
-    box-shadow: 0 0 5px var(--neon-green);
-    margin-top: -3px;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
 .master-vol-container {
@@ -181,62 +176,57 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 5px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    border: 1px solid #222;
+    gap: 4px;
+    padding: 6px;
+    background: transparent;
 }
 
 .mixer-label.tiny {
-    font-size: 1.2rem;
-    color: #888;
-    letter-spacing: 1px;
-    font-weight: bold;
+    font-size: 1.0rem;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    font-weight: 600;
 }
 
 .master-vol-slider {
     width: 90%;
-    height: 6px;
+    height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: #333;
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
 }
 
 .master-vol-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: var(--neon-yellow);
-    border: 2px solid #fff;
     cursor: pointer;
-    box-shadow: 0 0 5px var(--neon-yellow);
-    margin-top: -3px;
-    /* Center on 6px track? (12-6)/2 = 3. So -3 up. */
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);
 }
 
 .bpm-label-top {
     display: block;
-    color: #888;
-    font-size: 1.2rem;
-    margin-bottom: 5px;
-    letter-spacing: 1px;
-    font-weight: bold;
+    color: var(--text-dim);
+    font-size: 1.0rem;
+    margin-bottom: 2px;
+    letter-spacing: 2px;
+    font-weight: 600;
 }
 
 .bpm-input-large {
     background: transparent;
     border: none;
-    color: var(--neon-green);
-    font-size: 3.2rem;
+    color: var(--text-main);
+    font-size: 2.6rem;
+    font-weight: 700;
     width: 100%;
     text-align: center;
     outline: none;
     -moz-appearance: textfield;
-    /* Firefox */
 }
 
 /* Hide Spin Buttons */
@@ -262,7 +252,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
     position: relative;
 }
 
@@ -280,7 +270,7 @@ body {
 
 .mixer-label {
     font-size: 1.3rem;
-    color: #888;
+    color: var(--text-dim);
     font-weight: bold;
 }
 
@@ -291,15 +281,16 @@ body {
     font-weight: bold;
 }
 
-/* Horizontal Slider for Filter */
+/* Horizontal Slider for Filter/EQ */
 .knob-slider-horizontal {
     width: 80%;
-    height: 6px;
+    height: 4px;
     -webkit-appearance: none;
     appearance: none;
-    background: #222;
-    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
     outline: none;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .knob-slider-horizontal::-webkit-slider-thumb {
@@ -308,9 +299,16 @@ body {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #888;
+    background: var(--text-main);
     cursor: pointer;
-    border: 2px solid #333;
+    border: 2px solid var(--panel-border);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    transition: transform 0.1s;
+}
+
+.knob-slider-horizontal::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    border-color: var(--neon-blue);
 }
 
 /* Fader Group */
@@ -322,29 +320,24 @@ body {
 
 .fader-track-new {
     width: 40px;
-    height: 250px;
-    /* Taller faders */
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 4px;
+    height: 200px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
     position: relative;
-    box-shadow: inset 0 0 10px #000;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
 }
 
 .vertical-fader-new {
-    width: 250px;
-    /* Must match height of track */
+    width: 200px;
     height: 40px;
-    /* Must match width of track */
     transform: rotate(-90deg);
     transform-origin: center;
     position: absolute;
     top: 50%;
     left: 50%;
-    margin-left: -125px;
-    /* width/2 */
+    margin-left: -100px;
     margin-top: -20px;
-    /* height/2 */
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
@@ -361,15 +354,13 @@ body {
 .vertical-fader-new::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    height: 30px;
-    width: 50px;
-    /* Wide cap */
-    background: linear-gradient(to bottom, #444, #222);
-    border: 1px solid #555;
-    border-radius: 2px;
-    margin-top: -12px;
-    /* Center on track */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+    height: 28px;
+    width: 44px;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    margin-top: -11px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
     cursor: ns-resize;
     position: relative;
 }
@@ -388,21 +379,21 @@ body {
 
 .deck-label {
     font-family: 'Press Start 2P', cursive;
-    font-size: 2.0rem;
-    color: #333;
-    margin-top: 10px;
+    font-size: 1.6rem;
+    color: rgba(255, 255, 255, 0.15);
+    margin-top: 8px;
 }
 
 /* 3. FOOTER: CROSSFADER */
 .mixer-footer {
-    height: 60px;
+    height: 50px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #111;
-    border-radius: 4px;
-    border: 1px solid #222;
-    padding: 0 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
+    padding: 0 16px;
 }
 
 .crossfader-wrapper {
@@ -421,35 +412,32 @@ body {
 
 .crossfader-new::-webkit-slider-runnable-track {
     width: 100%;
-    height: 8px;
-    background: #000;
-    border-radius: 4px;
-    border: 1px solid #333;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 3px;
+    border: 1px solid var(--panel-border);
 }
 
 .crossfader-new::-webkit-slider-thumb {
     -webkit-appearance: none;
-    height: 24px;
-    width: 40px;
+    height: 22px;
+    width: 36px;
     background: var(--neon-pink);
-    border: 2px solid #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
     margin-top: -9px;
-    border-radius: 2px;
+    border-radius: 3px;
     cursor: ew-resize;
-    box-shadow: 0 0 10px var(--neon-pink);
+    box-shadow: 0 0 12px rgba(236, 72, 153, 0.5);
 }
 
 .xf-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 1.6rem;
-    /* Reduced from 2.5rem */
+    font-size: 1.3rem;
     font-weight: bold;
-    color: #666;
-    /* Slightly darker for visibility */
+    color: var(--text-dim);
     padding: 0 5px;
-    margin-bottom: -5px;
-    /* Pull closer to slider */
+    margin-bottom: -4px;
 }
 
 /* --- DECK HEADER --- */
@@ -462,22 +450,22 @@ body {
 
 .deck-header h2 {
     margin: 0;
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     color: var(--text-dim);
     border: 1px solid var(--panel-border);
-    padding: 5px 10px;
-    border-radius: 4px;
-    background: #111;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.3);
 }
 
 .track-display {
     text-align: right;
     flex: 1;
-    margin-left: 20px;
-    background: #000;
-    padding: 8px 12px;
-    border-radius: 4px;
-    border: 1px solid #333;
+    margin-left: 12px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--panel-border);
 }
 
 .track-title {
@@ -504,26 +492,22 @@ body {
     justify-content: center;
     align-items: center;
     position: relative;
-    min-height: 160px;
-    max-height: 220px;
+    min-height: 140px;
+    max-height: 200px;
 }
 
 .vinyl-disc {
-    width: 70%;
-    /* Relative to container */
-    max-width: 200px;
-    /* Max size — compact for pro layout */
+    width: 65%;
+    max-width: 180px;
     aspect-ratio: 1/1;
-    /* Keep circle */
     height: auto;
-    /* Let aspect ratio define height */
     border-radius: 50%;
-    background: repeating-radial-gradient(#111, #111 2px, #1a1a1a 3px);
-    border: 4px solid #080808;
+    background: repeating-radial-gradient(#0a0a0f, #0a0a0f 2px, #141420 3px);
+    border: 3px solid rgba(255, 255, 255, 0.05);
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 .vinyl-disc.spinning {
@@ -533,20 +517,20 @@ body {
 .vinyl-disc.scratching {
     animation: none;
     border-color: var(--neon-yellow);
-    box-shadow: 0 0 20px rgba(240, 255, 0, 0.3);
+    box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
     cursor: grabbing !important;
 }
 
 .disc-label {
-    width: 70px;
-    height: 70px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     background: var(--neon-pink);
-    border: 3px solid #fff;
+    border: 2px solid rgba(255, 255, 255, 0.6);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 1.0rem;
     font-weight: bold;
     color: white;
 }
@@ -561,7 +545,7 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 .upload-section {
@@ -593,21 +577,23 @@ body {
 }
 
 .play-btn {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
-    background: #222;
-    color: #fff;
-    font-size: 1.4rem;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    font-size: 1.3rem;
     cursor: pointer;
-    border: 3px solid #333;
+    border: 2px solid var(--panel-border);
     flex-shrink: 0;
+    transition: all 0.15s ease;
 }
 
 .play-btn.active {
     border-color: var(--neon-green);
     color: var(--neon-green);
-    box-shadow: 0 0 15px rgba(0, 255, 157, 0.4);
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.1);
 }
 
 .feature-grid {
@@ -618,18 +604,25 @@ body {
 }
 
 .glass-btn {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--panel-border);
     color: var(--text-dim);
     padding: 5px 0;
     cursor: pointer;
-    border-radius: 3px;
+    border-radius: 4px;
     font-size: 0.75rem;
+    transition: all 0.15s ease;
+}
+
+.glass-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .glass-btn.active {
     background: var(--neon-blue);
     color: #000;
+    box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
 }
 
 .stems-row {
@@ -639,24 +632,22 @@ body {
 
 .stem-btn {
     flex: 1;
-    background: #111;
-    border: 1px solid #333;
-    color: #555;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--panel-border);
+    color: var(--text-dim);
     padding: 4px;
     cursor: pointer;
     font-size: 0.7rem;
+    border-radius: 3px;
+    transition: all 0.15s ease;
 }
 
 .stem-btn.active {
     color: var(--neon-green);
     border-color: var(--neon-green);
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
 }
 
-/* Removed old mixer internal classes to avoid conflicts */
-.sync-btn:hover {
-    color: white;
-    background: #333;
-}
 
 @keyframes spin {
     from {
@@ -717,10 +708,10 @@ body {
 
 .hotcue-pad {
     padding: 5px 0;
-    border: 2px solid #333;
-    border-radius: 3px;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
     background: rgba(255, 255, 255, 0.03);
-    color: #666;
+    color: var(--text-dim);
     font-family: 'Press Start 2P', cursive;
     font-size: 0.5rem;
     cursor: pointer;
@@ -730,12 +721,12 @@ body {
 .hotcue-pad.active {
     color: #fff;
     text-shadow: 0 0 8px var(--pad-color);
-    box-shadow: 0 0 8px var(--pad-color), inset 0 0 6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 10px var(--pad-color), inset 0 0 6px rgba(0, 0, 0, 0.5);
 }
 
 .hotcue-pad:hover {
-    border-color: #555;
-    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .hotcue-pad.active:hover {
@@ -752,30 +743,30 @@ body {
 .beat-jump-btn {
     flex: 1;
     padding: 4px 0;
-    background: #111;
-    border: 1px solid #333;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--panel-border);
     color: var(--neon-blue);
     font-size: 0.85rem;
     cursor: pointer;
-    border-radius: 3px;
+    border-radius: 4px;
     transition: all 0.1s ease;
 }
 
 .beat-jump-btn:hover {
     border-color: var(--neon-blue);
-    background: rgba(0, 229, 255, 0.1);
+    background: rgba(14, 165, 233, 0.1);
 }
 
 .beat-jump-btn:active {
-    background: rgba(0, 229, 255, 0.2);
+    background: rgba(14, 165, 233, 0.2);
 }
 
 .beat-jump-size {
     display: flex;
     align-items: center;
     gap: 2px;
-    background: #000;
-    border: 1px solid #333;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--panel-border);
     border-radius: 4px;
     padding: 2px;
 }
@@ -792,7 +783,7 @@ body {
 .beat-jump-size-arrow {
     background: transparent;
     border: none;
-    color: #888;
+    color: var(--text-dim);
     font-size: 1.1rem;
     cursor: pointer;
     padding: 2px 4px;
@@ -808,7 +799,7 @@ body {
     background: var(--neon-yellow);
     color: #000;
     border-color: var(--neon-yellow);
-    box-shadow: 0 0 8px rgba(240, 255, 0, 0.4);
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
     font-weight: bold;
 }
 
@@ -817,16 +808,16 @@ body {
     background: var(--neon-pink);
     color: #fff;
     border-color: var(--neon-pink);
-    box-shadow: 0 0 8px rgba(255, 0, 85, 0.4);
+    box-shadow: 0 0 8px rgba(236, 72, 153, 0.4);
     font-weight: bold;
 }
 
 /* --- SLIP MODE BUTTON --- */
 .glass-btn.slip.active {
-    background: #ff6600;
+    background: #f97316;
     color: #fff;
-    border-color: #ff6600;
-    box-shadow: 0 0 8px rgba(255, 102, 0, 0.4);
+    border-color: #f97316;
+    box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
     font-weight: bold;
 }
 
@@ -834,10 +825,10 @@ body {
 .pad-mode-toggle {
     display: flex;
     gap: 2px;
-    background: #111;
-    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
     padding: 2px;
-    border: 1px solid #222;
+    border: 1px solid var(--panel-border);
 }
 
 .pad-mode-btn {
@@ -845,7 +836,7 @@ body {
     padding: 3px 0;
     background: transparent;
     border: none;
-    color: #666;
+    color: var(--text-dim);
     font-family: 'Press Start 2P', cursive;
     font-size: 0.45rem;
     cursor: pointer;
@@ -871,10 +862,10 @@ body {
 
 .looproll-pad {
     padding: 5px 0;
-    border: 2px solid #333;
-    border-radius: 3px;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
     background: rgba(255, 255, 255, 0.03);
-    color: #888;
+    color: var(--text-dim);
     font-family: 'Press Start 2P', cursive;
     font-size: 0.45rem;
     cursor: pointer;
@@ -883,19 +874,19 @@ body {
 }
 
 .looproll-pad.active {
-    background: rgba(0, 229, 255, 0.2);
+    background: rgba(14, 165, 233, 0.2);
     color: var(--neon-blue);
     border-color: var(--neon-blue);
-    box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+    box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
 }
 
 .looproll-pad:hover {
-    border-color: #555;
+    border-color: rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.06);
 }
 
 .looproll-pad:active {
-    background: rgba(0, 229, 255, 0.15);
+    background: rgba(14, 165, 233, 0.15);
     border-color: var(--neon-blue);
 }
 
@@ -903,10 +894,10 @@ body {
 .color-waveform-container {
     width: 100%;
     height: 48px;
-    border: 1px solid #333;
-    border-radius: 4px;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
     overflow: hidden;
-    background: #0a0a0e;
+    background: rgba(0, 0, 0, 0.4);
     position: relative;
 }
 
