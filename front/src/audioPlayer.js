@@ -1,4 +1,9 @@
 import PitchShifter from './lib/pitchShifter';
+import * as sampler from './audio/sampler';
+import * as hotCuesModule from './audio/hotCues';
+import * as slipModeModule from './audio/slipMode';
+import * as scratchModule from './audio/scratch';
+import * as loopSystemModule from './audio/loopSystem';
 
 // Audio Player using Web Audio API
 class AudioPlayer {
@@ -322,81 +327,6 @@ class AudioPlayer {
 
   // --- Sampler / SFX ---
 
-  async playAirHorn() {
-    if (!this.audioContext) await this.init();
-    this.initMasterBus();
-    if (this.audioContext.state === 'suspended') await this.audioContext.resume();
-
-    const t = this.audioContext.currentTime;
-
-    // Oscillators for "Air Horn" (Stacking saws/squares at dissonant intervals)
-    // Higher pitch: 450Hz
-    const fund = 450;
-    const freqs = [fund, fund * 1.05, fund * 1.5, fund * 1.55];
-
-    const mainGain = this.audioContext.createGain();
-    mainGain.connect(this.masterNodes.input); // Send to master bus
-
-    // Envelope
-    mainGain.gain.setValueAtTime(0.8, t);
-    mainGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-
-    freqs.forEach(f => {
-      const osc = this.audioContext.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(f, t);
-      // Pitch drop per "honk"
-      osc.frequency.linearRampToValueAtTime(f * 0.9, t + 0.4);
-      osc.connect(mainGain);
-      osc.start(t);
-      osc.stop(t + 0.8);
-    });
-  }
-
-  async playSiren() {
-    if (!this.audioContext) await this.init();
-    this.initMasterBus();
-    if (this.audioContext.state === 'suspended') await this.audioContext.resume();
-
-    const t = this.audioContext.currentTime;
-
-    const osc = this.audioContext.createOscillator();
-    const gain = this.audioContext.createGain();
-    // Add LPF to soften the sound
-    const filter = this.audioContext.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 2500; // Cut highs
-
-    // Chain: Osc -> Filter -> Gain -> Master
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterNodes.input);
-
-    // Dub Siren LFO
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(650, t);
-
-    // LFO for pitch
-    const lfo = this.audioContext.createOscillator();
-    lfo.type = 'sine';
-    lfo.frequency.value = 8;
-    const lfoAmp = this.audioContext.createGain();
-    lfoAmp.gain.value = 50;
-    lfo.connect(lfoAmp);
-    lfoAmp.connect(osc.frequency);
-
-    lfo.start(t);
-    osc.start(t);
-
-    // Envelope (Even Shorter: 1.0s total)
-    gain.gain.setValueAtTime(0.5, t);
-    gain.gain.linearRampToValueAtTime(0.5, t + 0.6); // Sustain 0.6s
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 1.0); // Fade out
-
-    osc.stop(t + 1.0);
-    lfo.stop(t + 1.0);
-  }
-
   setMasterEffect(x, y) {
     if (!this.masterNodes) return;
 
@@ -663,42 +593,6 @@ class AudioPlayer {
 
   // --- Hot Cues ---
 
-  setHotCue(deckId, index, bpm) {
-    if (!this.hotCues[deckId]) {
-      this.hotCues[deckId] = new Array(8).fill(null);
-    }
-    const colors = ['#ff0000', '#ff8800', '#ffff00', '#00cc00', '#00ccff', '#0066ff', '#9900ff', '#ff00aa'];
-    let position = this.getCurrentPosition(deckId);
-    if (this.quantizeEnabled[deckId] && bpm) {
-      position = this.quantizeToBeat(position, bpm);
-    }
-    this.hotCues[deckId][index] = { position, color: colors[index] };
-    return this.hotCues[deckId][index];
-  }
-
-  jumpToHotCue(deckId, index) {
-    if (!this.hotCues[deckId]?.[index]) return;
-    const { position } = this.hotCues[deckId][index];
-    const duration = this.getTrackDuration(deckId);
-    const safePos = Math.max(0, Math.min(duration, position));
-
-    this.pauseOffsets[deckId] = safePos;
-    if (this.isPlaying[deckId]) {
-      this.stop(deckId);
-      this._resumePlayback(deckId, safePos);
-    }
-  }
-
-  deleteHotCue(deckId, index) {
-    if (this.hotCues[deckId]) {
-      this.hotCues[deckId][index] = null;
-    }
-  }
-
-  getHotCues(deckId) {
-    return this.hotCues[deckId] || new Array(8).fill(null);
-  }
-
   // --- Beat Jump ---
 
   beatJump(deckId, beats, bpm) {
@@ -817,226 +711,12 @@ class AudioPlayer {
 
   // --- Slip Mode ---
 
-  setSlipMode(deckId, enabled) {
-    this.slipMode[deckId] = enabled;
-    if (enabled) {
-      // Anchor virtual position at current time
-      this.slipVirtualStart[deckId] = this.audioContext?.currentTime || 0;
-      this.slipVirtualOffset[deckId] = this.getCurrentPosition(deckId);
-      this.slipSavedRate[deckId] = this.playbackRates[deckId] || 1.0;
-    }
-  }
-
-  getVirtualPosition(deckId) {
-    if (!this.slipMode[deckId]) return this.getCurrentPosition(deckId);
-    const elapsed = (this.audioContext?.currentTime || 0) - (this.slipVirtualStart[deckId] || 0);
-    const rate = this.slipSavedRate[deckId] || 1.0;
-    return (this.slipVirtualOffset[deckId] || 0) + elapsed * rate;
-  }
-
-  slipReturn(deckId) {
-    if (!this.slipMode[deckId]) return;
-    const virtualPos = this.getVirtualPosition(deckId);
-    const duration = this.getTrackDuration(deckId);
-    const safePos = Math.max(0, Math.min(duration, virtualPos));
-
-    this.pauseOffsets[deckId] = safePos;
-    if (this.isPlaying[deckId]) {
-      this.stop(deckId);
-      this._resumePlayback(deckId, safePos);
-    }
-    // Re-anchor virtual position
-    this.slipVirtualStart[deckId] = this.audioContext?.currentTime || 0;
-    this.slipVirtualOffset[deckId] = safePos;
-  }
-
   // --- Loop Roll ---
-
-  startLoopRoll(deckId, beats, bpm) {
-    if (!bpm || bpm <= 0) return;
-
-    // Auto-enable slip if not already on
-    if (!this.slipMode[deckId]) {
-      this.setSlipMode(deckId, true);
-      this._slipAutoEnabled = this._slipAutoEnabled || {};
-      this._slipAutoEnabled[deckId] = true;
-    }
-    this.loopRollActive[deckId] = true;
-
-    // Set a short loop at current position
-    const beatDuration = 60 / bpm;
-    const currentPos = this.getCurrentPosition(deckId);
-    const loopStart = this.quantizeToBeat(currentPos, bpm, 'floor');
-    const loopEnd = loopStart + (beats * beatDuration);
-
-    if (!this.loopPoints[deckId]) this.loopPoints[deckId] = {};
-    this.loopPoints[deckId].start = loopStart;
-
-    // Apply to all sources
-    if (this.sourceNodes[deckId]) {
-      Object.values(this.sourceNodes[deckId]).forEach(source => {
-        if (!source || !source.buffer) return;
-        const safeStart = Math.max(0, loopStart);
-        const safeEnd = Math.min(source.buffer.duration, loopEnd);
-        if (safeEnd <= safeStart) return;
-        source.loopStart = safeStart;
-        source.loopEnd = safeEnd;
-        source.loop = true;
-      });
-    }
-    this.loopPoints[deckId].active = true;
-  }
-
-  endLoopRoll(deckId) {
-    if (!this.loopRollActive[deckId]) return;
-
-    // Exit loop
-    this._forEachSource(deckId, source => { if (source) source.loop = false; });
-    if (this.loopPoints[deckId]) {
-      delete this.loopPoints[deckId];
-    }
-
-    // Return to virtual position
-    this.slipReturn(deckId);
-
-    // Only disable slip if it was auto-enabled by loop roll
-    this.loopRollActive[deckId] = false;
-    if (this._slipAutoEnabled?.[deckId]) {
-      this.slipMode[deckId] = false;
-      this._slipAutoEnabled[deckId] = false;
-    }
-  }
 
   // --- Effect & Logic ---
 
   // Loop: set loop IN point
-  setLoopIn(deckId, trackBpm) {
-    if (!this.sourceNodes || !this.sourceNodes[deckId]) return;
-    if (this.startTimes[deckId] === null) return; // Not playing, can't loop (simplification)
-
-    // Calculate current buffer position
-    const rate = this.playbackRates?.[deckId] || 1.0;
-    const playStartTime = this.startTimes[deckId];
-    const offset = this.pauseOffsets[deckId] || 0;
-    const elapsed = this.audioContext.currentTime - playStartTime;
-    const bufferCurrentTime = offset + (elapsed * rate);
-
-    // Quantize to nearest beat
-    const beatDuration = 60 / trackBpm;
-    const currentBeat = bufferCurrentTime / beatDuration;
-    const nearestBeatIndex = Math.round(currentBeat);
-    const quantizeTime = nearestBeatIndex * beatDuration;
-
-    if (!this.loopPoints) this.loopPoints = {};
-    if (!this.loopPoints[deckId]) this.loopPoints[deckId] = {};
-
-    this.loopPoints[deckId].start = quantizeTime;
-  }
-
   // Loop: set loop OUT point and ENABLE loop
-  setLoopOut(deckId, trackBpm) {
-    if (!this.sourceNodes || !this.sourceNodes[deckId] || !this.loopPoints?.[deckId]) return;
-
-    // Calculate current buffer position
-    const rate = this.playbackRates?.[deckId] || 1.0;
-    const playStartTime = this.startTimes[deckId];
-    const offset = this.pauseOffsets[deckId] || 0;
-    const elapsed = this.audioContext.currentTime - playStartTime;
-    const bufferCurrentTime = offset + (elapsed * rate);
-
-    // Quantize to nearest beat
-    const beatDuration = 60 / trackBpm;
-    const currentBeat = bufferCurrentTime / beatDuration;
-    const nearestBeatIndex = Math.round(currentBeat);
-    let quantizeTime = nearestBeatIndex * beatDuration;
-
-    const start = this.loopPoints[deckId].start;
-
-    // Ensure end is after start
-    if (quantizeTime <= start) {
-      // Force at least 1 beat
-      quantizeTime = start + beatDuration;
-    }
-
-    const end = quantizeTime;
-
-    // Apply to all sources
-    const sources = this.sourceNodes[deckId];
-    Object.values(sources).forEach(source => {
-      if (!source || !source.buffer) return;
-
-      // Check bounds
-      let safeStart = Math.max(0, start);
-      let safeEnd = Math.min(source.buffer.duration, end);
-
-      if (safeEnd <= safeStart) return; // Invalid loop
-
-      source.loopStart = safeStart;
-      source.loopEnd = safeEnd;
-      source.loop = true;
-    });
-
-    this.loopPoints[deckId].active = true;
-  }
-
-  exitLoop(deckId) {
-    if (!this.sourceNodes || !this.sourceNodes[deckId]) return;
-
-    // Calculate precise current position within the loop to re-anchor time
-    // Logic: If we were looping, the linear projection (currentTime - startTime) is way ahead.
-    // We need to snap it back to reality.
-
-    // 1. Get the loop setting that was active
-    const loopInfo = this.loopPoints?.[deckId];
-
-    if (loopInfo && loopInfo.active) {
-      const start = loopInfo.start;
-      const end = this.sourceNodes[deckId][Object.keys(this.sourceNodes[deckId])[0]].loopEnd; // loopEnd is on source
-      // Note: we need the source's loopEnd because we might have qualified it.
-      // But actually, let's just grab the stored loopPoints, assuming they match.
-      // Better: read from source directly.
-
-      const source = Object.values(this.sourceNodes[deckId])[0];
-      if (source && source.loop) {
-        const loopStart = source.loopStart;
-        const loopEnd = source.loopEnd;
-        const loopDuration = loopEnd - loopStart;
-
-        // Calculate where the "linear clock" thinks we are
-        const rate = this.playbackRates?.[deckId] || 1.0;
-        const playStartTime = this.startTimes[deckId];
-        const offset = this.pauseOffsets[deckId] || 0;
-        const elapsed = this.audioContext.currentTime - playStartTime;
-        const bufferLinearTime = offset + (elapsed * rate);
-
-        // Calculate where we ACTUALLY are inside the loop
-        // Position = loopStart + ( (linearTime - loopStart) % loopDuration )
-        let actualPosition = bufferLinearTime;
-        if (bufferLinearTime > loopStart) {
-          const timeInsideLoop = (bufferLinearTime - loopStart) % loopDuration;
-          actualPosition = loopStart + timeInsideLoop;
-        }
-
-        // RE-ANCHOR
-        // We pretend we just "started playing" from this actualPosition at this exact currentTime.
-        this.pauseOffsets[deckId] = actualPosition;
-        this.startTimes[deckId] = this.audioContext.currentTime;
-      }
-    }
-
-    this._forEachSource(deckId, source => { if (source) source.loop = false; });
-
-    if (this.loopPoints && this.loopPoints[deckId]) {
-      // Reset state completely so next loop starts fresh
-      delete this.loopPoints[deckId];
-    }
-
-    // Slip mode: return to virtual position after exiting loop
-    if (this.slipMode[deckId] && !this.loopRollActive[deckId]) {
-      this.slipReturn(deckId);
-    }
-  }
-
   // === Vinyl Scratch ===
 
   getTrackDuration(deckId) {
@@ -1056,125 +736,6 @@ class AudioPlayer {
     // The effective rate for position tracking is still the playback rate (=tempo)
     const rate = this.playbackRates[deckId] || 1.0;
     return (this.pauseOffsets[deckId] || 0) + elapsed * rate;
-  }
-
-  startScratch(deckId) {
-    this._scratchState = this._scratchState || {};
-    const pos = this.getCurrentPosition(deckId);
-    const savedRate = this.playbackRates[deckId] || 1.0;
-
-    this.stop(deckId);
-
-    this._scratchState[deckId] = {
-      active: true,
-      position: pos,
-      savedRate,
-      direction: 'forward', // 'forward' or 'reverse'
-    };
-
-    this._startScratchSources(deckId, pos, 'forward');
-  }
-
-  _stopScratchSources(deckId) {
-    if (this._scratchSources?.[deckId]) {
-      Object.values(this._scratchSources[deckId]).forEach(s => {
-        try { s.stop(); } catch {}
-      });
-      this._scratchSources[deckId] = {};
-    }
-  }
-
-  _startScratchSources(deckId, offset, direction) {
-    this._stopScratchSources(deckId);
-    if (!this.audioBuffers[deckId] || !this.audioContext) return;
-    this.setupTrackGraph(deckId);
-
-    this._scratchSources = this._scratchSources || {};
-    this._scratchSources[deckId] = {};
-
-    const buffers = direction === 'forward'
-      ? this.audioBuffers[deckId]
-      : (this.reversedBuffers[deckId] || this.audioBuffers[deckId]);
-
-    Object.entries(buffers).forEach(([stemName, buffer]) => {
-      const source = this.audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.playbackRate.value = 0.001;
-
-      const stemGain = this.audioContext.createGain();
-      const isMuted = this.stemMuteStates[deckId]?.[stemName];
-      stemGain.gain.value = isMuted ? 0 : 1;
-      source.connect(stemGain);
-      stemGain.connect(this.trackGainNodes[deckId]);
-
-      // For reversed buffer, offset is measured from the end
-      let safeOffset;
-      if (direction === 'reverse') {
-        safeOffset = Math.max(0, Math.min(buffer.duration - 0.01, buffer.duration - offset));
-      } else {
-        safeOffset = Math.max(0, Math.min(buffer.duration - 0.01, offset));
-      }
-      source.start(0, safeOffset);
-      this._scratchSources[deckId][stemName] = source;
-    });
-  }
-
-  updateScratch(deckId, angleDelta) {
-    if (!this._scratchState?.[deckId]?.active) return;
-    const state = this._scratchState[deckId];
-
-    // Map angular velocity to playback rate (positive only — direction handled by buffer choice)
-    const rawRate = angleDelta * 25;
-    const absRate = Math.min(8, Math.abs(rawRate));
-    const newDirection = rawRate >= 0 ? 'forward' : 'reverse';
-
-    // Switch buffers if direction changed
-    if (newDirection !== state.direction) {
-      state.direction = newDirection;
-      this._startScratchSources(deckId, state.position, newDirection);
-    }
-
-    // Apply positive rate to the (possibly reversed) sources
-    const finalRate = absRate < 0.05 ? 0.001 : absRate;
-    if (this._scratchSources?.[deckId]) {
-      Object.values(this._scratchSources[deckId]).forEach(source => {
-        try { source.playbackRate.setValueAtTime(finalRate, this.audioContext.currentTime); } catch {}
-      });
-    }
-
-    // Track position for resume
-    const duration = this.getTrackDuration(deckId);
-    const posDelta = (angleDelta / (2 * Math.PI)) * 2.0;
-    state.position = Math.max(0, Math.min(duration, state.position + posDelta));
-  }
-
-  endScratch(deckId, bpm) {
-    if (!this._scratchState?.[deckId]?.active) return;
-    const state = this._scratchState[deckId];
-    state.active = false;
-
-    this._stopScratchSources(deckId);
-
-    // Don't restore savedRate — masterBpm may have changed during scratch
-    // this.playbackRates[deckId] already reflects current masterBpm
-
-    // Slip mode: return to virtual position instead of scratch position
-    if (this.slipMode[deckId]) {
-      this.slipReturn(deckId);
-      return;
-    }
-
-    // Snap to nearest beat if BPM is known
-    let resumePos = state.position;
-    if (bpm && bpm > 0) {
-      const beatLength = 60 / bpm;
-      resumePos = Math.round(resumePos / beatLength) * beatLength;
-      const duration = this.getTrackDuration(deckId);
-      resumePos = Math.max(0, Math.min(duration, resumePos));
-    }
-
-    this.pauseOffsets[deckId] = resumePos;
-    this._resumePlayback(deckId, resumePos);
   }
 
   // Seek: Jump to percentage (0.0 - 1.0)
@@ -1250,5 +811,12 @@ class AudioPlayer {
     }
   }
 }
+
+// Mixin extracted modules onto prototype
+Object.assign(AudioPlayer.prototype, sampler);
+Object.assign(AudioPlayer.prototype, hotCuesModule);
+Object.assign(AudioPlayer.prototype, slipModeModule);
+Object.assign(AudioPlayer.prototype, scratchModule);
+Object.assign(AudioPlayer.prototype, loopSystemModule);
 
 export default AudioPlayer;
