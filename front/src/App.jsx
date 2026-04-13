@@ -199,6 +199,7 @@ function App() {
                   isRecordingAudio={recorder.isRecordingAudio}
                   isRecordingVideo={recorder.isRecordingVideo}
                   recordingTime={recorder.recordingTime}
+                  countdown={recorder.countdown}
                   onStartAudio={recorder.startAudioRecording}
                   onStopAudio={recorder.stopAudioRecording}
                   onStartVideo={recorder.startVideoRecording}

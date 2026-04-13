@@ -1,7 +1,7 @@
 import './RecordBar.css';
 
 export default function RecordBar({
-  isRecordingAudio, isRecordingVideo, recordingTime,
+  isRecordingAudio, isRecordingVideo, recordingTime, countdown,
   onStartAudio, onStopAudio,
   onStartVideo, onStopVideo,
 }) {
@@ -12,30 +12,40 @@ export default function RecordBar({
   };
 
   const isRecording = isRecordingAudio || isRecordingVideo;
+  const isCountingDown = countdown != null;
 
   return (
-    <div className="record-bar">
-      {isRecording && (
-        <div className="record-indicator">
-          <span className="record-dot" />
-          <span className="record-time">{formatTime(recordingTime)}</span>
+    <>
+      {/* Countdown overlay */}
+      {isCountingDown && (
+        <div className="countdown-overlay">
+          <div className="countdown-number">{countdown}</div>
         </div>
       )}
 
-      {!isRecording ? (
-        <>
-          <button className="record-btn audio" onClick={onStartAudio} title="Mix audio recording (.wav)">
-            AUDIO REC
+      <div className="record-bar">
+        {isRecording && (
+          <div className="record-indicator">
+            <span className="record-dot" />
+            <span className="record-time">{formatTime(recordingTime)}</span>
+          </div>
+        )}
+
+        {!isRecording && !isCountingDown ? (
+          <>
+            <button className="record-btn audio" onClick={onStartAudio} title="Mix audio recording (.wav)">
+              AUDIO REC
+            </button>
+            <button className="record-btn video" onClick={onStartVideo} title="Screen + audio recording (.mp4)">
+              VIDEO REC
+            </button>
+          </>
+        ) : (
+          <button className="record-btn stop" onClick={isRecordingAudio || isCountingDown ? onStopAudio : onStopVideo}>
+            {isCountingDown ? 'CANCEL' : 'STOP'}
           </button>
-          <button className="record-btn video" onClick={onStartVideo} title="Screen + audio recording (.mp4)">
-            VIDEO REC
-          </button>
-        </>
-      ) : (
-        <button className="record-btn stop" onClick={isRecordingAudio ? onStopAudio : onStopVideo}>
-          STOP
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }

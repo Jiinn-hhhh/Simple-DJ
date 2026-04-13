@@ -1,4 +1,4 @@
-// hooks/useRecorder.js — Audio (WAV) & Video (MP4/WebM) recording
+// hooks/useRecorder.js — Audio (WAV) & Video (MP4/WebM) recording with countdown
 
 import { useState, useRef, useCallback } from 'react';
 
@@ -53,6 +53,7 @@ export default function useRecorder(audioPlayerRef) {
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [countdown, setCountdown] = useState(null); // 3, 2, 1, null
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -60,6 +61,7 @@ export default function useRecorder(audioPlayerRef) {
   const startTimeRef = useRef(null);
   const scriptNodeRef = useRef(null);
   const pcmBuffersRef = useRef([]);
+  const countdownTimerRef = useRef(null);
 
   const startTimer = () => {
     startTimeRef.current = Date.now();
@@ -74,13 +76,33 @@ export default function useRecorder(audioPlayerRef) {
     setRecordingTime(0);
   };
 
+  // --- Countdown helper ---
+  const runCountdown = useCallback((onComplete) => {
+    let count = 3;
+    setCountdown(count);
+    countdownTimerRef.current = setInterval(() => {
+      count--;
+      if (count <= 0) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+        setCountdown(null);
+        onComplete();
+      } else {
+        setCountdown(count);
+      }
+    }, 1000);
+  }, []);
+
   // --- Audio Recording (WAV) ---
-  const startAudioRecording = useCallback(() => {
+  const _startAudioRecordingImpl = useCallback(() => {
     const ap = audioPlayerRef.current;
     if (!ap?.audioContext || !ap?.masterNodes) {
       console.warn('Audio engine not ready');
       return;
     }
+
+    // Prevent double-start
+    if (scriptNodeRef.current) return;
 
     const ctx = ap.audioContext;
     const bufferSize = 4096;
@@ -99,23 +121,58 @@ export default function useRecorder(audioPlayerRef) {
       pcmBuffersRef.current.push(interleaved);
     };
 
-    // Connect: masterFilter → scriptNode → destination (passthrough)
-    ap.masterNodes.filter.connect(scriptNode);
-    scriptNode.connect(ctx.destination);
-    scriptNodeRef.current = scriptNode;
+    // Tap from the master stream destination (no double-output)
+    const streamDest = ap.masterNodes.streamDest;
+    if (streamDest) {
+      const mediaStream = streamDest.stream;
+      const mediaSource = ctx.createMediaStreamSource(mediaStream);
+      mediaSource.connect(scriptNode);
+      // Don't connect scriptNode to destination to avoid double output
+      scriptNode.connect(ctx.createGain()); // silent sink to keep scriptNode alive
+      scriptNodeRef.current = scriptNode;
+      scriptNodeRef.current._mediaSource = mediaSource;
+    } else {
+      // Fallback: direct tap (may cause double output)
+      ap.masterNodes.filter.connect(scriptNode);
+      scriptNode.connect(ctx.createGain());
+      scriptNodeRef.current = scriptNode;
+    }
 
     setIsRecordingAudio(true);
     startTimer();
   }, [audioPlayerRef]);
 
+  const startAudioRecording = useCallback(() => {
+    // Guard: already recording or countdown in progress
+    if (isRecordingAudio || countdown != null) return;
+    runCountdown(_startAudioRecordingImpl);
+  }, [isRecordingAudio, countdown, runCountdown, _startAudioRecordingImpl]);
+
   const stopAudioRecording = useCallback(() => {
+    // Cancel countdown if in progress
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+      setCountdown(null);
+      return;
+    }
+
+    if (!scriptNodeRef.current) return;
+
     const ap = audioPlayerRef.current;
-    if (scriptNodeRef.current && ap?.masterNodes) {
-      try {
-        ap.masterNodes.filter.disconnect(scriptNodeRef.current);
-        scriptNodeRef.current.disconnect();
-      } catch {}
-      scriptNodeRef.current = null;
+    try {
+      if (scriptNodeRef.current._mediaSource) {
+        scriptNodeRef.current._mediaSource.disconnect();
+      }
+      scriptNodeRef.current.disconnect();
+    } catch {}
+    scriptNodeRef.current = null;
+
+    // Only encode/download if we actually recorded data
+    if (pcmBuffersRef.current.length === 0) {
+      setIsRecordingAudio(false);
+      stopTimer();
+      return;
     }
 
     // Merge all PCM chunks and encode WAV
@@ -138,7 +195,7 @@ export default function useRecorder(audioPlayerRef) {
   }, [audioPlayerRef]);
 
   // --- Video Recording (MP4/WebM) ---
-  const startVideoRecording = useCallback(async () => {
+  const _startVideoRecordingImpl = useCallback(async () => {
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: 'browser' },
@@ -193,7 +250,19 @@ export default function useRecorder(audioPlayerRef) {
     }
   }, [audioPlayerRef]);
 
+  const startVideoRecording = useCallback(() => {
+    if (isRecordingVideo || countdown != null) return;
+    runCountdown(_startVideoRecordingImpl);
+  }, [isRecordingVideo, countdown, runCountdown, _startVideoRecordingImpl]);
+
   const stopVideoRecording = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+      setCountdown(null);
+      return;
+    }
+
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
@@ -203,7 +272,7 @@ export default function useRecorder(audioPlayerRef) {
   }, []);
 
   return {
-    isRecordingAudio, isRecordingVideo, recordingTime,
+    isRecordingAudio, isRecordingVideo, recordingTime, countdown,
     startAudioRecording, stopAudioRecording,
     startVideoRecording, stopVideoRecording,
   };
