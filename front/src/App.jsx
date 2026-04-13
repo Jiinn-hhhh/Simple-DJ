@@ -124,7 +124,7 @@ function App() {
     <div className="app-container">
       {authLoading ? (
         <div className="loading-overlay">
-          <div style={{ fontSize: '1.8rem', color: 'var(--text-main)', textAlign: 'center', fontWeight: 'bold', letterSpacing: '2px' }}>
+          <div className="pixel-font" style={{ fontSize: '1.5rem', color: 'var(--neon-green)', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 157, 0.8)' }}>
             LOADING...
           </div>
         </div>
@@ -151,17 +151,15 @@ function App() {
           <div className="main-content">
             {!isSystemReady && (
               <div className="loading-overlay">
-                <div style={{
-                  fontSize: '2rem',
-                  fontWeight: 'bold',
-                  letterSpacing: '2px',
+                <div className="pixel-font" style={{
+                  fontSize: '1.5rem',
                   color: status === 'OFFLINE' ? 'var(--neon-pink)' : 'var(--neon-green)',
                   textAlign: 'center', marginBottom: '20px',
-                  textShadow: `0 0 20px ${status === 'OFFLINE' ? 'rgba(236,72,153, 0.5)' : 'rgba(16,185,129,0.5)'}`,
+                  textShadow: `0 0 10px ${status === 'OFFLINE' ? 'rgba(255, 0, 85, 0.8)' : 'rgba(0, 255, 157, 0.8)'}`,
                 }}>
                   {status}
                 </div>
-                <div style={{ fontSize: '1.1rem', color: 'var(--text-dim)' }}>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-dim)', fontFamily: 'Rajdhani, sans-serif' }}>
                   {status === 'OFFLINE' ? 'Backend server is offline. Please check your connection.' : 'Initializing system...'}
                 </div>
               </div>
@@ -181,11 +179,10 @@ function App() {
                   onStartVideo={recorder.startVideoRecording}
                   onStopVideo={recorder.stopVideoRecording}
                 />
-                <div className="status-bar">{status}</div>
+                <div className="status-bar pixel-font">{status}</div>
                 <button onClick={signOut} style={{
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-main)',
-                  fontWeight: 'bold', fontSize: '0.85rem', padding: '8px 16px', cursor: 'pointer', borderRadius: '6px',
-                  transition: 'all 0.2s ease'
+                  background: 'transparent', border: '1px solid var(--neon-pink)', color: 'var(--neon-pink)',
+                  fontFamily: "'Press Start 2P', cursive", fontSize: '0.6rem', padding: '8px 12px', cursor: 'pointer', borderRadius: '4px',
                 }}>
                   LOGOUT
                 </button>
