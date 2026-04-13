@@ -201,7 +201,10 @@ export default function useLibrary(user) {
       abortRef.current.abort();
       return;
     }
-    await supabase.from('tracks').delete().eq('id', trackId).catch(() => {});
+    const { error } = await supabase.from('tracks').delete().eq('id', trackId);
+    if (error) {
+      console.error('Cancel failed:', error.message);
+    }
     setTracks(prev => prev.filter(t => t.id !== trackId));
   }, []);
 
