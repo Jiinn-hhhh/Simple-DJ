@@ -21,6 +21,14 @@
     --knob-size: 40px;
     --fader-width: 40px;
     --fader-height: 150px;
+
+    /* Deck element heights — each independently adjustable */
+    --waveform-h: clamp(50px, 6vh, 85px);
+    --control-row-h: clamp(30px, 4vh, 38px);
+    --looproll-h: clamp(32px, 4vh, 42px);
+    --hotcue-h: clamp(32px, 4vh, 42px);
+    --beatjump-h: clamp(28px, 3.5vh, 38px);
+    --stems-h: clamp(32px, 4vh, 42px);
 }
 
 body {
@@ -695,13 +703,12 @@ body {
 
 /* --- VINYL --- */
 .disc-container {
-    flex: 1.5;
+    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
-    min-height: 80px;
-    max-height: 55%;
+    min-height: 60px;
 }
 
 .vinyl-disc {
@@ -784,9 +791,17 @@ body {
 
 /* --- CONTROLS --- */
 .deck-controls {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
+    display: grid;
+    grid-template-rows:
+        var(--waveform-h)
+        var(--control-row-h)
+        auto
+        var(--looproll-h)
+        auto
+        var(--hotcue-h)
+        auto
+        var(--beatjump-h)
+        var(--stems-h);
     gap: 3px;
 }
 
@@ -797,16 +812,15 @@ body {
     font-family: 'Rajdhani', sans-serif;
     font-size: 0.9rem;
     padding: 12px;
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
 }
 
 .control-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    /* Center to prevent stretching to weird heights */
     gap: 6px;
-    margin-top: 5px;
-    /* Pushed close to waveform */
 }
 
 .play-btn {
@@ -857,8 +871,7 @@ body {
 .stems-row {
     display: flex;
     gap: 3px;
-    flex: 2;
-    /* Increased vertical size significantly compared to other rows */
+    height: 100%;
 }
 
 .stem-btn {
@@ -872,9 +885,7 @@ body {
     justify-content: center;
     cursor: pointer;
     font-size: 1rem;
-    /* Bumping font slightly to match larger height */
     font-weight: bold;
-    height: 100%;
 }
 
 .stem-btn.active {
@@ -938,13 +949,13 @@ body {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 3px;
+    height: 100%;
 }
 
 .hotcue-pad {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
@@ -974,6 +985,7 @@ body {
     display: flex;
     align-items: center;
     gap: 3px;
+    height: 100%;
 }
 
 .beat-jump-btn {
@@ -981,7 +993,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
     background: #111;
     border: 1px solid #333;
     color: var(--neon-blue);
@@ -1105,13 +1116,13 @@ body {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 3px;
+    height: 100%;
 }
 
 .looproll-pad {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
@@ -1142,15 +1153,14 @@ body {
 /* --- COLOR WAVEFORM --- */
 .color-waveform-container {
     width: 100%;
-    height: 85px;
-    /* Kept large as requested */
+    height: 100%;
     border: 2px solid #444;
     border-radius: 6px;
     overflow: hidden;
     background: #0a0a0e;
     position: relative;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    margin-bottom: 5px;
+    box-sizing: border-box;
 }
 
 .color-waveform-container canvas {
@@ -1161,16 +1171,7 @@ body {
 
 /* --- CONTROL SECTION LABELS --- */
 .control-section {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    /* Keep section filling space */
-}
-
-/* Only make the children (pads) stretch, not the label */
-.control-section> :not(.control-label) {
-    flex: 1;
+    display: contents;
 }
 
 .control-label {
@@ -1179,8 +1180,38 @@ body {
     font-weight: 700;
     color: var(--text-main);
     letter-spacing: 3px;
-    margin-bottom: 2px;
     text-align: center;
-    flex: 0 0 auto;
-    /* Stop label from growing */
+    line-height: 1;
+    align-self: end;
+}
+
+/* --- RESPONSIVE: MacBook Air (height <= 960px) --- */
+@media (max-height: 960px) {
+    :root {
+        --waveform-h: 50px;
+        --control-row-h: 30px;
+        --looproll-h: 32px;
+        --hotcue-h: 32px;
+        --beatjump-h: 28px;
+        --stems-h: 32px;
+    }
+
+    .disc-container {
+        max-height: 180px;
+    }
+
+    .spectrum-overlay {
+        height: 40px;
+    }
+}
+
+/* --- RESPONSIVE: Large monitors (height >= 1200px) --- */
+@media (min-height: 1200px) {
+    :root {
+        --waveform-h: 85px;
+        --looproll-h: 50px;
+        --hotcue-h: 50px;
+        --beatjump-h: 42px;
+        --stems-h: 50px;
+    }
 }
