@@ -22,13 +22,13 @@
     --fader-width: 40px;
     --fader-height: 150px;
 
-    /* Deck element heights — each independently adjustable */
-    --waveform-h: clamp(50px, 6vh, 85px);
-    --control-row-h: clamp(30px, 4vh, 38px);
-    --looproll-h: clamp(32px, 4vh, 42px);
-    --hotcue-h: clamp(32px, 4vh, 42px);
-    --beatjump-h: clamp(28px, 3.5vh, 38px);
-    --stems-h: clamp(32px, 4vh, 42px);
+    /* Deck element minimum heights — fr ratios handle proportional growth */
+    --waveform-min: 50px;
+    --control-row-min: 30px;
+    --looproll-min: 28px;
+    --hotcue-min: 28px;
+    --beatjump-min: 25px;
+    --stems-min: 28px;
 }
 
 body {
@@ -246,9 +246,10 @@ body {
     display: grid;
     /* Deck : Mixer : Deck = 1 : 1.3 : 1 */
     grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.3fr) minmax(300px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 8px;
     padding: 0 10px 4px 10px;
-    align-items: stretch;
+    min-height: 0;
 }
 
 /* --- DECK & MIXER CONTAINERS --- */
@@ -269,6 +270,7 @@ body {
 .deck-container {
     justify-content: flex-start;
     gap: 4px;
+    overflow: hidden;
 }
 
 .deck-container.dragging {
@@ -793,16 +795,18 @@ body {
 .deck-controls {
     display: grid;
     grid-template-rows:
-        var(--waveform-h)
-        var(--control-row-h)
+        minmax(var(--waveform-min), 2fr)
+        minmax(var(--control-row-min), 1fr)
         auto
-        var(--looproll-h)
+        minmax(var(--looproll-min), 1.2fr)
         auto
-        var(--hotcue-h)
+        minmax(var(--hotcue-min), 1.2fr)
         auto
-        var(--beatjump-h)
-        var(--stems-h);
+        minmax(var(--beatjump-min), 1fr)
+        minmax(var(--stems-min), 1.5fr);
     gap: 3px;
+    flex: 1;
+    min-height: 0;
 }
 
 
@@ -989,7 +993,8 @@ body {
 }
 
 .beat-jump-btn {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1020,20 +1025,21 @@ body {
     border: 1px solid #333;
     border-radius: 4px;
     padding: 2px;
-    flex: 1;
-    /* Matched size with the side buttons */
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .beat-jump-size-value {
     color: var(--neon-blue);
     font-family: 'Press Start 2P', cursive;
     font-size: 1.1rem;
-    /* Taller font size */
-    min-width: 50px;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 4px;
+    flex: 1;
 }
 
 .beat-jump-size-arrow {
@@ -1188,30 +1194,45 @@ body {
 /* --- RESPONSIVE: MacBook Air (height <= 960px) --- */
 @media (max-height: 960px) {
     :root {
-        --waveform-h: 50px;
-        --control-row-h: 30px;
-        --looproll-h: 32px;
-        --hotcue-h: 32px;
-        --beatjump-h: 28px;
-        --stems-h: 32px;
-    }
-
-    .disc-container {
-        max-height: 180px;
+        --waveform-min: 40px;
+        --control-row-min: 26px;
+        --looproll-min: 24px;
+        --hotcue-min: 24px;
+        --beatjump-min: 22px;
+        --stems-min: 24px;
     }
 
     .spectrum-overlay {
         height: 40px;
+    }
+
+    .disc-container {
+        flex: 0.6;
+    }
+
+    .deck-controls {
+        flex: 1;
+    }
+}
+
+/* --- RESPONSIVE: Very short viewport (height <= 780px) --- */
+@media (max-height: 780px) {
+    .disc-container {
+        flex: 0.35;
+    }
+
+    .spectrum-overlay {
+        height: 30px;
     }
 }
 
 /* --- RESPONSIVE: Large monitors (height >= 1200px) --- */
 @media (min-height: 1200px) {
     :root {
-        --waveform-h: 85px;
-        --looproll-h: 50px;
-        --hotcue-h: 50px;
-        --beatjump-h: 42px;
-        --stems-h: 50px;
+        --waveform-min: 70px;
+        --looproll-min: 36px;
+        --hotcue-min: 36px;
+        --beatjump-min: 30px;
+        --stems-min: 36px;
     }
 }
