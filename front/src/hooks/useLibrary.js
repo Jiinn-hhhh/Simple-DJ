@@ -78,9 +78,8 @@ export default function useLibrary(user) {
 
     currentTrackIdRef.current = track.id;
 
-    // Check abort before network call
+    // Check abort before network call (cleanup owned by processQueue)
     if (signal?.aborted) {
-      await supabase.from('tracks').delete().eq('id', track.id);
       throw new DOMException('Upload cancelled', 'AbortError');
     }
 
@@ -159,13 +158,6 @@ export default function useLibrary(user) {
     processQueue();
   }, [processQueue]);
 
-  // Cancel the current in-flight upload
-  const cancelCurrentUpload = useCallback(() => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-  }, []);
-
   // Cancel a specific processing track (already in Supabase)
   const cancelProcessingTrack = useCallback(async (trackId) => {
     // If this is the currently uploading track, abort the fetch
@@ -179,7 +171,8 @@ export default function useLibrary(user) {
 
   // Clear all pending items from the queue (does not cancel current)
   const clearQueue = useCallback(() => {
-    queueRef.current.splice(1); // keep index 0 (currently processing), remove rest
+    const startIdx = processingRef.current ? 1 : 0;
+    queueRef.current.splice(startIdx);
     setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length }));
   }, []);
 
@@ -218,6 +211,6 @@ export default function useLibrary(user) {
   return {
     tracks, loading, uploadTrack, deleteTrack, getStemUrls,
     refreshTracks: fetchTracks, uploadQueueInfo,
-    cancelCurrentUpload, cancelProcessingTrack, clearQueue
+    cancelProcessingTrack, clearQueue
   };
 }

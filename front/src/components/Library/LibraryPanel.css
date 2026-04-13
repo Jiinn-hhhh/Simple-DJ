@@ -244,6 +244,8 @@
 
 /* Upload Queue Status */
 .upload-queue-status {
+  display: flex;
+  align-items: center;
   padding: 6px 10px;
   font-family: 'Rajdhani', sans-serif;
   font-size: 0.8rem;
@@ -321,7 +323,6 @@
   border-radius: 3px;
   cursor: pointer;
   margin-left: auto;
-  float: right;
   transition: background 0.2s;
 }
 
