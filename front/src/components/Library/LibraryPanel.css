@@ -36,6 +36,12 @@
   min-width: 300px;
 }
 
+.library-panel.panel-dragging {
+  border-right-color: var(--neon-green, #00ff9d);
+  background: rgba(0, 255, 157, 0.03);
+  box-shadow: inset 0 0 20px rgba(0, 255, 157, 0.05);
+}
+
 .library-header {
   display: flex;
   justify-content: space-between;
