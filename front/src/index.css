@@ -649,6 +649,32 @@ body {
     color: white;
 }
 
+/* --- SPECTRUM OVERLAY --- */
+.spectrum-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    height: 40px;
+    background: #000;
+    border: 2px solid #333;
+    border-radius: 4px;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+.spectrum-overlay.active.deck-a {
+    border-color: var(--neon-green);
+    box-shadow: 0 0 10px rgba(0, 255, 157, 0.4);
+}
+.spectrum-overlay.active.deck-b {
+    border-color: var(--neon-pink);
+    box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+}
+
 /* --- CONTROLS --- */
 .deck-controls {
     display: flex;

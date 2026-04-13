@@ -184,16 +184,7 @@ const Deck = ({
                 </div>
 
                 {track && (
-                    <div style={{
-                        position: 'absolute', bottom: '0', left: '50%',
-                        transform: 'translate(-50%, 0)', width: '90%', height: '40px',
-                        boxSizing: 'border-box', background: '#000',
-                        border: isPlaying ? `2px solid ${deckId === 'A' ? 'var(--neon-green)' : 'var(--neon-pink)'}` : '2px solid #333',
-                        borderRadius: '4px', zIndex: 10, display: 'flex',
-                        justifyContent: 'center', alignItems: 'center',
-                        boxShadow: isPlaying ? `0 0 10px ${deckId === 'A' ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 85, 0.4)'}` : 'none',
-                        overflow: 'hidden'
-                    }}>
+                    <div className={`spectrum-overlay ${isPlaying ? 'active' : ''} ${deckId === 'A' ? 'deck-a' : 'deck-b'}`}>
                         <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
                     </div>
                 )}

@@ -68,12 +68,13 @@ class AudioPlayer {
   }
 
   getAnalyser(trackId) {
-    // Return the analyser node if it exists, otherwise return null or create a dummy one?
-    // React might call this before setupTrackGraph is called (e.g. initial render).
-    // So we should return null, and handle null in Deck. Or ensure setupTrackGraph is called?
-    // setupTrackGraph is called lazily.
-    // If we return undefined, Deck might crash if it expects an object.
     return this.analyserNodes[trackId] || null;
+  }
+
+  // Helper: iterate all source nodes for a deck
+  _forEachSource(deckId, fn) {
+    if (!this.sourceNodes[deckId]) return;
+    Object.values(this.sourceNodes[deckId]).forEach(fn);
   }
 
   /**
@@ -521,9 +522,7 @@ class AudioPlayer {
 
   stop(trackId) {
     if (this.sourceNodes[trackId]) {
-      Object.values(this.sourceNodes[trackId]).forEach(node => {
-        try { node.stop(); } catch (e) { }
-      });
+      this._forEachSource(trackId, node => { try { node.stop(); } catch (e) { } });
       this.sourceNodes[trackId] = {};
       this.stemGainNodes[trackId] = {};
     }
@@ -561,14 +560,9 @@ class AudioPlayer {
 
   setPlaybackRate(trackId, rate) {
     if (this.isPlaying[trackId] && this.startTimes[trackId] !== null) {
-      // Re-anchor time tracking to prevent drift when rate changes
-      const oldRate = this.keyLockEnabled[trackId] ? 1.0 : (this.playbackRates[trackId] || 1.0);
-      const currentTime = this.audioContext.currentTime;
-      const elapsed = currentTime - this.startTimes[trackId];
-      const currentBufferPos = (this.pauseOffsets[trackId] || 0) + (elapsed * oldRate);
-
-      this.pauseOffsets[trackId] = currentBufferPos;
-      this.startTimes[trackId] = currentTime;
+      // Re-anchor: snapshot current position before rate change
+      this.pauseOffsets[trackId] = this.getCurrentPosition(trackId);
+      this.startTimes[trackId] = this.audioContext.currentTime;
     }
 
     this.playbackRates[trackId] = rate;
@@ -578,10 +572,8 @@ class AudioPlayer {
       Object.values(this.pitchShifters[trackId]).forEach(shifter => {
         shifter.setTempo(rate);
       });
-    } else if (this.sourceNodes[trackId]) {
-      Object.values(this.sourceNodes[trackId]).forEach(source => {
-        source.playbackRate.value = rate;
-      });
+    } else {
+      this._forEachSource(trackId, source => { source.playbackRate.value = rate; });
     }
   }
 
@@ -899,11 +891,7 @@ class AudioPlayer {
     if (!this.loopRollActive[deckId]) return;
 
     // Exit loop
-    if (this.sourceNodes[deckId]) {
-      Object.values(this.sourceNodes[deckId]).forEach(source => {
-        if (source) source.loop = false;
-      });
-    }
+    this._forEachSource(deckId, source => { if (source) source.loop = false; });
     if (this.loopPoints[deckId]) {
       delete this.loopPoints[deckId];
     }
@@ -1036,9 +1024,7 @@ class AudioPlayer {
       }
     }
 
-    Object.values(this.sourceNodes[deckId]).forEach(source => {
-      if (source) source.loop = false;
-    });
+    this._forEachSource(deckId, source => { if (source) source.loop = false; });
 
     if (this.loopPoints && this.loopPoints[deckId]) {
       // Reset state completely so next loop starts fresh
