@@ -875,7 +875,7 @@ body {
 .stems-row {
     display: flex;
     gap: 3px;
-    height: 100%;
+    align-self: center;
 }
 
 .stem-btn {
@@ -883,7 +883,7 @@ body {
     background: #111;
     border: 1px solid #333;
     color: #555;
-    padding: 0;
+    padding: 10px 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -953,13 +953,14 @@ body {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 3px;
-    height: 100%;
+    align-self: center;
 }
 
 .hotcue-pad {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 10px 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
@@ -987,9 +988,9 @@ body {
 /* --- BEAT JUMP CONTROLS --- */
 .beat-jump-controls {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 3px;
-    height: 100%;
+    align-self: center;
 }
 
 .beat-jump-btn {
@@ -1122,13 +1123,14 @@ body {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 3px;
-    height: 100%;
+    align-self: center;
 }
 
 .looproll-pad {
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 10px 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
