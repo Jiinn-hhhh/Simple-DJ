@@ -37,7 +37,6 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
       draggable={track.status === 'ready'}
       onDragStart={handleDragStart}
     >
-      <button className="track-x-btn" onClick={() => onDelete(track.id, track.title)} title="Delete">&times;</button>
       <div className="track-item-row">
         {isEditing ? (
           <input
@@ -53,12 +52,7 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
             {track.title}
           </div>
         )}
-        {track.status === 'ready' && (
-          <div className="track-deck-btns">
-            <button className="track-deck-btn" onClick={() => onLoadToDeck('A', track)}>A</button>
-            <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>B</button>
-          </div>
-        )}
+        <button className="track-x-btn" onClick={() => onDelete(track.id, track.title)} title="Delete">&times;</button>
       </div>
       <div className="track-item-meta">
         {track.bpm && <span>{Math.round(track.bpm)} BPM</span>}
@@ -67,6 +61,12 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
       </div>
       {track.status === 'error' && (
         <div className="track-item-error">{track.error_message || 'Processing failed'}</div>
+      )}
+      {track.status === 'ready' && (
+        <div className="track-deck-btns">
+          <button className="track-deck-btn" onClick={() => onLoadToDeck('A', track)}>DECK A</button>
+          <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>DECK B</button>
+        </div>
       )}
     </div>
   );

@@ -48,7 +48,7 @@ const HotCuePads = ({ hotCues, onSetCue, onJumpCue, onDeleteCue }) => {
 
   return (
     <div className="hotcue-pads">
-      {hotCues.map((cue, i) => (
+      {hotCues.slice(0, 4).map((cue, i) => (
         <button
           key={i}
           className={`hotcue-pad ${cue ? 'active' : ''}`}

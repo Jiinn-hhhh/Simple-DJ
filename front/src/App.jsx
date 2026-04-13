@@ -27,6 +27,7 @@ function App() {
   const [status, setStatus] = useState("INSERT COIN");
   const [isSystemReady, setIsSystemReady] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [helpTab, setHelpTab] = useState('guide');
   const [hfSpaceUrl, setHfSpaceUrl] = useState("");
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
@@ -215,31 +216,41 @@ function App() {
                     <span className="pixel-font" style={{fontSize:'0.6rem',color:'var(--neon-green)'}}>SHORTCUTS</span>
                     <button className="help-modal-close" onClick={() => setShowHelp(false)}>&times;</button>
                   </div>
+                  <div className="help-tabs">
+                    <button className={`help-tab ${helpTab === 'guide' ? 'active' : ''}`} onClick={() => setHelpTab('guide')}>GUIDE</button>
+                    <button className={`help-tab ${helpTab === 'shortcuts' ? 'active' : ''}`} onClick={() => setHelpTab('shortcuts')}>SHORTCUTS</button>
+                  </div>
                   <div className="help-modal-body">
-                    <div className="help-section-title">HOW TO USE</div>
-                    <div className="help-tips">
-                      <div>Drag tracks from library to decks</div>
-                      <div>Match BPM, mix with crossfader</div>
-                      <div>Stems: control drums/bass/vocals/other</div>
-                      <div>Hot cues: save positions, instant jump</div>
-                      <div>Loop Roll: beat-synced repeat effect</div>
-                      <div>EQ: low/mid/high per deck</div>
-                      <div>FX Pad: reverb/distortion XY control</div>
-                    </div>
-                    <div className="help-section-title" style={{marginTop:'10px'}}>SHORTCUTS</div>
-                    <div className="help-section">
-                      <div className="help-row"><kbd>S</kbd> Deck A play/pause</div>
-                      <div className="help-row"><kbd>L</kbd> Deck B play/pause</div>
-                      <div className="help-row"><kbd>Space</kbd> Active deck play/pause</div>
-                      <div className="help-row"><kbd>Q</kbd> Deck A quantize</div>
-                      <div className="help-row"><kbd>W</kbd> Deck A slip mode</div>
-                      <div className="help-row"><kbd>E</kbd> Deck A key lock</div>
-                      <div className="help-row"><kbd>1-8</kbd> Deck A hot cues</div>
-                      <div className="help-row"><kbd>Shift+1-8</kbd> Deck B hot cues</div>
-                      <div className="help-row"><kbd>-/+</kbd> BPM adjust</div>
-                      <div className="help-row"><kbd>&larr;/&rarr;</kbd> Crossfader</div>
-                      <div className="help-row"><kbd>Tab</kbd> Library toggle</div>
-                    </div>
+                    {helpTab === 'guide' ? (
+                      <div className="help-tips">
+                        <div>Drag tracks from library to decks</div>
+                        <div>Match BPM with -/+ keys, mix with crossfader</div>
+                        <div>Stems: mute/unmute drums, bass, vocals, other</div>
+                        <div>Hot Cues: click pad to save position, click again to jump</div>
+                        <div>Loop: IN sets start, OUT sets end, EXIT leaves loop</div>
+                        <div>Loop Roll: hold pad for beat-synced repeat, release to return</div>
+                        <div>Slip Mode: scratching/looping returns to original position</div>
+                        <div>Key Lock: keep pitch when changing BPM</div>
+                        <div>Quantize: snap actions to nearest beat</div>
+                        <div>EQ: adjust low/mid/high frequencies per deck</div>
+                        <div>Filter: low-pass (left) / high-pass (right)</div>
+                        <div>FX Pad: X=reverb/distortion, Y=intensity</div>
+                      </div>
+                    ) : (
+                      <div className="help-section">
+                        <div className="help-row"><kbd>S</kbd> Deck A play/pause</div>
+                        <div className="help-row"><kbd>L</kbd> Deck B play/pause</div>
+                        <div className="help-row"><kbd>Space</kbd> Active deck play/pause</div>
+                        <div className="help-row"><kbd>Q</kbd> Quantize toggle</div>
+                        <div className="help-row"><kbd>W</kbd> Slip mode toggle</div>
+                        <div className="help-row"><kbd>E</kbd> Key lock toggle</div>
+                        <div className="help-row"><kbd>1-4</kbd> Deck A hot cues</div>
+                        <div className="help-row"><kbd>Shift+1-4</kbd> Deck B hot cues</div>
+                        <div className="help-row"><kbd>-/+</kbd> BPM adjust</div>
+                        <div className="help-row"><kbd>&larr;/&rarr;</kbd> Crossfader</div>
+                        <div className="help-row"><kbd>Tab</kbd> Library toggle</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

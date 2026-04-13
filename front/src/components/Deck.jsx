@@ -236,7 +236,7 @@ const Deck = ({
                                     onClick={onToggleQuantize}
                                     title="Quantize"
                                 >
-                                    Q
+                                    QUANTIZE
                                 </button>
                                 <button
                                     className={`glass-btn slip ${slipModeEnabled ? 'active' : ''}`}

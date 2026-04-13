@@ -139,8 +139,7 @@
 
 /* Track Item */
 .track-item {
-  position: relative;
-  padding: 4px 24px 4px 8px;
+  padding: 8px;
   border-bottom: 1px solid #22222a;
   transition: background 0.15s;
 }
@@ -152,47 +151,48 @@
 .track-item-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .track-item-title {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: #e0e0e0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
-  line-height: 1.2;
 }
 
 .track-item-meta {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: #888899;
   display: flex;
   align-items: center;
-  gap: 5px;
-  line-height: 1;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .track-deck-btns {
   display: flex;
-  gap: 2px;
-  flex-shrink: 0;
+  gap: 4px;
+  margin-top: 4px;
 }
 
 .track-deck-btn {
+  flex: 1;
   font-family: 'Press Start 2P', cursive;
-  font-size: 0.35rem;
-  padding: 2px 5px;
+  font-size: 0.45rem;
+  padding: 6px 0;
   background: transparent;
   border: 1px solid #33333f;
   color: #888899;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 3px;
+  text-align: center;
   transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -203,26 +203,19 @@
 }
 
 .track-x-btn {
-  position: absolute;
-  top: 3px;
-  right: 3px;
   background: transparent;
   border: none;
-  color: #444;
-  font-size: 0.75rem;
+  color: #555;
+  font-size: 1rem;
   cursor: pointer;
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2px;
+  border-radius: 3px;
+  flex-shrink: 0;
   transition: color 0.2s;
-  opacity: 0;
-}
-
-.track-item:hover .track-x-btn {
-  opacity: 1;
 }
 
 .track-x-btn:hover {
