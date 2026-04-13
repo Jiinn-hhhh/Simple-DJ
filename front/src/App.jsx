@@ -19,7 +19,7 @@ import "./App.css";
 
 function App() {
   const { user, loading: authLoading, signUp, signIn, signInWithGoogle, signOut } = useAuth();
-  const { tracks: libraryTracks, loading: libraryLoading, uploadTrack, deleteTrack, getStemUrls } = useLibrary(user);
+  const { tracks: libraryTracks, loading: libraryLoading, uploadTrack, deleteTrack, getStemUrls, uploadQueueInfo } = useLibrary(user);
 
   const [status, setStatus] = useState("INSERT COIN");
   const [isSystemReady, setIsSystemReady] = useState(false);
@@ -140,6 +140,7 @@ function App() {
             onUpload={uploadTrack}
             onDelete={deleteTrack}
             onLoadToDeck={guard(decks.loadTrackFromLibrary)}
+            uploadQueueInfo={uploadQueueInfo}
           />
           <button
             className={`library-toggle ${isLibraryOpen ? 'panel-open' : ''}`}

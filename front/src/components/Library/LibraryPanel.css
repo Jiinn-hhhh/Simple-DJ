@@ -236,6 +236,18 @@
   margin-top: 3px;
 }
 
+/* Upload Queue Status */
+.upload-queue-status {
+  padding: 6px 10px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--neon-yellow, #f0ff00);
+  background: rgba(240, 255, 0, 0.05);
+  border-bottom: 1px solid #22222a;
+  flex-shrink: 0;
+}
+
 /* Processing Queue */
 .processing-queue {
   padding: 8px 10px;

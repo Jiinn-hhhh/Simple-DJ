@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -6,6 +6,11 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default function useLibrary(user) {
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // --- Upload queue state ---
+  const queueRef = useRef([]);
+  const processingRef = useRef(false);
+  const [uploadQueueInfo, setUploadQueueInfo] = useState({ pending: 0, currentFile: null });
 
   // Fetch user's tracks from Supabase
   const fetchTracks = useCallback(async () => {
@@ -50,8 +55,8 @@ export default function useLibrary(user) {
     return () => { supabase.removeChannel(channel); };
   }, [user, fetchTracks]);
 
-  // Upload a track to the library
-  const uploadTrack = useCallback(async (file) => {
+  // Upload a single track to the library (internal)
+  const uploadSingle = useCallback(async (file) => {
     if (!user) return;
 
     // 1. Extract title from filename (remove extension)
@@ -96,6 +101,35 @@ export default function useLibrary(user) {
     return track;
   }, [user]);
 
+  // Process upload queue sequentially
+  const processQueue = useCallback(async () => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+
+    while (queueRef.current.length > 0) {
+      const file = queueRef.current[0];
+      setUploadQueueInfo({ pending: queueRef.current.length, currentFile: file.name });
+
+      try {
+        await uploadSingle(file);
+      } catch (err) {
+        console.error(`Upload queue: skipping "${file.name}"`, err);
+      }
+
+      queueRef.current.shift();
+    }
+
+    setUploadQueueInfo({ pending: 0, currentFile: null });
+    processingRef.current = false;
+  }, [uploadSingle]);
+
+  // Public API: enqueue a file for upload (replaces direct uploadTrack)
+  const uploadTrack = useCallback((file) => {
+    queueRef.current.push(file);
+    setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length }));
+    processQueue();
+  }, [processQueue]);
+
   // Delete a track (DB + Storage)
   const deleteTrack = useCallback(async (trackId) => {
     if (!user) return;
@@ -131,5 +165,5 @@ export default function useLibrary(user) {
     return urls;
   }, []);
 
-  return { tracks, loading, uploadTrack, deleteTrack, getStemUrls, refreshTracks: fetchTracks };
+  return { tracks, loading, uploadTrack, deleteTrack, getStemUrls, refreshTracks: fetchTracks, uploadQueueInfo };
 }
