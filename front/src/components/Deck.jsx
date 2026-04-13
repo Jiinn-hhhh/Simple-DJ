@@ -168,7 +168,7 @@ const Deck = ({
                     ) : (
                         <div style={{ color: '#666', fontStyle: 'italic' }}>
                             {loadingTrack ? (
-                                <span className="blink">LOADING {loadingTrack.toUpperCase()}...</span>
+                                <span className="blink">LOADING...</span>
                             ) : (
                                 "No Track Loaded"
                             )}
@@ -176,6 +176,12 @@ const Deck = ({
                     )}
                 </div>
             </div>
+
+            {track && (
+                <div className={`spectrum-overlay ${isPlaying ? 'active' : ''} ${deckId === 'A' ? 'deck-a' : 'deck-b'}`}>
+                    <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
+                </div>
+            )}
 
             <div className="disc-container" style={{ position: 'relative' }}>
                 <div
@@ -193,12 +199,6 @@ const Deck = ({
                     </div>
                 </div>
 
-                {track && (
-                    <div className={`spectrum-overlay ${isPlaying ? 'active' : ''} ${deckId === 'A' ? 'deck-a' : 'deck-b'}`}>
-                        <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
-                    </div>
-                )}
-
                 {isSeparating && (
                     <div style={{
                         position: 'absolute', bottom: '10px', background: 'black',
@@ -214,6 +214,17 @@ const Deck = ({
                                 background: 'var(--neon-green)', transition: 'width 0.3s ease'
                             }} />
                         </div>
+                    </div>
+                )}
+                {loadingTrack && (
+                    <div style={{
+                        position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                        background: 'rgba(0,0,0,0.8)', padding: '15px 20px', borderRadius: '8px',
+                        border: '2px solid var(--neon-blue)', zIndex: 30, textAlign: 'center', boxShadow: '0 0 15px rgba(0, 229, 255, 0.4)'
+                    }}>
+                        <span className="pixel-font blink" style={{ color: 'var(--neon-blue)', fontSize: '1rem', display: 'block', lineHeight: '1.5' }}>
+                            LOADING<br/><br/>{loadingTrack.length > 15 ? loadingTrack.substring(0, 15) + '...' : loadingTrack}
+                        </span>
                     </div>
                 )}
             </div>

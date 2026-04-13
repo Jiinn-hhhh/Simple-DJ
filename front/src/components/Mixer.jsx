@@ -124,79 +124,19 @@ const Mixer = ({
           <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '15px' }}>
             <button
               onClick={() => onTriggerSampler('airhorn')}
-              className="sampler-btn"
-              style={{
-                flex: 1,
-                height: '45px',
-                background: '#333',
-                border: '2px solid #555',
-                borderRadius: '4px',
-                color: '#aaa',
-                fontSize: '1.2rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 0 #222',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.1s'
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'translateY(4px)';
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.color = '#fff';
-                e.currentTarget.style.borderColor = '#888';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
-                e.currentTarget.style.borderColor = '#555';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
-              }}
+              className="glass-btn sampler-glass-btn"
+              title="Airhorn"
             >
-              📣
+              <span style={{ fontSize: '1.2rem', marginBottom: '2px' }}>📣</span>
+              <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>HORN</span>
             </button>
             <button
               onClick={() => onTriggerSampler('siren')}
-              className="sampler-btn"
-              style={{
-                flex: 1,
-                height: '45px',
-                background: '#333',
-                border: '2px solid #555',
-                borderRadius: '4px',
-                color: '#aaa',
-                fontSize: '1.2rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 0 #222',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.1s'
-              }}
-              onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'translateY(4px)';
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.color = '#fff';
-                e.currentTarget.style.borderColor = '#888';
-              }}
-              onMouseUp={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
-                e.currentTarget.style.borderColor = '#555';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
-              }}
+              className="glass-btn sampler-glass-btn"
+              title="Siren"
             >
-              🚨
+              <span style={{ fontSize: '1.2rem', marginBottom: '2px' }}>🚨</span>
+              <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>SIREN</span>
             </button>
           </div>
 
