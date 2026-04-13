@@ -613,7 +613,7 @@ class AudioPlayer {
       filter.type = 'lowpass';
       // Map 0.0-0.45 to 20Hz-20000Hz (logarithmic)
       // Normalized x = value / 0.45
-      const normalized = Math.max(0.001, value / 0.45);
+      const normalized = Math.max(0.001, Math.min(1, value / 0.45));
       const freq = 20 * Math.pow(1000, normalized); // Approx mapping
       filter.frequency.setTargetAtTime(freq, currentTime, 0.1);
       filter.Q.value = 1;
@@ -621,7 +621,7 @@ class AudioPlayer {
       // High Pass
       filter.type = 'highpass';
       // Map 0.55-1.0 to 20Hz-20000Hz
-      const normalized = (value - 0.55) / 0.45;
+      const normalized = Math.max(0.001, Math.min(1, (value - 0.55) / 0.45));
       const freq = 20 * Math.pow(1000, normalized);
       filter.frequency.setTargetAtTime(freq, currentTime, 0.1);
       filter.Q.value = 1;
@@ -866,10 +866,10 @@ class AudioPlayer {
     // Auto-enable slip if not already on
     if (!this.slipMode[deckId]) {
       this.setSlipMode(deckId, true);
-      this.loopRollActive[deckId] = true; // track that we auto-enabled slip
-    } else {
-      this.loopRollActive[deckId] = true;
+      this._slipAutoEnabled = this._slipAutoEnabled || {};
+      this._slipAutoEnabled[deckId] = true;
     }
+    this.loopRollActive[deckId] = true;
 
     // Set a short loop at current position
     const beatDuration = 60 / bpm;
@@ -911,9 +911,12 @@ class AudioPlayer {
     // Return to virtual position
     this.slipReturn(deckId);
 
-    // If we auto-enabled slip, disable it
+    // Only disable slip if it was auto-enabled by loop roll
     this.loopRollActive[deckId] = false;
-    this.slipMode[deckId] = false;
+    if (this._slipAutoEnabled?.[deckId]) {
+      this.slipMode[deckId] = false;
+      this._slipAutoEnabled[deckId] = false;
+    }
   }
 
   // --- Effect & Logic ---
@@ -1166,7 +1169,8 @@ class AudioPlayer {
 
     this._stopScratchSources(deckId);
 
-    this.playbackRates[deckId] = state.savedRate;
+    // Don't restore savedRate — masterBpm may have changed during scratch
+    // this.playbackRates[deckId] already reflects current masterBpm
 
     // Slip mode: return to virtual position instead of scratch position
     if (this.slipMode[deckId]) {
@@ -1210,11 +1214,9 @@ class AudioPlayer {
     // If currently playing, restart from there.
     // If paused, just update offset so next Play starts there.
 
-    if (this.startTimes[deckId] !== null) {
-      // Was playing
+    if (this.isPlaying[deckId]) {
+      // Was playing — restart from new position
       await this.stop(deckId);
-      // Restore "Playing" state immediately
-      // We need to call play() but play() uses stored offset.
       this._resumePlayback(deckId, this.pauseOffsets[deckId]);
     }
   }

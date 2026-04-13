@@ -127,7 +127,7 @@ function App() {
   const loopRoll = useLoopRoll(audioPlayerRef);
 
   // --- Playback Position (for waveform) ---
-  const { positionA, positionB } = usePlaybackPosition(audioPlayerRef, decks.isPlayingA, decks.isPlayingB);
+  const { positionA, positionB, seekPosition } = usePlaybackPosition(audioPlayerRef, decks.isPlayingA, decks.isPlayingB);
 
   // --- Recorder ---
   const recorder = useRecorder(audioPlayerRef);
@@ -267,7 +267,7 @@ function App() {
                 onLoopIn={() => guard(decks.handleLoopIn)('A')}
                 onLoopOut={() => guard(decks.handleLoopOut)('A')}
                 onExitLoop={() => guard(decks.handleExitLoop)('A')}
-                onSeek={(p) => guard(decks.handleSeek)('A', p)}
+                onSeek={(p) => { guard(decks.handleSeek)('A', p); seekPosition('A', p); }}
                 onScratchStart={handleScratchStart}
                 onScratchMove={handleScratchMove}
                 onScratchEnd={handleScratchEnd}
@@ -334,7 +334,7 @@ function App() {
                 onLoopIn={() => guard(decks.handleLoopIn)('B')}
                 onLoopOut={() => guard(decks.handleLoopOut)('B')}
                 onExitLoop={() => guard(decks.handleExitLoop)('B')}
-                onSeek={(p) => guard(decks.handleSeek)('B', p)}
+                onSeek={(p) => { guard(decks.handleSeek)('B', p); seekPosition('B', p); }}
                 onScratchStart={handleScratchStart}
                 onScratchMove={handleScratchMove}
                 onScratchEnd={handleScratchEnd}

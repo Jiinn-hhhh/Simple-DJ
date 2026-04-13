@@ -37,5 +37,11 @@ export default function usePlaybackPosition(audioPlayerRef, isPlayingA, isPlayin
     };
   }, [isPlayingA, isPlayingB, update]);
 
-  return { positionA, positionB };
+  // Immediate position update after seek (even when paused)
+  const seekPosition = useCallback((deckId, percent) => {
+    if (deckId === 'A') setPositionA(Math.min(1, Math.max(0, percent)));
+    else setPositionB(Math.min(1, Math.max(0, percent)));
+  }, []);
+
+  return { positionA, positionB, seekPosition };
 }
