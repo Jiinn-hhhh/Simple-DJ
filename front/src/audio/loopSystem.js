@@ -3,11 +3,8 @@
 export function startLoopRoll(deckId, beats, bpm) {
   if (!bpm || bpm <= 0) return;
 
-  if (!this.slipMode[deckId]) {
-    this.setSlipMode(deckId, true);
-    this._slipAutoEnabled = this._slipAutoEnabled || {};
-    this._slipAutoEnabled[deckId] = true;
-  }
+  // Slip auto-enable 제거: slip OFF면 그냥 루프만 돌리고, 놓으면 그 자리에서 계속 재생
+  // slip ON이면 기존 slip 동작 유지 (놓으면 원래 진행 위치로 복귀)
   this.loopRollActive[deckId] = true;
 
   const beatDuration = 60 / bpm;
@@ -32,6 +29,27 @@ export function startLoopRoll(deckId, beats, bpm) {
   this.loopPoints[deckId].active = true;
 }
 
+// Atomic loop size change during drag — no end/start cycle, no audible gap
+export function changeLoopRollSize(deckId, beats, bpm) {
+  if (!bpm || bpm <= 0 || !this.loopRollActive[deckId]) return;
+  if (!this.loopPoints[deckId]) return;
+
+  const beatDuration = 60 / bpm;
+  const loopStart = this.loopPoints[deckId].start;
+  const loopEnd = loopStart + (beats * beatDuration);
+
+  if (this.sourceNodes[deckId]) {
+    Object.values(this.sourceNodes[deckId]).forEach(source => {
+      if (!source || !source.buffer) return;
+      const safeStart = Math.max(0, loopStart);
+      const safeEnd = Math.min(source.buffer.duration, loopEnd);
+      if (safeEnd <= safeStart) return;
+      source.loopStart = safeStart;
+      source.loopEnd = safeEnd;
+    });
+  }
+}
+
 export function endLoopRoll(deckId) {
   if (!this.loopRollActive[deckId]) return;
 
@@ -40,13 +58,12 @@ export function endLoopRoll(deckId) {
     delete this.loopPoints[deckId];
   }
 
-  this.slipReturn(deckId);
+  // slip ON일 때만 원래 위치로 복귀. OFF면 현재 위치에서 계속 재생.
+  if (this.slipMode[deckId]) {
+    this.slipReturn(deckId);
+  }
 
   this.loopRollActive[deckId] = false;
-  if (this._slipAutoEnabled?.[deckId]) {
-    this.slipMode[deckId] = false;
-    this._slipAutoEnabled[deckId] = false;
-  }
 }
 
 export function setLoopIn(deckId, trackBpm) {

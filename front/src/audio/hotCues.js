@@ -20,6 +20,7 @@ export function setHotCue(deckId, index, bpm) {
     position,
     color: PAD_COLORS[index],
   };
+  return this.hotCues[deckId][index];
 }
 
 export async function jumpToHotCue(deckId, index) {

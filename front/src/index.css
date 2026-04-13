@@ -657,6 +657,12 @@ body {
     border-color: var(--neon-yellow);
     box-shadow: 0 0 20px rgba(240, 255, 0, 0.3);
     cursor: grabbing !important;
+    transition: none;
+}
+
+.vinyl-disc.scratch-releasing {
+    animation: none;
+    transition: transform 0.3s ease-out, border-color 0.3s, box-shadow 0.3s;
 }
 
 .disc-label {
@@ -757,7 +763,7 @@ body {
     padding: 4px 0;
     cursor: pointer;
     border-radius: 3px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
 }
 
 .glass-btn.active {
@@ -768,6 +774,7 @@ body {
 .stems-row {
     display: flex;
     gap: 3px;
+    margin-top: auto;
 }
 
 .stem-btn {
@@ -777,7 +784,7 @@ body {
     color: #555;
     padding: 6px;
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
 }
 
 .stem-btn.active {
@@ -844,13 +851,13 @@ body {
 }
 
 .hotcue-pad {
-    padding: 10px 0;
+    padding: 8px 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
     color: #666;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.1s ease;
 }
@@ -883,7 +890,7 @@ body {
     background: #111;
     border: 1px solid #333;
     color: var(--neon-blue);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     cursor: pointer;
     border-radius: 3px;
     transition: all 0.1s ease;
@@ -911,7 +918,7 @@ body {
 .beat-jump-size-value {
     color: var(--neon-blue);
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     min-width: 36px;
     text-align: center;
     padding: 2px 2px;
@@ -993,18 +1000,18 @@ body {
 /* --- LOOP ROLL PADS --- */
 .looproll-pads {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 3px;
 }
 
 .looproll-pad {
-    padding: 10px 0;
+    padding: 6px 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
     color: #888;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.1s ease;
     user-select: none;

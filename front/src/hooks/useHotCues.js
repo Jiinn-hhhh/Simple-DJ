@@ -1,38 +1,47 @@
-// hooks/useHotCues.js — Hot cue state management with localStorage persistence
+// hooks/useHotCues.js — Hot cue state management with Supabase persistence
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 
-const STORAGE_KEY = 'simple-dj-hotcues';
 const EMPTY_CUES = new Array(8).fill(null);
 
-function loadCuesFromStorage(trackId) {
+async function loadCuesFromSupabase(trackId) {
+  if (!trackId) return [...EMPTY_CUES];
   try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    return data[trackId] || [...EMPTY_CUES];
+    const { data, error } = await supabase
+      .from('tracks')
+      .select('hot_cues')
+      .eq('id', trackId)
+      .single();
+    if (error || !data?.hot_cues) return [...EMPTY_CUES];
+    // Copy before mutating to avoid corrupting Supabase cache
+    const cues = [...data.hot_cues];
+    while (cues.length < 8) cues.push(null);
+    return cues.slice(0, 8);
   } catch {
     return [...EMPTY_CUES];
   }
 }
 
-function saveCuesToStorage(trackId, cues) {
+async function saveCuesToSupabase(trackId, cues) {
+  if (!trackId) return;
   try {
-    const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    data[trackId] = cues;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch {}
+    const { error } = await supabase
+      .from('tracks')
+      .update({ hot_cues: cues })
+      .eq('id', trackId);
+    if (error) console.warn('[HotCues] Save failed:', error.message);
+  } catch (e) {
+    console.warn('[HotCues] Save error:', e);
+  }
 }
 
 export default function useHotCues(audioPlayerRef) {
   const [hotCuesA, setHotCuesA] = useState([...EMPTY_CUES]);
   const [hotCuesB, setHotCuesB] = useState([...EMPTY_CUES]);
 
-  const getTrackId = useCallback((deckId) => {
-    // We use deckId directly since the audioPlayer tracks by deck
-    return deckId;
-  }, []);
-
   // Load cues when track changes
-  const loadCuesForTrack = useCallback((deckId, track) => {
+  const loadCuesForTrack = useCallback(async (deckId, track) => {
     if (!track) {
       if (deckId === 'A') setHotCuesA([...EMPTY_CUES]);
       else setHotCuesB([...EMPTY_CUES]);
@@ -41,8 +50,7 @@ export default function useHotCues(audioPlayerRef) {
       ap.hotCues[deckId] = new Array(8).fill(null);
       return;
     }
-    const storageId = track.id || track.filename;
-    const saved = loadCuesFromStorage(storageId);
+    const saved = await loadCuesFromSupabase(track.id);
     if (deckId === 'A') setHotCuesA(saved);
     else setHotCuesB(saved);
     // Sync to audioPlayer
@@ -59,10 +67,9 @@ export default function useHotCues(audioPlayerRef) {
     setter(prev => {
       const next = [...prev];
       next[index] = cue;
-      // Persist
-      if (track) {
-        const storageId = track.id || track.filename;
-        saveCuesToStorage(storageId, next);
+      // Persist to Supabase
+      if (track?.id) {
+        saveCuesToSupabase(track.id, next);
       }
       return next;
     });
@@ -78,9 +85,8 @@ export default function useHotCues(audioPlayerRef) {
     setter(prev => {
       const next = [...prev];
       next[index] = null;
-      if (track) {
-        const storageId = track.id || track.filename;
-        saveCuesToStorage(storageId, next);
+      if (track?.id) {
+        saveCuesToSupabase(track.id, next);
       }
       return next;
     });

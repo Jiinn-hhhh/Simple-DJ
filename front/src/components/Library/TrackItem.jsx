@@ -66,8 +66,8 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
       </div>
       {track.status === 'ready' && (
         <div className="track-deck-btns">
-          <button className="track-deck-btn" onClick={() => onLoadToDeck('A', track)}>A</button>
-          <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>B</button>
+          <button className="track-deck-btn deck-btn-a" onClick={() => onLoadToDeck('A', track)}>A</button>
+          <button className="track-deck-btn deck-btn-b" onClick={() => onLoadToDeck('B', track)}>B</button>
         </div>
       )}
     </div>

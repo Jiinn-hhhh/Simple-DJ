@@ -296,6 +296,7 @@ function App() {
                 activeLoopRoll={loopRoll.activeRollA}
                 onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('A', beats, decks.trackA?.bpm)}
                 onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('A')}
+                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('A', beats, decks.trackA?.bpm)}
               />
 
               <Mixer
@@ -359,6 +360,7 @@ function App() {
                 activeLoopRoll={loopRoll.activeRollB}
                 onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('B', beats, decks.trackB?.bpm)}
                 onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('B')}
+                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('B', beats, decks.trackB?.bpm)}
               />
             </div>
           </div>

@@ -50,16 +50,17 @@ const Deck = ({
     activeLoopRoll,
     onStartLoopRoll,
     onEndLoopRoll,
+    onChangeLoopRollSize,
 }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [loopState, setLoopState] = useState('inactive');
     const [stemDrag, setStemDrag] = useState({ active: false, targetState: true });
     const [isScratching, setIsScratching] = useState(false);
     const [scratchAngle, setScratchAngle] = useState(0);
-    const [padMode, setPadMode] = useState('hotcue'); // 'hotcue' | 'looproll'
-    const waveformRef = useRef(null);
+    const [scratchReleasing, setScratchReleasing] = useState(false);
     const vinylRef = useRef(null);
     const scratchRef = useRef({ lastAngle: null });
+    const releaseTimerRef = useRef(null);
 
     // Accept library track drops (from TrackItem drag)
     const handleDragOver = (e) => {
@@ -87,13 +88,6 @@ const Deck = ({
         else { setLoopState('inactive'); onExitLoop(); }
     };
 
-    const handleWaveformClick = (e) => {
-        if (!track || !waveformRef.current) return;
-        const rect = waveformRef.current.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        onSeek(percent);
-    };
-
     // --- Vinyl scratch handlers ---
     const getAngle = (e, rect) => {
         const cx = rect.left + rect.width / 2;
@@ -107,6 +101,8 @@ const Deck = ({
         const rect = vinylRef.current.getBoundingClientRect();
         scratchRef.current.lastAngle = getAngle(e, rect);
         setIsScratching(true);
+        setScratchReleasing(false);
+        if (releaseTimerRef.current) clearTimeout(releaseTimerRef.current);
         if (onScratchStart) onScratchStart(deckId);
 
         const handleMouseMove = (ev) => {
@@ -125,8 +121,15 @@ const Deck = ({
 
         const handleMouseUp = () => {
             setIsScratching(false);
+            setScratchReleasing(true);
             scratchRef.current.lastAngle = null;
             if (onScratchEnd) onScratchEnd(deckId, track?.bpm);
+            // Smooth recovery: gradually reset angle
+            releaseTimerRef.current = setTimeout(() => {
+                setScratchAngle(0);
+                setScratchReleasing(false);
+                releaseTimerRef.current = null;
+            }, 300);
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
@@ -136,6 +139,13 @@ const Deck = ({
     };
 
     const spinDuration = playbackRate > 0 ? `${2 / playbackRate}s` : '2s';
+
+    const vinylClass = [
+        'vinyl-disc',
+        isScratching ? 'scratching' : '',
+        scratchReleasing ? 'scratch-releasing' : '',
+        isPlaying && !isScratching && !scratchReleasing ? 'spinning' : '',
+    ].filter(Boolean).join(' ');
 
     return (
         <div
@@ -170,11 +180,11 @@ const Deck = ({
             <div className="disc-container" style={{ position: 'relative' }}>
                 <div
                     ref={vinylRef}
-                    className={`vinyl-disc ${isPlaying && !isScratching ? 'spinning' : ''} ${isScratching ? 'scratching' : ''}`}
+                    className={vinylClass}
                     style={{
                         '--spin-duration': spinDuration,
                         cursor: track && isPlaying ? 'grab' : 'default',
-                        ...(isScratching ? { transform: `rotate(${scratchAngle}rad)` } : {})
+                        ...(isScratching || scratchReleasing ? { transform: `rotate(${scratchAngle}rad)` } : {})
                     }}
                     onMouseDown={handleVinylMouseDown}
                 >
@@ -262,35 +272,19 @@ const Deck = ({
                             </div>
                         </div>
 
-                        <div className="pad-mode-toggle">
-                            <button
-                                className={`pad-mode-btn ${padMode === 'hotcue' ? 'active' : ''}`}
-                                onClick={() => setPadMode('hotcue')}
-                            >
-                                HOT CUE
-                            </button>
-                            <button
-                                className={`pad-mode-btn ${padMode === 'looproll' ? 'active' : ''}`}
-                                onClick={() => setPadMode('looproll')}
-                            >
-                                LOOP ROLL
-                            </button>
-                        </div>
+                        <LoopRollPads
+                            activeRoll={activeLoopRoll}
+                            onStart={onStartLoopRoll}
+                            onEnd={onEndLoopRoll}
+                            onChangeSize={onChangeLoopRollSize}
+                        />
 
-                        {padMode === 'hotcue' && hotCues && (
+                        {hotCues && (
                             <HotCuePads
                                 hotCues={hotCues}
                                 onSetCue={onSetHotCue}
                                 onJumpCue={onJumpHotCue}
                                 onDeleteCue={onDeleteHotCue}
-                            />
-                        )}
-
-                        {padMode === 'looproll' && (
-                            <LoopRollPads
-                                activeRoll={activeLoopRoll}
-                                onStart={onStartLoopRoll}
-                                onEnd={onEndLoopRoll}
                             />
                         )}
 
