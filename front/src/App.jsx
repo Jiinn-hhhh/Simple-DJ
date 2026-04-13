@@ -203,13 +203,8 @@ function App() {
                   onStartVideo={recorder.startVideoRecording}
                   onStopVideo={recorder.stopVideoRecording}
                 />
-                <button onClick={() => setShowHelp(true)} className="help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
-                <button onClick={signOut} style={{
-                  background: 'transparent', border: '1px solid var(--neon-pink)', color: 'var(--neon-pink)',
-                  fontFamily: "'Press Start 2P', cursive", fontSize: '0.6rem', padding: '8px 12px', cursor: 'pointer', borderRadius: '4px',
-                }}>
-                  LOGOUT
-                </button>
+                <button onClick={() => setShowHelp(true)} className="topbar-btn help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
+                <button onClick={signOut} className="topbar-btn logout-btn pixel-font">LOGOUT</button>
               </div>
             </div>
 
@@ -221,6 +216,17 @@ function App() {
                     <button className="help-modal-close" onClick={() => setShowHelp(false)}>&times;</button>
                   </div>
                   <div className="help-modal-body">
+                    <div className="help-section-title">HOW TO USE</div>
+                    <div className="help-tips">
+                      <div>Drag tracks from library to decks</div>
+                      <div>Match BPM, mix with crossfader</div>
+                      <div>Stems: control drums/bass/vocals/other</div>
+                      <div>Hot cues: save positions, instant jump</div>
+                      <div>Loop Roll: beat-synced repeat effect</div>
+                      <div>EQ: low/mid/high per deck</div>
+                      <div>FX Pad: reverb/distortion XY control</div>
+                    </div>
+                    <div className="help-section-title" style={{marginTop:'10px'}}>SHORTCUTS</div>
                     <div className="help-section">
                       <div className="help-row"><kbd>S</kbd> Deck A play/pause</div>
                       <div className="help-row"><kbd>L</kbd> Deck B play/pause</div>
@@ -233,9 +239,6 @@ function App() {
                       <div className="help-row"><kbd>-/+</kbd> BPM adjust</div>
                       <div className="help-row"><kbd>&larr;/&rarr;</kbd> Crossfader</div>
                       <div className="help-row"><kbd>Tab</kbd> Library toggle</div>
-                    </div>
-                    <div className="help-section" style={{marginTop:'8px',fontSize:'0.7rem',color:'#666'}}>
-                      Drag tracks from library to decks. Double-click track name to rename.
                     </div>
                   </div>
                 </div>

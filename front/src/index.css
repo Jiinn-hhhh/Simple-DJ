@@ -80,20 +80,31 @@ body {
     border-radius: 4px;
 }
 
-/* --- HELP BUTTON & MODAL --- */
-.help-topbar-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
+/* --- TOP BAR BUTTONS --- */
+.topbar-btn {
+    height: 26px;
     background: transparent;
+    cursor: pointer;
+    font-size: 0.5rem;
+    border-radius: 4px;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.help-topbar-btn {
+    width: 26px;
+    border-radius: 50%;
     border: 1px solid var(--neon-green);
     color: var(--neon-green);
-    font-size: 0.6rem;
-    cursor: pointer;
-    transition: background 0.2s;
 }
 .help-topbar-btn:hover {
     background: rgba(0, 255, 157, 0.15);
+}
+.logout-btn {
+    padding: 0 10px;
+    border: 1px solid var(--neon-pink);
+    color: var(--neon-pink);
+}
+.logout-btn:hover {
+    background: rgba(255, 0, 85, 0.15);
 }
 .help-modal-overlay {
     position: fixed;
@@ -128,7 +139,24 @@ body {
     cursor: pointer;
 }
 .help-modal-close:hover { color: var(--neon-pink); }
-.help-modal-body { font-family: 'Rajdhani', sans-serif; }
+.help-modal-body { font-family: 'Rajdhani', sans-serif; max-height: 70vh; overflow-y: auto; }
+.help-section-title {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.4rem;
+    color: var(--neon-green);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+}
+.help-tips {
+    font-size: 0.75rem;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+.help-tips div::before {
+    content: '\2022 ';
+    color: var(--neon-blue);
+}
 .help-row {
     display: flex;
     align-items: center;
@@ -176,7 +204,8 @@ body {
 
 /* Deck */
 .deck-container {
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 4px;
 }
 
 .deck-container.dragging {
@@ -564,20 +593,20 @@ body {
 
 /* --- VINYL --- */
 .disc-container {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
-    min-height: 150px;
-    max-height: 200px;
+    min-height: 100px;
 }
 
 .vinyl-disc {
     width: 65%;
     /* Relative to container */
-    max-width: 180px;
-    /* Larger vinyl for DJ feel */
+    max-width: 280px;
+    max-height: 90%;
+    /* Grows with container, capped */
     aspect-ratio: 1/1;
     /* Keep circle */
     height: auto;
@@ -621,7 +650,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    flex: 1;
+    flex: 0 1 auto;
     min-height: 0;
     overflow: hidden;
 }
