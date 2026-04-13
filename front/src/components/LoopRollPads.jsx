@@ -13,20 +13,24 @@ const formatSize = (size) => {
 
 const LoopRollPads = ({ activeRoll, onStart, onEnd, onChangeSize }) => {
   const draggingRef = useRef(false);
+  const currentSizeRef = useRef(null);
 
   const handleMouseDown = (size) => {
     draggingRef.current = true;
+    currentSizeRef.current = size;
     onStart(size);
   };
 
   const handleMouseUp = () => {
     draggingRef.current = false;
-    if (activeRoll != null) onEnd();
+    currentSizeRef.current = null;
+    onEnd();
   };
 
   const handleMouseEnter = (size) => {
-    // Drag interaction: 누른 채로 옆으로 이동하면 다른 크기로 전환 (atomic, no gap)
-    if (draggingRef.current && activeRoll != null && activeRoll !== size) {
+    // Drag: use refs (not React state) to avoid re-render timing issues
+    if (draggingRef.current && currentSizeRef.current !== size) {
+      currentSizeRef.current = size;
       if (onChangeSize) {
         onChangeSize(size);
       } else {
@@ -36,17 +40,14 @@ const LoopRollPads = ({ activeRoll, onStart, onEnd, onChangeSize }) => {
     }
   };
 
-  const handleMouseLeave = () => {
-    // Only end if leaving the entire pad area (handled by parent onMouseLeave)
-  };
-
   return (
     <div
       className="looproll-pads"
       onMouseLeave={() => {
         if (draggingRef.current) {
           draggingRef.current = false;
-          if (activeRoll != null) onEnd();
+          currentSizeRef.current = null;
+          onEnd();
         }
       }}
     >
