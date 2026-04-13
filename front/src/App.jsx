@@ -79,48 +79,6 @@ function App() {
     return () => audioPlayerRef.current?.cleanup();
   }, []);
 
-  // --- Keyboard shortcuts ---
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || !isSystemReady) return;
-      const key = e.key;
-      const lower = key.toLowerCase();
-
-      // Deck A/B play
-      if (lower === 's') { decks.togglePlay('A'); return; }
-      if (lower === 'l') { decks.togglePlay('B'); return; }
-      // Space: toggle active deck (A priority)
-      if (key === ' ') { e.preventDefault(); decks.togglePlay(decks.isPlayingA ? 'A' : decks.isPlayingB ? 'B' : 'A'); return; }
-      // Crossfader
-      if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.1)); return; }
-      if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.1)); return; }
-      // Library
-      if (key === 'Tab') { e.preventDefault(); setIsLibraryOpen(prev => !prev); return; }
-      // Deck A controls
-      if (lower === 'q') { decks.toggleQuantize('A'); return; }
-      if (lower === 'w') { decks.toggleSlipMode('A'); return; }
-      if (lower === 'e') { toggleKeyLock('A'); return; }
-      // BPM adjust
-      if (key === '-' || key === '_') { handleMasterBpmChange(Math.max(60, masterBpm - 1)); return; }
-      if (key === '=' || key === '+') { handleMasterBpmChange(Math.min(180, masterBpm + 1)); return; }
-      // Hot cues: 1-8 Deck A, Shift+1-8 Deck B
-      const num = parseInt(key);
-      if (num >= 1 && num <= 8) {
-        const deck = e.shiftKey ? 'B' : 'A';
-        const idx = num - 1;
-        const cues = e.shiftKey ? hotCues.hotCuesB : hotCues.hotCuesA;
-        const track = e.shiftKey ? decks.trackB : decks.trackA;
-        if (cues[idx]) {
-          hotCues.jumpToHotCue(deck, idx);
-        } else {
-          hotCues.setHotCue(deck, idx, track?.bpm, track);
-        }
-        return;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleMasterBpmChange, setCrossfader]);
 
   // --- Hot Cues ---
   const hotCues = useHotCues(audioPlayerRef);
@@ -132,6 +90,38 @@ function App() {
   useEffect(() => {
     hotCues.loadCuesForTrack('B', decks.trackB);
   }, [decks.trackB?.id, decks.trackB?.filename]);
+
+  // --- Keyboard shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || !isSystemReady) return;
+      const key = e.key;
+      const lower = key.toLowerCase();
+      if (lower === 's') { decks.togglePlay('A'); return; }
+      if (lower === 'l') { decks.togglePlay('B'); return; }
+      if (key === ' ') { e.preventDefault(); decks.togglePlay(decks.isPlayingA ? 'A' : decks.isPlayingB ? 'B' : 'A'); return; }
+      if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.1)); return; }
+      if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.1)); return; }
+      if (key === 'Tab') { e.preventDefault(); setIsLibraryOpen(prev => !prev); return; }
+      if (lower === 'q') { decks.toggleQuantize('A'); return; }
+      if (lower === 'w') { decks.toggleSlipMode('A'); return; }
+      if (lower === 'e') { toggleKeyLock('A'); return; }
+      if (key === '-' || key === '_') { handleMasterBpmChange(Math.max(60, masterBpm - 1)); return; }
+      if (key === '=' || key === '+') { handleMasterBpmChange(Math.min(180, masterBpm + 1)); return; }
+      const num = parseInt(key);
+      if (num >= 1 && num <= 8) {
+        const deck = e.shiftKey ? 'B' : 'A';
+        const idx = num - 1;
+        const cues = e.shiftKey ? hotCues.hotCuesB : hotCues.hotCuesA;
+        const track = e.shiftKey ? decks.trackB : decks.trackA;
+        if (cues[idx]) { hotCues.jumpToHotCue(deck, idx); }
+        else { hotCues.setHotCue(deck, idx, track?.bpm, track); }
+        return;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleMasterBpmChange, setCrossfader]);
 
   // --- Loop Roll ---
   const loopRoll = useLoopRoll(audioPlayerRef);
