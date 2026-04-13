@@ -80,6 +80,75 @@ body {
     border-radius: 4px;
 }
 
+/* --- HELP BUTTON & MODAL --- */
+.help-topbar-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    font-size: 0.6rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.help-topbar-btn:hover {
+    background: rgba(0, 255, 157, 0.15);
+}
+.help-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+    backdrop-filter: blur(3px);
+}
+.help-modal {
+    background: #1e1e24;
+    border: 1px solid #33333f;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 320px;
+    width: 90%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.help-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.help-modal-close {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+.help-modal-close:hover { color: var(--neon-pink); }
+.help-modal-body { font-family: 'Rajdhani', sans-serif; }
+.help-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+    font-size: 0.75rem;
+    color: #ccc;
+}
+.help-row kbd {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.35rem;
+    color: var(--neon-blue);
+    min-width: 40px;
+    text-align: center;
+}
+
 /* --- CONSOLE LAYOUT --- */
 .console-layout {
     flex: 1;

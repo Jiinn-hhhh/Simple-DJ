@@ -26,6 +26,7 @@ function App() {
 
   const [status, setStatus] = useState("INSERT COIN");
   const [isSystemReady, setIsSystemReady] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [hfSpaceUrl, setHfSpaceUrl] = useState("");
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
@@ -82,17 +83,44 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || !isSystemReady) return;
-      switch (e.key.toLowerCase()) {
-        case 's': decks.togglePlay('A'); break;
-        case 'l': decks.togglePlay('B'); break;
-        case 'arrowleft': setCrossfader(prev => Math.max(0, prev - 0.1)); break;
-        case 'arrowright': setCrossfader(prev => Math.min(1, prev + 0.1)); break;
-        case 'tab': e.preventDefault(); setIsLibraryOpen(prev => !prev); break;
+      const key = e.key;
+      const lower = key.toLowerCase();
+
+      // Deck A/B play
+      if (lower === 's') { decks.togglePlay('A'); return; }
+      if (lower === 'l') { decks.togglePlay('B'); return; }
+      // Space: toggle active deck (A priority)
+      if (key === ' ') { e.preventDefault(); decks.togglePlay(decks.isPlayingA ? 'A' : decks.isPlayingB ? 'B' : 'A'); return; }
+      // Crossfader
+      if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.1)); return; }
+      if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.1)); return; }
+      // Library
+      if (key === 'Tab') { e.preventDefault(); setIsLibraryOpen(prev => !prev); return; }
+      // Deck A controls
+      if (lower === 'q') { decks.toggleQuantize('A'); return; }
+      if (lower === 'w') { decks.toggleSlipMode('A'); return; }
+      if (lower === 'e') { toggleKeyLock('A'); return; }
+      // BPM adjust
+      if (key === '-' || key === '_') { handleMasterBpmChange(Math.max(60, masterBpm - 1)); return; }
+      if (key === '=' || key === '+') { handleMasterBpmChange(Math.min(180, masterBpm + 1)); return; }
+      // Hot cues: 1-8 Deck A, Shift+1-8 Deck B
+      const num = parseInt(key);
+      if (num >= 1 && num <= 8) {
+        const deck = e.shiftKey ? 'B' : 'A';
+        const idx = num - 1;
+        const cues = e.shiftKey ? hotCues.hotCuesB : hotCues.hotCuesA;
+        const track = e.shiftKey ? decks.trackB : decks.trackA;
+        if (cues[idx]) {
+          hotCues.jumpToHotCue(deck, idx);
+        } else {
+          hotCues.setHotCue(deck, idx, track?.bpm, track);
+        }
+        return;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSystemReady, decks.togglePlay, setCrossfader]);
+  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleMasterBpmChange, setCrossfader]);
 
   // --- Hot Cues ---
   const hotCues = useHotCues(audioPlayerRef);
@@ -185,7 +213,7 @@ function App() {
                   onStartVideo={recorder.startVideoRecording}
                   onStopVideo={recorder.stopVideoRecording}
                 />
-                <div className="status-bar pixel-font">{status}</div>
+                <button onClick={() => setShowHelp(true)} className="help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
                 <button onClick={signOut} style={{
                   background: 'transparent', border: '1px solid var(--neon-pink)', color: 'var(--neon-pink)',
                   fontFamily: "'Press Start 2P', cursive", fontSize: '0.6rem', padding: '8px 12px', cursor: 'pointer', borderRadius: '4px',
@@ -194,6 +222,35 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {showHelp && (
+              <div className="help-modal-overlay" onClick={() => setShowHelp(false)}>
+                <div className="help-modal" onClick={e => e.stopPropagation()}>
+                  <div className="help-modal-header">
+                    <span className="pixel-font" style={{fontSize:'0.6rem',color:'var(--neon-green)'}}>SHORTCUTS</span>
+                    <button className="help-modal-close" onClick={() => setShowHelp(false)}>&times;</button>
+                  </div>
+                  <div className="help-modal-body">
+                    <div className="help-section">
+                      <div className="help-row"><kbd>S</kbd> Deck A play/pause</div>
+                      <div className="help-row"><kbd>L</kbd> Deck B play/pause</div>
+                      <div className="help-row"><kbd>Space</kbd> Active deck play/pause</div>
+                      <div className="help-row"><kbd>Q</kbd> Deck A quantize</div>
+                      <div className="help-row"><kbd>W</kbd> Deck A slip mode</div>
+                      <div className="help-row"><kbd>E</kbd> Deck A key lock</div>
+                      <div className="help-row"><kbd>1-8</kbd> Deck A hot cues</div>
+                      <div className="help-row"><kbd>Shift+1-8</kbd> Deck B hot cues</div>
+                      <div className="help-row"><kbd>-/+</kbd> BPM adjust</div>
+                      <div className="help-row"><kbd>&larr;/&rarr;</kbd> Crossfader</div>
+                      <div className="help-row"><kbd>Tab</kbd> Library toggle</div>
+                    </div>
+                    <div className="help-section" style={{marginTop:'8px',fontSize:'0.7rem',color:'#666'}}>
+                      Drag tracks from library to decks. Double-click track name to rename.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="console-layout" style={{ opacity: isSystemReady ? 1 : 0.3, pointerEvents: isSystemReady ? 'auto' : 'none' }}>
               <Deck

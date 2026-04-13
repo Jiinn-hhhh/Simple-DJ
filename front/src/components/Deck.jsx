@@ -180,21 +180,16 @@ const Deck = ({
 
                 {track && (
                     <div style={{
-                        position: 'absolute', top: '10px', left: '50%',
-                        transform: 'translate(-50%, 0)', width: '100%', height: '60px',
+                        position: 'absolute', bottom: '0', left: '50%',
+                        transform: 'translate(-50%, 0)', width: '90%', height: '40px',
                         boxSizing: 'border-box', background: '#000',
-                        border: isPlaying ? `3px solid ${deckId === 'A' ? 'var(--neon-green)' : 'var(--neon-pink)'}` : '3px solid #333',
-                        borderRadius: '6px', zIndex: 10, display: 'flex',
+                        border: isPlaying ? `2px solid ${deckId === 'A' ? 'var(--neon-green)' : 'var(--neon-pink)'}` : '2px solid #333',
+                        borderRadius: '4px', zIndex: 10, display: 'flex',
                         justifyContent: 'center', alignItems: 'center',
-                        boxShadow: isPlaying ? `0 0 15px ${deckId === 'A' ? 'rgba(0, 255, 157, 0.6)' : 'rgba(255, 0, 85, 0.6)'}` : 'none',
+                        boxShadow: isPlaying ? `0 0 10px ${deckId === 'A' ? 'rgba(0, 255, 157, 0.4)' : 'rgba(255, 0, 85, 0.4)'}` : 'none',
                         overflow: 'hidden'
                     }}>
                         <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
-                        <div style={{
-                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                            background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%)',
-                            pointerEvents: 'none'
-                        }} />
                     </div>
                 )}
 

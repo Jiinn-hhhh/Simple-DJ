@@ -118,7 +118,7 @@ const Mixer = ({
         </div>
 
         {/* CENTER COLUMN: FX & SAMPLER */}
-        <div className="mixer-column center-fx" style={{ flex: '0 0 240px', maxWidth: '240px', justifyContent: 'flex-end', paddingBottom: '0' }}>
+        <div className="mixer-column center-fx" style={{ flex: '1 1 180px', maxWidth: '240px', minWidth: '120px', justifyContent: 'flex-end', paddingBottom: '0' }}>
 
           {/* SAMPLER BUTTONS */}
           <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '15px' }}>

@@ -139,7 +139,8 @@
 
 /* Track Item */
 .track-item {
-  padding: 10px;
+  position: relative;
+  padding: 6px 10px 6px 10px;
   border-bottom: 1px solid #22222a;
   transition: background 0.15s;
 }
@@ -148,37 +149,43 @@
   background: rgba(255,255,255,0.02);
 }
 
+.track-item-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .track-item-title {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #e0e0e0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 3px;
+  flex: 1;
+  min-width: 0;
 }
 
 .track-item-meta {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #888899;
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
 }
 
-.track-item-actions {
+.track-deck-btns {
   display: flex;
-  gap: 5px;
-  margin-top: 6px;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .track-deck-btn {
   font-family: 'Press Start 2P', cursive;
-  font-size: 0.5rem;
-  padding: 5px 10px;
+  font-size: 0.4rem;
+  padding: 3px 6px;
   background: transparent;
   border: 1px solid #33333f;
   color: #888899;
@@ -193,23 +200,31 @@
   box-shadow: 0 0 8px rgba(0, 255, 157, 0.3);
 }
 
-.track-delete-btn {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 5px 8px;
+.track-x-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
   background: transparent;
-  border: 1px solid #33333f;
-  color: #555566;
+  border: none;
+  color: #444;
+  font-size: 0.8rem;
   cursor: pointer;
-  border-radius: 3px;
-  margin-left: auto;
-  transition: color 0.2s, border-color 0.2s;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: color 0.2s;
+  opacity: 0;
 }
 
-.track-delete-btn:hover {
+.track-item:hover .track-x-btn {
+  opacity: 1;
+}
+
+.track-x-btn:hover {
   color: var(--neon-pink, #ff0055);
-  border-color: var(--neon-pink, #ff0055);
 }
 
 /* Track Item — draggable */

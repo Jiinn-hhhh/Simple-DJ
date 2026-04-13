@@ -25,7 +25,6 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
     if (e.key === 'Escape') { setEditTitle(track.title); setIsEditing(false); }
   };
 
-  // HTML5 drag for deck loading
   const handleDragStart = (e) => {
     if (track.status !== 'ready') { e.preventDefault(); return; }
     e.dataTransfer.setData('application/x-library-track', JSON.stringify(track));
@@ -38,20 +37,29 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
       draggable={track.status === 'ready'}
       onDragStart={handleDragStart}
     >
-      {isEditing ? (
-        <input
-          className="track-item-title-input"
-          value={editTitle}
-          onChange={(e) => setEditTitle(e.target.value)}
-          onBlur={handleTitleSave}
-          onKeyDown={handleKeyDown}
-          autoFocus
-        />
-      ) : (
-        <div className="track-item-title" onDoubleClick={() => setIsEditing(true)}>
-          {track.title}
-        </div>
-      )}
+      <button className="track-x-btn" onClick={() => onDelete(track.id, track.title)} title="Delete">&times;</button>
+      <div className="track-item-row">
+        {isEditing ? (
+          <input
+            className="track-item-title-input"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={handleKeyDown}
+            autoFocus
+          />
+        ) : (
+          <div className="track-item-title" onDoubleClick={() => setIsEditing(true)}>
+            {track.title}
+          </div>
+        )}
+        {track.status === 'ready' && (
+          <div className="track-deck-btns">
+            <button className="track-deck-btn" onClick={() => onLoadToDeck('A', track)}>A</button>
+            <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>B</button>
+          </div>
+        )}
+      </div>
       <div className="track-item-meta">
         {track.bpm && <span>{Math.round(track.bpm)} BPM</span>}
         {track.key && <span>{track.key}</span>}
@@ -60,15 +68,6 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
       {track.status === 'error' && (
         <div className="track-item-error">{track.error_message || 'Processing failed'}</div>
       )}
-      <div className="track-item-actions">
-        {track.status === 'ready' && (
-          <>
-            <button className="track-deck-btn" onClick={() => onLoadToDeck('A', track)}>A</button>
-            <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>B</button>
-          </>
-        )}
-        <button className="track-delete-btn" onClick={() => onDelete(track.id, track.title)}>DEL</button>
-      </div>
     </div>
   );
 }
