@@ -22,10 +22,10 @@ export function setHotCue(deckId, index, bpm) {
   };
 }
 
-export function jumpToHotCue(deckId, index) {
+export async function jumpToHotCue(deckId, index) {
   if (!this.hotCues[deckId]?.[index]) return;
   const cue = this.hotCues[deckId][index];
-  this.seek(deckId, cue.position / this.getTrackDuration(deckId));
+  await this.seek(deckId, cue.position / this.getTrackDuration(deckId));
 }
 
 export function deleteHotCue(deckId, index) {
