@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_INTERVAL_MS = 5000; // 5 seconds polling fallback
 
 export default function useLibrary(user) {
   const [tracks, setTracks] = useState([]);
@@ -11,8 +12,8 @@ export default function useLibrary(user) {
   // --- Upload queue state ---
   const queueRef = useRef([]);
   const processingRef = useRef(false);
-  const abortRef = useRef(null); // AbortController for current upload
-  const currentTrackIdRef = useRef(null); // track ID of current upload
+  const abortRef = useRef(null);
+  const currentTrackIdRef = useRef(null);
   const [uploadQueueInfo, setUploadQueueInfo] = useState({ pending: 0, currentFile: null, lastError: null });
 
   // Fetch user's tracks from Supabase
@@ -26,6 +27,7 @@ export default function useLibrary(user) {
     setLoading(false);
   }, [user]);
 
+  // --- Realtime subscription + polling fallback ---
   useEffect(() => {
     if (!user) {
       setTracks([]);
@@ -35,6 +37,7 @@ export default function useLibrary(user) {
 
     fetchTracks();
 
+    // Realtime subscription (instant updates when it works)
     const channel = supabase
       .channel('tracks-changes')
       .on('postgres_changes', {
@@ -44,17 +47,42 @@ export default function useLibrary(user) {
         filter: `user_id=eq.${user.id}`
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
-          setTracks(prev => [payload.new, ...prev]);
+          setTracks(prev => {
+            if (prev.some(t => t.id === payload.new.id)) return prev;
+            return [payload.new, ...prev];
+          });
         } else if (payload.eventType === 'UPDATE') {
           setTracks(prev => prev.map(t => t.id === payload.new.id ? payload.new : t));
         } else if (payload.eventType === 'DELETE') {
           setTracks(prev => prev.filter(t => t.id !== payload.old.id));
         }
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('Supabase realtime subscription error — polling fallback active');
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [user, fetchTracks]);
+
+  // Polling fallback: refetch when processing tracks exist or queue is active
+  useEffect(() => {
+    if (!user) return;
+
+    const hasProcessing = tracks.some(t =>
+      ['uploading', 'analyzing', 'separating', 'converting'].includes(t.status)
+    );
+    const queueActive = processingRef.current;
+
+    if (!hasProcessing && !queueActive) return;
+
+    const interval = setInterval(() => {
+      fetchTracks();
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [user, tracks, fetchTracks]);
 
   // Upload a single track (internal) — with AbortController + timeout
   const uploadSingle = useCallback(async (file, signal) => {
@@ -62,7 +90,6 @@ export default function useLibrary(user) {
 
     const title = file.name.replace(/\.[^.]+$/, '');
 
-    // Create track record
     const { data: track, error: insertError } = await supabase
       .from('tracks')
       .insert({
@@ -76,9 +103,14 @@ export default function useLibrary(user) {
 
     if (insertError) throw new Error(insertError.message || 'Failed to create track record');
 
+    // Immediately add to local state (don't wait for realtime)
+    setTracks(prev => {
+      if (prev.some(t => t.id === track.id)) return prev;
+      return [track, ...prev];
+    });
+
     currentTrackIdRef.current = track.id;
 
-    // Check abort before network call (cleanup owned by processQueue)
     if (signal?.aborted) {
       throw new DOMException('Upload cancelled', 'AbortError');
     }
@@ -86,6 +118,7 @@ export default function useLibrary(user) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       await supabase.from('tracks').update({ status: 'error' }).eq('id', track.id);
+      setTracks(prev => prev.map(t => t.id === track.id ? { ...t, status: 'error' } : t));
       throw new Error('Not authenticated');
     }
 
@@ -101,8 +134,8 @@ export default function useLibrary(user) {
     });
 
     if (!res.ok) {
-      // Mark track as error in DB
       await supabase.from('tracks').update({ status: 'error' }).eq('id', track.id);
+      setTracks(prev => prev.map(t => t.id === track.id ? { ...t, status: 'error' } : t));
       const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || 'Upload failed');
     }
@@ -119,12 +152,10 @@ export default function useLibrary(user) {
       const file = queueRef.current[0];
       setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length, currentFile: file.name }));
 
-      // Create AbortController for this upload
       const controller = new AbortController();
       abortRef.current = controller;
       currentTrackIdRef.current = null;
 
-      // Set up timeout
       const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
       try {
@@ -136,6 +167,7 @@ export default function useLibrary(user) {
           console.warn(`Upload cancelled or timed out: "${file.name}"`);
           if (currentTrackIdRef.current) {
             await supabase.from('tracks').delete().eq('id', currentTrackIdRef.current).catch(() => {});
+            setTracks(prev => prev.filter(t => t.id !== currentTrackIdRef.current));
           }
         } else {
           console.error(`Upload failed, skipping: "${file.name}" —`, errMsg);
@@ -151,7 +183,10 @@ export default function useLibrary(user) {
 
     setUploadQueueInfo(prev => ({ ...prev, pending: 0, currentFile: null }));
     processingRef.current = false;
-  }, [uploadSingle]);
+
+    // Final refresh after queue completes
+    fetchTracks();
+  }, [uploadSingle, fetchTracks]);
 
   // Public: enqueue a file for upload
   const uploadTrack = useCallback((file) => {
@@ -160,18 +195,17 @@ export default function useLibrary(user) {
     processQueue();
   }, [processQueue]);
 
-  // Cancel a specific processing track (already in Supabase)
+  // Cancel a specific processing track
   const cancelProcessingTrack = useCallback(async (trackId) => {
-    // If this is the currently uploading track, abort the fetch
     if (currentTrackIdRef.current === trackId && abortRef.current) {
       abortRef.current.abort();
-      return; // cleanup handled by processQueue catch block
+      return;
     }
-    // Otherwise just delete/error the track in DB
     await supabase.from('tracks').delete().eq('id', trackId).catch(() => {});
+    setTracks(prev => prev.filter(t => t.id !== trackId));
   }, []);
 
-  // Clear all pending items from the queue (does not cancel current)
+  // Clear all pending items from the queue
   const clearQueue = useCallback(() => {
     const startIdx = processingRef.current ? 1 : 0;
     queueRef.current.splice(startIdx);
