@@ -256,10 +256,6 @@ function App() {
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
                 waveformData={decks.waveformDataA}
                 playbackPosition={positionA}
-                volume={volumeA}
-                onVolumeChange={(val) => guard(handleVolumeChange)('A', val)}
-                filter={filterA}
-                onFilterChange={(val) => guard(handleFilterChange)('A', val)}
                 activeStems={decks.stemsA}
                 onToggleStem={(stem) => guard(decks.toggleStem)('A', stem)}
                 isSeparating={decks.isSeparatingA}
@@ -323,10 +319,6 @@ function App() {
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
                 waveformData={decks.waveformDataB}
                 playbackPosition={positionB}
-                volume={volumeB}
-                onVolumeChange={(val) => guard(handleVolumeChange)('B', val)}
-                filter={filterB}
-                onFilterChange={(val) => guard(handleFilterChange)('B', val)}
                 activeStems={decks.stemsB}
                 onToggleStem={(stem) => guard(decks.toggleStem)('B', stem)}
                 isSeparating={decks.isSeparatingB}

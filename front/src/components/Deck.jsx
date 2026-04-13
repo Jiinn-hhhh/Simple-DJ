@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import HelpPopup from './HelpPopup';
 import SpectrumAnalyzer from './SpectrumAnalyzer';
 import HotCuePads from './HotCuePads';
 import BeatJumpControls from './BeatJumpControls';
@@ -29,7 +28,7 @@ const Deck = ({
     onScratchEnd,
     visualizerNode,
     loadingTrack,
-    // B1: new props
+    // Pro DJ controls
     quantizeEnabled,
     onToggleQuantize,
     hotCues,
@@ -39,13 +38,13 @@ const Deck = ({
     beatJumpSize,
     onSetBeatJumpSize,
     onBeatJump,
-    // B2: Key Lock
+    // Key Lock
     keyLockEnabled,
     onToggleKeyLock,
-    // B4: Color Waveform
+    // Waveform
     waveformData,
     playbackPosition,
-    // B3: Slip Mode + Loop Roll
+    // Slip Mode + Loop Roll
     slipModeEnabled,
     onToggleSlipMode,
     activeLoopRoll,

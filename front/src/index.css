@@ -659,18 +659,6 @@ body {
     overflow: hidden;
 }
 
-.upload-section {
-    border: 2px dashed var(--panel-border);
-    border-radius: 8px;
-    height: 150px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 1.4rem;
-    font-weight: bold;
-}
 
 .deck-empty-hint {
     text-align: center;
@@ -747,11 +735,6 @@ body {
     border-color: var(--neon-green);
 }
 
-/* Removed old mixer internal classes to avoid conflicts */
-.sync-btn:hover {
-    color: white;
-    background: #333;
-}
 
 @keyframes spin {
     from {

@@ -86,7 +86,7 @@ class AudioPlayer {
     await this.init();
 
     try {
-      console.log(`[AudioPlayer] Loading ${trackId}/${stemName} from: ${audioUrl}`);
+      // Loading audio buffer
 
       const response = await fetch(audioUrl);
 
@@ -95,10 +95,10 @@ class AudioPlayer {
       }
 
       const contentType = response.headers.get('content-type');
-      console.log(`[AudioPlayer] ${trackId}/${stemName} content-type: ${contentType}`);
+      // Validate content type
 
       const arrayBuffer = await response.arrayBuffer();
-      console.log(`[AudioPlayer] ${trackId}/${stemName} buffer size: ${arrayBuffer.byteLength}`);
+      // Decode audio data
 
       if (arrayBuffer.byteLength === 0) {
         throw new Error('Empty audio buffer received');
@@ -125,7 +125,7 @@ class AudioPlayer {
       }
       this.reversedBuffers[trackId][stemName] = reversed;
 
-      console.log(`[AudioPlayer] ${trackId}/${stemName} loaded successfully`);
+      // Buffer loaded
       return audioBuffer;
     } catch (error) {
       console.error(`[AudioPlayer] Error loading ${trackId}/${stemName} from ${audioUrl}:`, error);
