@@ -149,6 +149,10 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
 
   // --- Load from library (pre-processed stems) ---
   const loadTrackFromLibrary = useCallback(async (deckId, libraryTrack) => {
+    // Block loading the same track on both decks
+    const otherTrack = deckId === 'A' ? trackB : trackA;
+    if (otherTrack?.id && otherTrack.id === libraryTrack.id) return;
+
     setStatus(`LOADING ${libraryTrack.title.toUpperCase()}...`);
     try {
       const stemUrls = await getStemUrls(libraryTrack);
@@ -184,12 +188,17 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
   // --- Playback ---
   const togglePlay = useCallback(async (deckId) => {
     const ds = deckState(deckId);
+    const ap = audioPlayerRef.current;
     if (ds.isPlaying) {
-      audioPlayerRef.current.stop(deckId);
+      // Save current position before stopping so resume works
+      const pos = ap.getCurrentPosition(deckId);
+      ap.stop(deckId);
+      ap.pauseOffsets[deckId] = pos;
       ds.setPlaying(false);
     } else {
-      if (ds.track?.bpm) audioPlayerRef.current.setPlaybackRate(deckId, masterBpm / ds.track.bpm);
-      await audioPlayerRef.current.play(deckId);
+      if (ds.track?.bpm) ap.setPlaybackRate(deckId, masterBpm / ds.track.bpm);
+      const offset = ap.pauseOffsets[deckId] || 0;
+      await ap.play(deckId, offset);
       ds.setPlaying(true);
     }
   }, [deckState, audioPlayerRef, masterBpm]);
