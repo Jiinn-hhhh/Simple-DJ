@@ -25,6 +25,7 @@ const LoopRollPads = ({ activeRoll, onStart, onEnd }) => {
           onMouseLeave={() => { if (activeRoll === size) onEnd(); }}
           onTouchStart={(e) => { e.preventDefault(); onStart(size); }}
           onTouchEnd={() => onEnd()}
+          onTouchCancel={() => onEnd()}
         >
           {formatSize(size)}
         </button>

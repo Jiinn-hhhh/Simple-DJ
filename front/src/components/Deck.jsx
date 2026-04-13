@@ -56,6 +56,7 @@ const Deck = ({
     const [loopState, setLoopState] = useState('inactive');
     const [stemDrag, setStemDrag] = useState({ active: false, targetState: true });
     const [isScratching, setIsScratching] = useState(false);
+    const [scratchAngle, setScratchAngle] = useState(0);
     const [padMode, setPadMode] = useState('hotcue'); // 'hotcue' | 'looproll'
     const waveformRef = useRef(null);
     const vinylRef = useRef(null);
@@ -119,6 +120,7 @@ const Deck = ({
             if (normalized > Math.PI) normalized -= 2 * Math.PI;
             if (normalized < -Math.PI) normalized += 2 * Math.PI;
             scratchRef.current.lastAngle = angle;
+            setScratchAngle(prev => prev + normalized);
             if (onScratchMove) onScratchMove(deckId, normalized);
         };
 
@@ -134,7 +136,7 @@ const Deck = ({
         window.addEventListener('mouseup', handleMouseUp);
     };
 
-    const rotationDuration = isPlaying && !isScratching && playbackRate > 0 ? `${2 / playbackRate}s` : '0s';
+    const spinDuration = playbackRate > 0 ? `${2 / playbackRate}s` : '2s';
 
     return (
         <div
@@ -170,7 +172,11 @@ const Deck = ({
                 <div
                     ref={vinylRef}
                     className={`vinyl-disc ${isPlaying && !isScratching ? 'spinning' : ''} ${isScratching ? 'scratching' : ''}`}
-                    style={{ animationDuration: rotationDuration, cursor: track && isPlaying ? 'grab' : 'default' }}
+                    style={{
+                        '--spin-duration': spinDuration,
+                        cursor: track && isPlaying ? 'grab' : 'default',
+                        ...(isScratching ? { transform: `rotate(${scratchAngle}rad)` } : {})
+                    }}
                     onMouseDown={handleVinylMouseDown}
                 >
                     <div className="disc-label">

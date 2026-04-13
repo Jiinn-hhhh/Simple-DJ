@@ -100,8 +100,8 @@ function App() {
       if (lower === 's') { decks.togglePlay('A'); return; }
       if (lower === 'l') { decks.togglePlay('B'); return; }
       if (key === ' ') { e.preventDefault(); decks.togglePlay(decks.isPlayingA ? 'A' : decks.isPlayingB ? 'B' : 'A'); return; }
-      if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.1)); return; }
-      if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.1)); return; }
+      if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.05)); return; }
+      if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.05)); return; }
       if (key === 'Tab') { e.preventDefault(); setIsLibraryOpen(prev => !prev); return; }
       if (lower === 'q') { decks.toggleQuantize('A'); return; }
       if (lower === 'w') { decks.toggleSlipMode('A'); return; }
