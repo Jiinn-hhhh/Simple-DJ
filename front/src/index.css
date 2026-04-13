@@ -61,14 +61,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    padding: 0 10px 15px 10px;
+    margin-bottom: 6px;
+    padding: 0 10px 6px 10px;
     border-bottom: 2px solid var(--panel-border);
 }
 
 .top-bar h1 {
     margin: 0;
-    font-size: 1.8rem;
+    font-size: 1.4rem;
     color: var(--text-main);
     text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
     letter-spacing: -2px;
@@ -76,10 +76,10 @@ body {
 
 .status-bar {
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: var(--neon-green);
     background: rgba(0, 255, 157, 0.1);
-    padding: 8px 15px;
+    padding: 5px 10px;
     border: 1px solid var(--neon-green);
     border-radius: 4px;
 }
@@ -90,8 +90,8 @@ body {
     display: grid;
     /* Deck : Mixer : Deck = 1 : 1.3 : 1 */
     grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.3fr) minmax(300px, 1fr);
-    gap: 20px;
-    padding: 0 10px 20px 10px;
+    gap: 10px;
+    padding: 0 10px 6px 10px;
     align-items: stretch;
 }
 
@@ -101,7 +101,7 @@ body {
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 8px;
-    padding: 12px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -124,9 +124,9 @@ body {
 .mixer-container {
     display: flex;
     flex-direction: column;
-    padding: 20px;
+    padding: 10px;
     background: #16161a;
-    gap: 15px;
+    gap: 8px;
     align-items: stretch;
 }
 
@@ -135,15 +135,15 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    gap: 6px;
+    margin-bottom: 4px;
 }
 
 .bpm-display-large {
     width: 100%;
     background: #000;
     border: 2px solid #333;
-    padding: 10px;
+    padding: 6px;
     border-radius: 6px;
     text-align: center;
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
@@ -231,7 +231,7 @@ body {
     background: transparent;
     border: none;
     color: var(--neon-green);
-    font-size: 3.2rem;
+    font-size: 2.4rem;
     width: 100%;
     text-align: center;
     outline: none;
@@ -251,7 +251,7 @@ body {
     flex: 1;
     display: flex;
     /* Row layout for 2 columns */
-    gap: 20px;
+    gap: 10px;
     justify-content: space-between;
     position: relative;
     /* Anchor for divider */
@@ -262,7 +262,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+    gap: 10px;
     position: relative;
 }
 
@@ -322,8 +322,8 @@ body {
 
 .fader-track-new {
     width: 40px;
-    height: 250px;
-    /* Taller faders */
+    height: 170px;
+    /* Compact faders */
     background: #111;
     border: 1px solid #222;
     border-radius: 4px;
@@ -332,7 +332,7 @@ body {
 }
 
 .vertical-fader-new {
-    width: 250px;
+    width: 170px;
     /* Must match height of track */
     height: 40px;
     /* Must match width of track */
@@ -341,7 +341,7 @@ body {
     position: absolute;
     top: 50%;
     left: 50%;
-    margin-left: -125px;
+    margin-left: -85px;
     /* width/2 */
     margin-top: -20px;
     /* height/2 */
@@ -388,21 +388,21 @@ body {
 
 .deck-label {
     font-family: 'Press Start 2P', cursive;
-    font-size: 2.0rem;
+    font-size: 1.6rem;
     color: #333;
-    margin-top: 10px;
+    margin-top: 4px;
 }
 
 /* 3. FOOTER: CROSSFADER */
 .mixer-footer {
-    height: 60px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #111;
     border-radius: 4px;
     border: 1px solid #222;
-    padding: 0 20px;
+    padding: 0 15px;
 }
 
 .crossfader-wrapper {
@@ -457,15 +457,15 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .deck-header h2 {
     margin: 0;
-    font-size: 1.6rem;
+    font-size: 1.3rem;
     color: var(--text-dim);
     border: 1px solid var(--panel-border);
-    padding: 5px 10px;
+    padding: 4px 8px;
     border-radius: 4px;
     background: #111;
 }
@@ -473,9 +473,9 @@ body {
 .track-display {
     text-align: right;
     flex: 1;
-    margin-left: 20px;
+    margin-left: 10px;
     background: #000;
-    padding: 8px 12px;
+    padding: 4px 8px;
     border-radius: 4px;
     border: 1px solid #333;
 }
@@ -483,7 +483,7 @@ body {
 .track-title {
     color: var(--neon-blue);
     font-weight: 700;
-    font-size: 1.6rem;
+    font-size: 1.3rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -504,14 +504,14 @@ body {
     justify-content: center;
     align-items: center;
     position: relative;
-    min-height: 160px;
-    max-height: 220px;
+    min-height: 110px;
+    max-height: 150px;
 }
 
 .vinyl-disc {
-    width: 70%;
+    width: 60%;
     /* Relative to container */
-    max-width: 200px;
+    max-width: 140px;
     /* Max size — compact for pro layout */
     aspect-ratio: 1/1;
     /* Keep circle */
@@ -538,15 +538,15 @@ body {
 }
 
 .disc-label {
-    width: 70px;
-    height: 70px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     background: var(--neon-pink);
-    border: 3px solid #fff;
+    border: 2px solid #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    font-size: 0.9rem;
     font-weight: bold;
     color: white;
 }
@@ -555,7 +555,7 @@ body {
 .deck-controls {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -593,12 +593,12 @@ body {
 }
 
 .play-btn {
-    width: 46px;
-    height: 46px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: #222;
     color: #fff;
-    font-size: 1.4rem;
+    font-size: 1.2rem;
     cursor: pointer;
     border: 3px solid #333;
     flex-shrink: 0;
@@ -902,7 +902,7 @@ body {
 /* --- COLOR WAVEFORM --- */
 .color-waveform-container {
     width: 100%;
-    height: 48px;
+    height: 40px;
     border: 1px solid #333;
     border-radius: 4px;
     overflow: hidden;
