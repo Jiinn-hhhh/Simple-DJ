@@ -182,17 +182,17 @@ const Deck = ({
                     <div style={{
                         position: 'absolute', top: '10px', left: '50%',
                         transform: 'translate(-50%, 0)', width: '100%', height: '60px',
-                        boxSizing: 'border-box', background: '#000',
-                        border: isPlaying ? `3px solid ${deckId === 'A' ? 'var(--neon-green)' : 'var(--neon-pink)'}` : '3px solid #333',
-                        borderRadius: '6px', zIndex: 10, display: 'flex',
+                        boxSizing: 'border-box', background: 'rgba(0,0,0,0.6)',
+                        border: isPlaying ? `2px solid ${deckId === 'A' ? 'var(--neon-blue)' : 'var(--neon-pink)'}` : '2px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px', zIndex: 10, display: 'flex',
                         justifyContent: 'center', alignItems: 'center',
-                        boxShadow: isPlaying ? `0 0 15px ${deckId === 'A' ? 'rgba(0, 255, 157, 0.6)' : 'rgba(255, 0, 85, 0.6)'}` : 'none',
-                        overflow: 'hidden'
+                        boxShadow: isPlaying ? `0 0 15px ${deckId === 'A' ? 'rgba(14,165,233, 0.4)' : 'rgba(236,72,153, 0.4)'}` : 'none',
+                        overflow: 'hidden', backdropFilter: 'blur(4px)'
                     }}>
-                        <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
+                        <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#0ea5e9' : '#ec4899'} />
                         <div style={{
                             position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                            background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%)',
+                            background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 50%)',
                             pointerEvents: 'none'
                         }} />
                     </div>
@@ -200,18 +200,19 @@ const Deck = ({
 
                 {isSeparating && (
                     <div style={{
-                        position: 'absolute', bottom: '10px', background: 'black',
-                        padding: '8px 12px', borderRadius: '4px',
-                        border: '1px solid var(--neon-green)', zIndex: 20, minWidth: '120px'
+                        position: 'absolute', bottom: '10px', background: 'rgba(0,0,0,0.8)',
+                        padding: '10px 14px', borderRadius: '8px',
+                        border: '1px solid rgba(255,255,255,0.2)', zIndex: 20, minWidth: '140px',
+                        backdropFilter: 'blur(10px)', boxShadow: '0 4px 10px rgba(0,0,0,0.5)'
                     }}>
-                        <span className="pixel-font" style={{ color: 'var(--neon-green)', fontSize: '0.7rem', display: 'block', marginBottom: '4px' }}>
+                        <span style={{ color: 'var(--text-main)', fontSize: '0.8rem', fontWeight: 'bold', display: 'block', marginBottom: '8px', letterSpacing: '1px' }}>
                             SEPARATING... {separationProgress > 0 ? `${separationProgress}%` : ''}
                         </span>
-                        <div style={{ width: '100%', height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
                             <div style={{
                                 width: `${separationProgress}%`, height: '100%',
-                                background: 'var(--neon-green)', transition: 'width 0.3s ease',
-                                boxShadow: '0 0 8px var(--neon-green)'
+                                background: 'var(--neon-blue)', transition: 'width 0.3s ease',
+                                boxShadow: '0 0 8px var(--neon-blue)'
                             }} />
                         </div>
                     </div>

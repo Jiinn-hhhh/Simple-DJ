@@ -50,7 +50,7 @@ const Mixer = ({
             type="number"
             value={Math.round(masterBpm)}
             onChange={(e) => onBpmChange(parseInt(e.target.value) || 128)}
-            className="bpm-input-large pixel-font"
+            className="bpm-input-large"
           />
           <input
             type="range"
@@ -121,41 +121,39 @@ const Mixer = ({
         <div className="mixer-column center-fx" style={{ flex: '0 0 240px', maxWidth: '240px', justifyContent: 'flex-end', paddingBottom: '0' }}>
 
           {/* SAMPLER BUTTONS */}
-          <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', marginBottom: '20px' }}>
             <button
               onClick={() => onTriggerSampler('airhorn')}
               className="sampler-btn"
               style={{
                 flex: 1,
-                height: '45px',
-                background: '#333',
-                border: '2px solid #555',
-                borderRadius: '4px',
-                color: '#aaa',
-                fontSize: '1.2rem',
+                height: '48px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                color: 'var(--text-main)',
+                fontSize: '1.4rem',
                 cursor: 'pointer',
-                boxShadow: '0 4px 0 #222',
+                boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.1s'
+                transition: 'all 0.15s ease'
               }}
               onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'translateY(4px)';
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.color = '#fff';
-                e.currentTarget.style.borderColor = '#888';
+                e.currentTarget.style.transform = 'translateY(2px)';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.5)';
               }}
               onMouseUp={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
-                e.currentTarget.style.borderColor = '#555';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
               }}
             >
               📣
@@ -165,35 +163,33 @@ const Mixer = ({
               className="sampler-btn"
               style={{
                 flex: 1,
-                height: '45px',
-                background: '#333',
-                border: '2px solid #555',
-                borderRadius: '4px',
-                color: '#aaa',
-                fontSize: '1.2rem',
+                height: '48px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                color: 'var(--text-main)',
+                fontSize: '1.4rem',
                 cursor: 'pointer',
-                boxShadow: '0 4px 0 #222',
+                boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.1s'
+                transition: 'all 0.15s ease'
               }}
               onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'translateY(4px)';
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.color = '#fff';
-                e.currentTarget.style.borderColor = '#888';
+                e.currentTarget.style.transform = 'translateY(2px)';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.5)';
               }}
               onMouseUp={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
-                e.currentTarget.style.borderColor = '#555';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 0 #222';
-                e.currentTarget.style.color = '#aaa';
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
               }}
             >
               🚨
