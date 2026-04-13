@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import HelpPopup from './HelpPopup';
 import SpectrumAnalyzer from './SpectrumAnalyzer';
 import HotCuePads from './HotCuePads';
 import BeatJumpControls from './BeatJumpControls';
@@ -29,7 +28,7 @@ const Deck = ({
     onScratchEnd,
     visualizerNode,
     loadingTrack,
-    // B1: new props
+    // Pro DJ controls
     quantizeEnabled,
     onToggleQuantize,
     hotCues,
@@ -39,13 +38,13 @@ const Deck = ({
     beatJumpSize,
     onSetBeatJumpSize,
     onBeatJump,
-    // B2: Key Lock
+    // Key Lock
     keyLockEnabled,
     onToggleKeyLock,
-    // B4: Color Waveform
+    // Waveform
     waveformData,
     playbackPosition,
-    // B3: Slip Mode + Loop Roll
+    // Slip Mode + Loop Roll
     slipModeEnabled,
     onToggleSlipMode,
     activeLoopRoll,
@@ -56,6 +55,7 @@ const Deck = ({
     const [loopState, setLoopState] = useState('inactive');
     const [stemDrag, setStemDrag] = useState({ active: false, targetState: true });
     const [isScratching, setIsScratching] = useState(false);
+    const [scratchAngle, setScratchAngle] = useState(0);
     const [padMode, setPadMode] = useState('hotcue'); // 'hotcue' | 'looproll'
     const waveformRef = useRef(null);
     const vinylRef = useRef(null);
@@ -119,6 +119,7 @@ const Deck = ({
             if (normalized > Math.PI) normalized -= 2 * Math.PI;
             if (normalized < -Math.PI) normalized += 2 * Math.PI;
             scratchRef.current.lastAngle = angle;
+            setScratchAngle(prev => prev + normalized);
             if (onScratchMove) onScratchMove(deckId, normalized);
         };
 
@@ -134,7 +135,7 @@ const Deck = ({
         window.addEventListener('mouseup', handleMouseUp);
     };
 
-    const rotationDuration = isPlaying && !isScratching && playbackRate > 0 ? `${2 / playbackRate}s` : '0s';
+    const spinDuration = playbackRate > 0 ? `${2 / playbackRate}s` : '2s';
 
     return (
         <div
@@ -170,7 +171,11 @@ const Deck = ({
                 <div
                     ref={vinylRef}
                     className={`vinyl-disc ${isPlaying && !isScratching ? 'spinning' : ''} ${isScratching ? 'scratching' : ''}`}
-                    style={{ animationDuration: rotationDuration, cursor: track && isPlaying ? 'grab' : 'default' }}
+                    style={{
+                        '--spin-duration': spinDuration,
+                        cursor: track && isPlaying ? 'grab' : 'default',
+                        ...(isScratching ? { transform: `rotate(${scratchAngle}rad)` } : {})
+                    }}
                     onMouseDown={handleVinylMouseDown}
                 >
                     <div className="disc-label">
@@ -179,22 +184,8 @@ const Deck = ({
                 </div>
 
                 {track && (
-                    <div style={{
-                        position: 'absolute', top: '10px', left: '50%',
-                        transform: 'translate(-50%, 0)', width: '100%', height: '60px',
-                        boxSizing: 'border-box', background: '#000',
-                        border: isPlaying ? `3px solid ${deckId === 'A' ? 'var(--neon-green)' : 'var(--neon-pink)'}` : '3px solid #333',
-                        borderRadius: '6px', zIndex: 10, display: 'flex',
-                        justifyContent: 'center', alignItems: 'center',
-                        boxShadow: isPlaying ? `0 0 15px ${deckId === 'A' ? 'rgba(0, 255, 157, 0.6)' : 'rgba(255, 0, 85, 0.6)'}` : 'none',
-                        overflow: 'hidden'
-                    }}>
+                    <div className={`spectrum-overlay ${isPlaying ? 'active' : ''} ${deckId === 'A' ? 'deck-a' : 'deck-b'}`}>
                         <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
-                        <div style={{
-                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                            background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 50%)',
-                            pointerEvents: 'none'
-                        }} />
                     </div>
                 )}
 
@@ -245,7 +236,7 @@ const Deck = ({
                                     onClick={onToggleQuantize}
                                     title="Quantize"
                                 >
-                                    Q
+                                    QUANTIZE
                                 </button>
                                 <button
                                     className={`glass-btn slip ${slipModeEnabled ? 'active' : ''}`}

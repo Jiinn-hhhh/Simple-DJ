@@ -1,4 +1,4 @@
-export default function ProcessingQueue({ tracks }) {
+export default function ProcessingQueue({ tracks, onCancel }) {
   const statusLabels = {
     uploading: 'Uploading',
     analyzing: 'Analyzing',
@@ -14,6 +14,15 @@ export default function ProcessingQueue({ tracks }) {
             <span className="processing-spinner">&#9654;</span> {statusLabels[track.status] || track.status}...
           </span>
           <span className="processing-title">{track.title}</span>
+          {onCancel && (
+            <button
+              className="processing-cancel-btn"
+              onClick={() => onCancel(track.id, track.title)}
+              title="Cancel"
+            >
+              &times;
+            </button>
+          )}
         </div>
       ))}
     </div>

@@ -19,10 +19,15 @@ import "./App.css";
 
 function App() {
   const { user, loading: authLoading, signUp, signIn, signInWithGoogle, signOut } = useAuth();
-  const { tracks: libraryTracks, loading: libraryLoading, uploadTrack, deleteTrack, getStemUrls } = useLibrary(user);
+  const {
+    tracks: libraryTracks, loading: libraryLoading, uploadTrack, deleteTrack, getStemUrls,
+    uploadQueueInfo, cancelProcessingTrack, clearQueue
+  } = useLibrary(user);
 
   const [status, setStatus] = useState("INSERT COIN");
   const [isSystemReady, setIsSystemReady] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [helpTab, setHelpTab] = useState('guide');
   const [hfSpaceUrl, setHfSpaceUrl] = useState("");
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
@@ -75,21 +80,6 @@ function App() {
     return () => audioPlayerRef.current?.cleanup();
   }, []);
 
-  // --- Keyboard shortcuts ---
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || !isSystemReady) return;
-      switch (e.key.toLowerCase()) {
-        case 's': decks.togglePlay('A'); break;
-        case 'l': decks.togglePlay('B'); break;
-        case 'arrowleft': setCrossfader(prev => Math.max(0, prev - 0.1)); break;
-        case 'arrowright': setCrossfader(prev => Math.min(1, prev + 0.1)); break;
-        case 'tab': e.preventDefault(); setIsLibraryOpen(prev => !prev); break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSystemReady, decks.togglePlay, setCrossfader]);
 
   // --- Hot Cues ---
   const hotCues = useHotCues(audioPlayerRef);
@@ -102,11 +92,43 @@ function App() {
     hotCues.loadCuesForTrack('B', decks.trackB);
   }, [decks.trackB?.id, decks.trackB?.filename]);
 
+  // --- Keyboard shortcuts ---
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || !isSystemReady) return;
+      const key = e.key;
+      const lower = key.toLowerCase();
+      if (lower === 's') { decks.togglePlay('A'); return; }
+      if (lower === 'l') { decks.togglePlay('B'); return; }
+      if (key === ' ') { e.preventDefault(); decks.togglePlay(decks.isPlayingA ? 'A' : decks.isPlayingB ? 'B' : 'A'); return; }
+      if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.05)); return; }
+      if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.05)); return; }
+      if (key === 'Tab') { e.preventDefault(); setIsLibraryOpen(prev => !prev); return; }
+      if (lower === 'q') { decks.toggleQuantize('A'); return; }
+      if (lower === 'w') { decks.toggleSlipMode('A'); return; }
+      if (lower === 'e') { toggleKeyLock('A'); return; }
+      if (key === '-' || key === '_') { handleMasterBpmChange(Math.max(60, masterBpm - 1)); return; }
+      if (key === '=' || key === '+') { handleMasterBpmChange(Math.min(180, masterBpm + 1)); return; }
+      const num = parseInt(key);
+      if (num >= 1 && num <= 8) {
+        const deck = e.shiftKey ? 'B' : 'A';
+        const idx = num - 1;
+        const cues = e.shiftKey ? hotCues.hotCuesB : hotCues.hotCuesA;
+        const track = e.shiftKey ? decks.trackB : decks.trackA;
+        if (cues[idx]) { hotCues.jumpToHotCue(deck, idx); }
+        else { hotCues.setHotCue(deck, idx, track?.bpm, track); }
+        return;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleMasterBpmChange, setCrossfader]);
+
   // --- Loop Roll ---
   const loopRoll = useLoopRoll(audioPlayerRef);
 
   // --- Playback Position (for waveform) ---
-  const { positionA, positionB } = usePlaybackPosition(audioPlayerRef, decks.isPlayingA, decks.isPlayingB);
+  const { positionA, positionB, seekPosition } = usePlaybackPosition(audioPlayerRef, decks.isPlayingA, decks.isPlayingB);
 
   // --- Recorder ---
   const recorder = useRecorder(audioPlayerRef);
@@ -140,6 +162,9 @@ function App() {
             onUpload={uploadTrack}
             onDelete={deleteTrack}
             onLoadToDeck={guard(decks.loadTrackFromLibrary)}
+            uploadQueueInfo={uploadQueueInfo}
+            onCancelProcessing={cancelProcessingTrack}
+            onClearQueue={clearQueue}
           />
           <button
             className={`library-toggle ${isLibraryOpen ? 'panel-open' : ''}`}
@@ -179,15 +204,57 @@ function App() {
                   onStartVideo={recorder.startVideoRecording}
                   onStopVideo={recorder.stopVideoRecording}
                 />
-                <div className="status-bar pixel-font">{status}</div>
-                <button onClick={signOut} style={{
-                  background: 'transparent', border: '1px solid var(--neon-pink)', color: 'var(--neon-pink)',
-                  fontFamily: "'Press Start 2P', cursive", fontSize: '0.6rem', padding: '8px 12px', cursor: 'pointer', borderRadius: '4px',
-                }}>
-                  LOGOUT
-                </button>
+                <button onClick={() => setShowHelp(true)} className="topbar-btn help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
+                <button onClick={signOut} className="topbar-btn logout-btn pixel-font">LOGOUT</button>
               </div>
             </div>
+
+            {showHelp && (
+              <div className="help-modal-overlay" onClick={() => setShowHelp(false)}>
+                <div className="help-modal" onClick={e => e.stopPropagation()}>
+                  <div className="help-modal-header">
+                    <span className="pixel-font" style={{fontSize:'0.6rem',color:'var(--neon-green)'}}>SHORTCUTS</span>
+                    <button className="help-modal-close" onClick={() => setShowHelp(false)}>&times;</button>
+                  </div>
+                  <div className="help-tabs">
+                    <button className={`help-tab ${helpTab === 'guide' ? 'active' : ''}`} onClick={() => setHelpTab('guide')}>GUIDE</button>
+                    <button className={`help-tab ${helpTab === 'shortcuts' ? 'active' : ''}`} onClick={() => setHelpTab('shortcuts')}>SHORTCUTS</button>
+                  </div>
+                  <div className="help-modal-body">
+                    {helpTab === 'guide' ? (
+                      <div className="help-tips">
+                        <div>Drag tracks from library to decks</div>
+                        <div>Match BPM with -/+ keys, mix with crossfader</div>
+                        <div>Stems: mute/unmute drums, bass, vocals, other</div>
+                        <div>Hot Cues: click pad to save position, click again to jump</div>
+                        <div>Loop: IN sets start, OUT sets end, EXIT leaves loop</div>
+                        <div>Loop Roll: hold pad for beat-synced repeat, release to return</div>
+                        <div>Slip Mode: scratching/looping returns to original position</div>
+                        <div>Key Lock: keep pitch when changing BPM</div>
+                        <div>Quantize: snap actions to nearest beat</div>
+                        <div>EQ: adjust low/mid/high frequencies per deck</div>
+                        <div>Filter: low-pass (left) / high-pass (right)</div>
+                        <div>FX Pad: X=reverb/distortion, Y=intensity</div>
+                      </div>
+                    ) : (
+                      <div className="help-section">
+                        <div className="help-row"><kbd>S</kbd> Deck A play/pause</div>
+                        <div className="help-row"><kbd>L</kbd> Deck B play/pause</div>
+                        <div className="help-row"><kbd>Space</kbd> Active deck play/pause</div>
+                        <div className="help-row"><kbd>Q</kbd> Quantize toggle</div>
+                        <div className="help-row"><kbd>W</kbd> Slip mode toggle</div>
+                        <div className="help-row"><kbd>E</kbd> Key lock toggle</div>
+                        <div className="help-row"><kbd>1-4</kbd> Deck A hot cues</div>
+                        <div className="help-row"><kbd>Shift+1-4</kbd> Deck B hot cues</div>
+                        <div className="help-row"><kbd>-/+</kbd> BPM adjust</div>
+                        <div className="help-row"><kbd>&larr;/&rarr;</kbd> Crossfader</div>
+                        <div className="help-row"><kbd>Tab</kbd> Library toggle</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="console-layout" style={{ opacity: isSystemReady ? 1 : 0.3, pointerEvents: isSystemReady ? 'auto' : 'none' }}>
               <Deck
@@ -200,10 +267,6 @@ function App() {
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
                 waveformData={decks.waveformDataA}
                 playbackPosition={positionA}
-                volume={volumeA}
-                onVolumeChange={(val) => guard(handleVolumeChange)('A', val)}
-                filter={filterA}
-                onFilterChange={(val) => guard(handleFilterChange)('A', val)}
                 activeStems={decks.stemsA}
                 onToggleStem={(stem) => guard(decks.toggleStem)('A', stem)}
                 isSeparating={decks.isSeparatingA}
@@ -211,7 +274,7 @@ function App() {
                 onLoopIn={() => guard(decks.handleLoopIn)('A')}
                 onLoopOut={() => guard(decks.handleLoopOut)('A')}
                 onExitLoop={() => guard(decks.handleExitLoop)('A')}
-                onSeek={(p) => guard(decks.handleSeek)('A', p)}
+                onSeek={(p) => { guard(decks.handleSeek)('A', p); seekPosition('A', p); }}
                 onScratchStart={handleScratchStart}
                 onScratchMove={handleScratchMove}
                 onScratchEnd={handleScratchEnd}
@@ -267,10 +330,6 @@ function App() {
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
                 waveformData={decks.waveformDataB}
                 playbackPosition={positionB}
-                volume={volumeB}
-                onVolumeChange={(val) => guard(handleVolumeChange)('B', val)}
-                filter={filterB}
-                onFilterChange={(val) => guard(handleFilterChange)('B', val)}
                 activeStems={decks.stemsB}
                 onToggleStem={(stem) => guard(decks.toggleStem)('B', stem)}
                 isSeparating={decks.isSeparatingB}
@@ -278,7 +337,7 @@ function App() {
                 onLoopIn={() => guard(decks.handleLoopIn)('B')}
                 onLoopOut={() => guard(decks.handleLoopOut)('B')}
                 onExitLoop={() => guard(decks.handleExitLoop)('B')}
-                onSeek={(p) => guard(decks.handleSeek)('B', p)}
+                onSeek={(p) => { guard(decks.handleSeek)('B', p); seekPosition('B', p); }}
                 onScratchStart={handleScratchStart}
                 onScratchMove={handleScratchMove}
                 onScratchEnd={handleScratchEnd}

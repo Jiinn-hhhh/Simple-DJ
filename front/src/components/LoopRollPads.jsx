@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-const ROLL_SIZES = [1/32, 1/16, 1/8, 1/4, 1/2, 1, 2, 4];
+const ROLL_SIZES = [1/32, 1/16, 1/8, 1/4, 1/2, 1];
 
 const formatSize = (size) => {
   if (size === 1/32) return '1/32';
@@ -25,6 +25,7 @@ const LoopRollPads = ({ activeRoll, onStart, onEnd }) => {
           onMouseLeave={() => { if (activeRoll === size) onEnd(); }}
           onTouchStart={(e) => { e.preventDefault(); onStart(size); }}
           onTouchEnd={() => onEnd()}
+          onTouchCancel={() => onEnd()}
         >
           {formatSize(size)}
         </button>

@@ -3,24 +3,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap');
 
 :root {
-    /* --- COLOR PALETTE: Premium Glass & Slate --- */
-    --bg-color: #020617;
-    --panel-bg: rgba(15, 23, 42, 0.65);
-    --panel-border: rgba(255, 255, 255, 0.08);
+    /* --- COLOR PALETTE: Cyber Charcoal & Neon --- */
+    --bg-color: #121214;
+    --panel-bg: #1e1e24;
+    --panel-border: #33333f;
 
-    --text-main: #f8fafc;
-    --text-dim: #94a3b8;
+    --text-main: #e0e0e0;
+    --text-dim: #888899;
 
     /* Accents */
-    --neon-green: #10b981;
-    --neon-pink: #ec4899;
-    --neon-blue: #0ea5e9;
-    --neon-yellow: #eab308;
+    --neon-green: #00ff9d;
+    --neon-pink: #ff0055;
+    --neon-blue: #00e5ff;
+    --neon-yellow: #f0ff00;
 
     /* UI Elements */
     --knob-size: 40px;
     --fader-width: 40px;
-    --fader-height: 200px;
+    --fader-height: 150px;
 }
 
 body {
@@ -30,7 +30,6 @@ body {
     color: var(--text-main);
     height: 100vh;
     overflow: hidden;
-    overflow-y: auto;
     user-select: none;
 }
 
@@ -41,11 +40,7 @@ body {
 #root {
     height: 100%;
     min-width: 1280px;
-    /* Minimum width constraint */
-    min-height: 800px;
-    /* Minimum height constraint */
-    overflow: auto;
-    /* Allow scrolling if smaller */
+    overflow: hidden;
 }
 
 .app-container {
@@ -53,7 +48,8 @@ body {
     flex-direction: column;
     height: 100%;
     box-sizing: border-box;
-    background: radial-gradient(circle at 50% 0%, #0f172a 0%, #020617 100%);
+    overflow: hidden;
+    background: radial-gradient(circle at center, #1a1a20 0%, #0d0d10 100%);
 }
 
 /* --- TOP BAR --- */
@@ -61,38 +57,158 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    padding: 8px 16px 10px 16px;
-    border-bottom: 1px solid var(--panel-border);
+    margin-bottom: 4px;
+    padding: 0 10px 4px 10px;
+    border-bottom: 2px solid var(--panel-border);
 }
 
 .top-bar h1 {
     margin: 0;
-    font-size: 1.6rem;
+    font-size: 1rem;
     color: var(--text-main);
-    text-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
-    letter-spacing: -1px;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+    letter-spacing: -2px;
 }
 
 .status-bar {
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--neon-green);
-    background: rgba(16, 185, 129, 0.1);
-    padding: 6px 12px;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    border-radius: 6px;
+    background: rgba(0, 255, 157, 0.1);
+    padding: 3px 8px;
+    border: 1px solid var(--neon-green);
+    border-radius: 4px;
+}
+
+/* --- TOP BAR BUTTONS --- */
+.topbar-btn {
+    height: 26px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.5rem;
+    border-radius: 4px;
+    transition: background 0.2s, box-shadow 0.2s;
+}
+.help-topbar-btn {
+    width: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+}
+.help-topbar-btn:hover {
+    background: rgba(0, 255, 157, 0.15);
+}
+.logout-btn {
+    padding: 0 10px;
+    border: 1px solid var(--neon-pink);
+    color: var(--neon-pink);
+}
+.logout-btn:hover {
+    background: rgba(255, 0, 85, 0.15);
+}
+.help-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+    backdrop-filter: blur(3px);
+}
+.help-modal {
+    background: #1e1e24;
+    border: 1px solid #33333f;
+    border-radius: 8px;
+    padding: 16px;
+    max-width: 320px;
+    width: 90%;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+.help-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.help-modal-close {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+.help-modal-close:hover { color: var(--neon-pink); }
+.help-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 10px;
+}
+.help-tab {
+    flex: 1;
+    padding: 5px 0;
+    background: transparent;
+    border: 1px solid #333;
+    color: #666;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.4rem;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+}
+.help-tab:first-child { border-radius: 4px 0 0 4px; }
+.help-tab:last-child { border-radius: 0 4px 4px 0; }
+.help-tab.active {
+    background: rgba(0, 255, 157, 0.15);
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+}
+.help-modal-body { font-family: 'Rajdhani', sans-serif; max-height: 60vh; overflow-y: auto; }
+.help-section-title {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.4rem;
+    color: var(--neon-green);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+}
+.help-tips {
+    font-size: 0.75rem;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 4px;
+}
+.help-tips div::before {
+    content: '\2022 ';
+    color: var(--neon-blue);
+}
+.help-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+    font-size: 0.75rem;
+    color: #ccc;
+}
+.help-row kbd {
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.35rem;
+    color: var(--neon-blue);
+    min-width: 40px;
+    text-align: center;
 }
 
 /* --- CONSOLE LAYOUT --- */
 .console-layout {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr minmax(340px, 380px) 1fr;
-    gap: 16px;
-    padding: 0 16px 12px 16px;
+    /* Deck : Mixer : Deck = 1 : 1.3 : 1 */
+    grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.3fr) minmax(300px, 1fr);
+    gap: 8px;
+    padding: 0 10px 4px 10px;
     align-items: stretch;
-    min-height: 0;
 }
 
 /* --- DECK & MIXER CONTAINERS --- */
@@ -100,32 +216,35 @@ body {
 .mixer-container {
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
-    border-radius: 12px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    border-radius: 8px;
+    padding: 6px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     position: relative;
     min-height: 0;
 }
 
 /* Deck */
 .deck-container {
-    justify-content: space-between;
-    padding: 14px;
+    justify-content: flex-start;
+    gap: 4px;
 }
 
 .deck-container.dragging {
     border-color: var(--neon-green);
-    background: rgba(16, 185, 129, 0.08);
+    background: rgba(0, 255, 157, 0.05);
 }
 
+/* Mixer */
 /* Mixer Main Container */
 .mixer-container {
-    padding: 16px 14px;
-    gap: 12px;
-    justify-content: space-between;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    background: #16161a;
+    gap: 6px;
+    align-items: stretch;
 }
 
 /* 1. HEADER: MASTER BPM & VOLUME */
@@ -133,42 +252,45 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
+    margin-bottom: 2px;
 }
 
 .bpm-display-large {
     width: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--panel-border);
-    padding: 8px;
-    border-radius: 8px;
+    background: #000;
+    border: 2px solid #333;
+    padding: 4px;
+    border-radius: 6px;
     text-align: center;
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
 }
 
 .bpm-slider {
     width: 90%;
-    height: 4px;
+    height: 6px;
     -webkit-appearance: none;
     appearance: none;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    margin-top: 4px;
+    background: #333;
+    border-radius: 3px;
+    margin-top: 5px;
 }
 
 .bpm-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: var(--text-main);
+    background: var(--neon-green);
+    border: 2px solid #fff;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 5px var(--neon-green);
+    margin-top: -3px;
 }
 
 .master-vol-container {
@@ -176,57 +298,62 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 6px;
-    background: transparent;
+    gap: 1px;
+    padding: 3px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    border: 1px solid #222;
 }
 
 .mixer-label.tiny {
-    font-size: 1.0rem;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    font-weight: 600;
+    font-size: 1rem;
+    color: #888;
+    letter-spacing: 1px;
+    font-weight: bold;
 }
 
 .master-vol-slider {
     width: 90%;
-    height: 4px;
+    height: 6px;
     -webkit-appearance: none;
     appearance: none;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
+    background: #333;
+    border-radius: 3px;
 }
 
 .master-vol-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: var(--neon-yellow);
+    border: 2px solid #fff;
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);
+    box-shadow: 0 0 5px var(--neon-yellow);
+    margin-top: -3px;
+    /* Center on 6px track? (12-6)/2 = 3. So -3 up. */
 }
 
 .bpm-label-top {
     display: block;
-    color: var(--text-dim);
-    font-size: 1.0rem;
+    color: #888;
+    font-size: 1rem;
     margin-bottom: 2px;
-    letter-spacing: 2px;
-    font-weight: 600;
+    letter-spacing: 1px;
+    font-weight: bold;
 }
 
 .bpm-input-large {
     background: transparent;
     border: none;
-    color: var(--text-main);
-    font-size: 2.6rem;
-    font-weight: 700;
+    color: var(--neon-green);
+    font-size: 2rem;
     width: 100%;
     text-align: center;
     outline: none;
     -moz-appearance: textfield;
+    /* Firefox */
 }
 
 /* Hide Spin Buttons */
@@ -241,7 +368,7 @@ body {
     flex: 1;
     display: flex;
     /* Row layout for 2 columns */
-    gap: 20px;
+    gap: 8px;
     justify-content: space-between;
     position: relative;
     /* Anchor for divider */
@@ -252,7 +379,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     position: relative;
 }
 
@@ -265,32 +392,31 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 3px;
 }
 
 .mixer-label {
-    font-size: 1.3rem;
-    color: var(--text-dim);
+    font-size: 1.1rem;
+    color: #888;
     font-weight: bold;
 }
 
 .filter-display {
     color: var(--neon-blue);
-    font-size: 1.3rem;
-    height: 1.2rem;
+    font-size: 1.1rem;
+    height: 1rem;
     font-weight: bold;
 }
 
-/* Horizontal Slider for Filter/EQ */
+/* Horizontal Slider for Filter */
 .knob-slider-horizontal {
     width: 80%;
-    height: 4px;
+    height: 6px;
     -webkit-appearance: none;
     appearance: none;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
+    background: #222;
+    border-radius: 3px;
     outline: none;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .knob-slider-horizontal::-webkit-slider-thumb {
@@ -299,16 +425,9 @@ body {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: var(--text-main);
+    background: #888;
     cursor: pointer;
-    border: 2px solid var(--panel-border);
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    transition: transform 0.1s;
-}
-
-.knob-slider-horizontal::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
-    border-color: var(--neon-blue);
+    border: 2px solid #333;
 }
 
 /* Fader Group */
@@ -320,24 +439,29 @@ body {
 
 .fader-track-new {
     width: 40px;
-    height: 200px;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--panel-border);
-    border-radius: 6px;
+    height: 150px;
+    /* Compact faders */
+    background: #111;
+    border: 1px solid #222;
+    border-radius: 4px;
     position: relative;
-    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.8);
+    box-shadow: inset 0 0 10px #000;
 }
 
 .vertical-fader-new {
-    width: 200px;
+    width: 150px;
+    /* Must match height of track */
     height: 40px;
+    /* Must match width of track */
     transform: rotate(-90deg);
     transform-origin: center;
     position: absolute;
     top: 50%;
     left: 50%;
-    margin-left: -100px;
+    margin-left: -75px;
+    /* width/2 */
     margin-top: -20px;
+    /* height/2 */
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
@@ -354,13 +478,15 @@ body {
 .vertical-fader-new::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    height: 28px;
-    width: 44px;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
-    margin-top: -11px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+    height: 30px;
+    width: 50px;
+    /* Wide cap */
+    background: linear-gradient(to bottom, #444, #222);
+    border: 1px solid #555;
+    border-radius: 2px;
+    margin-top: -12px;
+    /* Center on track */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
     cursor: ns-resize;
     position: relative;
 }
@@ -379,21 +505,21 @@ body {
 
 .deck-label {
     font-family: 'Press Start 2P', cursive;
-    font-size: 1.6rem;
-    color: rgba(255, 255, 255, 0.15);
-    margin-top: 8px;
+    font-size: 1.4rem;
+    color: #333;
+    margin-top: 2px;
 }
 
 /* 3. FOOTER: CROSSFADER */
 .mixer-footer {
-    height: 50px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 6px;
-    border: 1px solid var(--panel-border);
-    padding: 0 16px;
+    background: #111;
+    border-radius: 4px;
+    border: 1px solid #222;
+    padding: 0 15px;
 }
 
 .crossfader-wrapper {
@@ -412,32 +538,35 @@ body {
 
 .crossfader-new::-webkit-slider-runnable-track {
     width: 100%;
-    height: 6px;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 3px;
-    border: 1px solid var(--panel-border);
+    height: 8px;
+    background: #000;
+    border-radius: 4px;
+    border: 1px solid #333;
 }
 
 .crossfader-new::-webkit-slider-thumb {
     -webkit-appearance: none;
-    height: 22px;
-    width: 36px;
+    height: 24px;
+    width: 40px;
     background: var(--neon-pink);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid #fff;
     margin-top: -9px;
-    border-radius: 3px;
+    border-radius: 2px;
     cursor: ew-resize;
-    box-shadow: 0 0 12px rgba(236, 72, 153, 0.5);
+    box-shadow: 0 0 10px var(--neon-pink);
 }
 
 .xf-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 1.3rem;
+    font-size: 1.6rem;
+    /* Reduced from 2.5rem */
     font-weight: bold;
-    color: var(--text-dim);
+    color: #666;
+    /* Slightly darker for visibility */
     padding: 0 5px;
-    margin-bottom: -4px;
+    margin-bottom: -5px;
+    /* Pull closer to slider */
 }
 
 /* --- DECK HEADER --- */
@@ -445,33 +574,33 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
 }
 
 .deck-header h2 {
     margin: 0;
-    font-size: 1.4rem;
+    font-size: 1.1rem;
     color: var(--text-dim);
     border: 1px solid var(--panel-border);
-    padding: 4px 8px;
-    border-radius: 6px;
-    background: rgba(0, 0, 0, 0.3);
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: #111;
 }
 
 .track-display {
     text-align: right;
     flex: 1;
-    margin-left: 12px;
-    background: rgba(0, 0, 0, 0.3);
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--panel-border);
+    margin-left: 8px;
+    background: #000;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid #333;
 }
 
 .track-title {
     color: var(--neon-blue);
     font-weight: 700;
-    font-size: 1.6rem;
+    font-size: 1.1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -487,37 +616,46 @@ body {
 
 /* --- VINYL --- */
 .disc-container {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
-    min-height: 140px;
-    max-height: 200px;
+    min-height: 80px;
+    max-height: 45%;
 }
 
 .vinyl-disc {
     width: 65%;
-    max-width: 180px;
+    /* Relative to container */
+    max-width: 280px;
+    max-height: 90%;
+    /* Grows with container, capped */
     aspect-ratio: 1/1;
+    /* Keep circle */
     height: auto;
+    /* Let aspect ratio define height */
     border-radius: 50%;
-    background: repeating-radial-gradient(#0a0a0f, #0a0a0f 2px, #141420 3px);
-    border: 3px solid rgba(255, 255, 255, 0.05);
+    background: repeating-radial-gradient(#111, #111 2px, #1a1a1a 3px);
+    border: 4px solid #080808;
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+}
+
+.vinyl-disc {
+    will-change: transform;
 }
 
 .vinyl-disc.spinning {
-    animation: spin 1.8s linear infinite;
+    animation: spin var(--spin-duration, 2s) linear infinite;
 }
 
 .vinyl-disc.scratching {
     animation: none;
     border-color: var(--neon-yellow);
-    box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
+    box-shadow: 0 0 20px rgba(240, 255, 0, 0.3);
     cursor: grabbing !important;
 }
 
@@ -526,40 +664,51 @@ body {
     height: 60px;
     border-radius: 50%;
     background: var(--neon-pink);
-    border: 2px solid rgba(255, 255, 255, 0.6);
+    border: 3px solid #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.0rem;
+    font-size: 1rem;
     font-weight: bold;
     color: white;
+}
+
+/* --- SPECTRUM OVERLAY --- */
+.spectrum-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    height: 40px;
+    background: #000;
+    border: 2px solid #333;
+    border-radius: 4px;
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+.spectrum-overlay.active.deck-a {
+    border-color: var(--neon-green);
+    box-shadow: 0 0 10px rgba(0, 255, 157, 0.4);
+}
+.spectrum-overlay.active.deck-b {
+    border-color: var(--neon-pink);
+    box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
 }
 
 /* --- CONTROLS --- */
 .deck-controls {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    flex: 1;
+    gap: 4px;
+    flex: 1 1 auto;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    overflow: hidden;
 }
 
-.upload-section {
-    border: 2px dashed var(--panel-border);
-    border-radius: 8px;
-    height: 150px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-dim);
-    cursor: pointer;
-    font-size: 1.4rem;
-    font-weight: bold;
-}
 
 .deck-empty-hint {
     text-align: center;
@@ -573,79 +722,67 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .play-btn {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-main);
-    font-size: 1.3rem;
+    background: #222;
+    color: #fff;
+    font-size: 1.1rem;
     cursor: pointer;
-    border: 2px solid var(--panel-border);
+    border: 3px solid #333;
     flex-shrink: 0;
-    transition: all 0.15s ease;
 }
 
 .play-btn.active {
     border-color: var(--neon-green);
     color: var(--neon-green);
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
-    background: rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 15px rgba(0, 255, 157, 0.4);
 }
 
 .feature-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
+    gap: 3px;
     flex: 1;
 }
 
 .glass-btn {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--panel-border);
     color: var(--text-dim);
-    padding: 5px 0;
+    padding: 4px 0;
     cursor: pointer;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    transition: all 0.15s ease;
-}
-
-.glass-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    font-size: 0.7rem;
 }
 
 .glass-btn.active {
     background: var(--neon-blue);
     color: #000;
-    box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
 }
 
 .stems-row {
     display: flex;
-    gap: 5px;
+    gap: 3px;
 }
 
 .stem-btn {
     flex: 1;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--panel-border);
-    color: var(--text-dim);
-    padding: 4px;
+    background: #111;
+    border: 1px solid #333;
+    color: #555;
+    padding: 6px;
     cursor: pointer;
-    font-size: 0.7rem;
-    border-radius: 3px;
-    transition: all 0.15s ease;
+    font-size: 0.85rem;
 }
 
 .stem-btn.active {
     color: var(--neon-green);
     border-color: var(--neon-green);
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.3);
 }
 
 
@@ -707,13 +844,13 @@ body {
 }
 
 .hotcue-pad {
-    padding: 5px 0;
-    border: 1px solid var(--panel-border);
-    border-radius: 4px;
+    padding: 10px 0;
+    border: 2px solid #333;
+    border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
-    color: var(--text-dim);
+    color: #666;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.5rem;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: all 0.1s ease;
 }
@@ -721,12 +858,12 @@ body {
 .hotcue-pad.active {
     color: #fff;
     text-shadow: 0 0 8px var(--pad-color);
-    box-shadow: 0 0 10px var(--pad-color), inset 0 0 6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 8px var(--pad-color), inset 0 0 6px rgba(0, 0, 0, 0.5);
 }
 
 .hotcue-pad:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.06);
+    border-color: #555;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .hotcue-pad.active:hover {
@@ -742,31 +879,31 @@ body {
 
 .beat-jump-btn {
     flex: 1;
-    padding: 4px 0;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--panel-border);
+    padding: 6px 0;
+    background: #111;
+    border: 1px solid #333;
     color: var(--neon-blue);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 3px;
     transition: all 0.1s ease;
 }
 
 .beat-jump-btn:hover {
     border-color: var(--neon-blue);
-    background: rgba(14, 165, 233, 0.1);
+    background: rgba(0, 229, 255, 0.1);
 }
 
 .beat-jump-btn:active {
-    background: rgba(14, 165, 233, 0.2);
+    background: rgba(0, 229, 255, 0.2);
 }
 
 .beat-jump-size {
     display: flex;
     align-items: center;
     gap: 2px;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--panel-border);
+    background: #000;
+    border: 1px solid #333;
     border-radius: 4px;
     padding: 2px;
 }
@@ -774,8 +911,8 @@ body {
 .beat-jump-size-value {
     color: var(--neon-blue);
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.5rem;
-    min-width: 28px;
+    font-size: 0.7rem;
+    min-width: 36px;
     text-align: center;
     padding: 2px 2px;
 }
@@ -783,7 +920,7 @@ body {
 .beat-jump-size-arrow {
     background: transparent;
     border: none;
-    color: var(--text-dim);
+    color: #888;
     font-size: 1.1rem;
     cursor: pointer;
     padding: 2px 4px;
@@ -799,7 +936,7 @@ body {
     background: var(--neon-yellow);
     color: #000;
     border-color: var(--neon-yellow);
-    box-shadow: 0 0 8px rgba(234, 179, 8, 0.4);
+    box-shadow: 0 0 8px rgba(240, 255, 0, 0.4);
     font-weight: bold;
 }
 
@@ -808,16 +945,16 @@ body {
     background: var(--neon-pink);
     color: #fff;
     border-color: var(--neon-pink);
-    box-shadow: 0 0 8px rgba(236, 72, 153, 0.4);
+    box-shadow: 0 0 8px rgba(255, 0, 85, 0.4);
     font-weight: bold;
 }
 
 /* --- SLIP MODE BUTTON --- */
 .glass-btn.slip.active {
-    background: #f97316;
+    background: #ff6600;
     color: #fff;
-    border-color: #f97316;
-    box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+    border-color: #ff6600;
+    box-shadow: 0 0 8px rgba(255, 102, 0, 0.4);
     font-weight: bold;
 }
 
@@ -825,10 +962,10 @@ body {
 .pad-mode-toggle {
     display: flex;
     gap: 2px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 6px;
+    background: #111;
+    border-radius: 4px;
     padding: 2px;
-    border: 1px solid var(--panel-border);
+    border: 1px solid #222;
 }
 
 .pad-mode-btn {
@@ -836,9 +973,9 @@ body {
     padding: 3px 0;
     background: transparent;
     border: none;
-    color: var(--text-dim);
+    color: #666;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.45rem;
+    font-size: 0.55rem;
     cursor: pointer;
     border-radius: 3px;
     transition: all 0.15s ease;
@@ -856,48 +993,48 @@ body {
 /* --- LOOP ROLL PADS --- */
 .looproll-pads {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 3px;
 }
 
 .looproll-pad {
-    padding: 5px 0;
-    border: 1px solid var(--panel-border);
-    border-radius: 4px;
+    padding: 10px 0;
+    border: 2px solid #333;
+    border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
-    color: var(--text-dim);
+    color: #888;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.45rem;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: all 0.1s ease;
     user-select: none;
 }
 
 .looproll-pad.active {
-    background: rgba(14, 165, 233, 0.2);
+    background: rgba(0, 229, 255, 0.2);
     color: var(--neon-blue);
     border-color: var(--neon-blue);
-    box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
 }
 
 .looproll-pad:hover {
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: #555;
     background: rgba(255, 255, 255, 0.06);
 }
 
 .looproll-pad:active {
-    background: rgba(14, 165, 233, 0.15);
+    background: rgba(0, 229, 255, 0.15);
     border-color: var(--neon-blue);
 }
 
 /* --- COLOR WAVEFORM --- */
 .color-waveform-container {
     width: 100%;
-    height: 48px;
-    border: 1px solid var(--panel-border);
-    border-radius: 6px;
+    height: 40px;
+    border: 1px solid #333;
+    border-radius: 4px;
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.4);
+    background: #0a0a0e;
     position: relative;
 }
 

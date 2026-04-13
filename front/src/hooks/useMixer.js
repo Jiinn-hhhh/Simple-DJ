@@ -19,8 +19,8 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
   const applyVolumes = useCallback((volA, volB, xf, masterVol) => {
     let gainA = volA * masterVol;
     let gainB = volB * masterVol;
-    if (xf < 0.5) gainB *= xf * 2;
-    else gainA *= (1 - xf) * 2;
+    gainA *= Math.cos(xf * Math.PI / 2);
+    gainB *= Math.sin(xf * Math.PI / 2);
     audioPlayerRef.current.setVolume('A', gainA);
     audioPlayerRef.current.setVolume('B', gainB);
   }, [audioPlayerRef]);
