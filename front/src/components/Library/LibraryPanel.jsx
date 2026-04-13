@@ -2,6 +2,7 @@ import { useState } from 'react';
 import TrackItem from './TrackItem';
 import UploadArea from './UploadArea';
 import ProcessingQueue from './ProcessingQueue';
+import ConfirmDialog from './ConfirmDialog';
 import './LibraryPanel.css';
 
 export default function LibraryPanel({
@@ -9,6 +10,7 @@ export default function LibraryPanel({
   uploadQueueInfo, onCancelProcessing, onClearQueue
 }) {
   const [panelDragging, setPanelDragging] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // { type, id, title }
 
   const readyTracks = tracks.filter(t => t.status === 'ready');
   const processingTracks = tracks.filter(t => ['uploading', 'analyzing', 'separating', 'converting'].includes(t.status));
@@ -31,6 +33,24 @@ export default function LibraryPanel({
     files.forEach(f => onUpload(f));
   };
 
+  // Confirm dialog handlers
+  const handleCancelRequest = (trackId, title) => {
+    setConfirmAction({ type: 'cancel', id: trackId, title });
+  };
+  const handleDeleteRequest = (trackId, title) => {
+    setConfirmAction({ type: 'delete', id: trackId, title });
+  };
+  const handleConfirm = () => {
+    if (!confirmAction) return;
+    if (confirmAction.type === 'cancel') {
+      onCancelProcessing(confirmAction.id);
+    } else if (confirmAction.type === 'delete') {
+      onDelete(confirmAction.id);
+    }
+    setConfirmAction(null);
+  };
+  const handleConfirmCancel = () => setConfirmAction(null);
+
   return (
     <div
       className={`library-panel ${isOpen ? 'open' : ''} ${panelDragging ? 'panel-dragging' : ''}`}
@@ -38,6 +58,18 @@ export default function LibraryPanel({
       onDragLeave={handlePanelDragLeave}
       onDrop={handlePanelDrop}
     >
+      {confirmAction && (
+        <ConfirmDialog
+          message={confirmAction.type === 'cancel'
+            ? `Cancel processing "${confirmAction.title}"?`
+            : `Delete "${confirmAction.title}"?`}
+          confirmLabel={confirmAction.type === 'cancel' ? 'CANCEL IT' : 'DELETE'}
+          cancelLabel="KEEP"
+          onConfirm={handleConfirm}
+          onCancel={handleConfirmCancel}
+        />
+      )}
+
       <div className="library-header">
         <h2 className="library-title pixel-font">TRACK LIBRARY</h2>
         <button className="library-close" onClick={onClose}>&times;</button>
@@ -60,14 +92,14 @@ export default function LibraryPanel({
       )}
 
       {processingTracks.length > 0 && (
-        <ProcessingQueue tracks={processingTracks} onCancel={onCancelProcessing} />
+        <ProcessingQueue tracks={processingTracks} onCancel={handleCancelRequest} />
       )}
 
       {errorTracks.length > 0 && (
         <div className="library-section">
           <div className="library-section-label">ERRORS</div>
           {errorTracks.map(track => (
-            <TrackItem key={track.id} track={track} onDelete={onDelete} onLoadToDeck={onLoadToDeck} />
+            <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} />
           ))}
         </div>
       )}
@@ -79,7 +111,7 @@ export default function LibraryPanel({
           <div className="library-empty">No tracks yet. Upload some music!</div>
         ) : (
           readyTracks.map(track => (
-            <TrackItem key={track.id} track={track} onDelete={onDelete} onLoadToDeck={onLoadToDeck} />
+            <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} />
           ))
         )}
       </div>

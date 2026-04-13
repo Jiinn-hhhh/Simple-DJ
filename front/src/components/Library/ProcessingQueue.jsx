@@ -14,11 +14,11 @@ export default function ProcessingQueue({ tracks, onCancel }) {
             <span className="processing-spinner">&#9654;</span> {statusLabels[track.status] || track.status}...
           </span>
           <span className="processing-title">{track.title}</span>
-          {onCancel && track.status === 'uploading' && (
+          {onCancel && (
             <button
               className="processing-cancel-btn"
-              onClick={() => onCancel(track.id)}
-              title="Cancel upload"
+              onClick={() => onCancel(track.id, track.title)}
+              title="Cancel"
             >
               &times;
             </button>

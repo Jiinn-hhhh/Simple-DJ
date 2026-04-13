@@ -67,7 +67,7 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
             <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>B</button>
           </>
         )}
-        <button className="track-delete-btn" onClick={() => onDelete(track.id)}>DEL</button>
+        <button className="track-delete-btn" onClick={() => onDelete(track.id, track.title)}>DEL</button>
       </div>
     </div>
   );
