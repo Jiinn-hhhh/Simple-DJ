@@ -11,8 +11,9 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 10px 12px;
+  padding: 6px 10px;
   box-sizing: border-box;
+  overflow: hidden;
   background: radial-gradient(circle at center, #1a1a20 0%, #0d0d10 100%);
   transition: margin-left 0.3s ease;
 }
