@@ -399,7 +399,8 @@ class AudioPlayer {
     }
 
     const startTime = when > 0 ? when : this.audioContext.currentTime;
-    this.startTimes[trackId] = startTime - offset; // Remember "virtual" start time
+    this.pauseOffsets[trackId] = offset;
+    this.startTimes[trackId] = startTime;
 
     // Play all loaded stems for this track
     Object.keys(this.audioBuffers[trackId]).forEach(stemName => {
@@ -608,10 +609,12 @@ class AudioPlayer {
     }
     newPos = Math.max(0, Math.min(duration, newPos));
 
-    this.pauseOffsets[deckId] = newPos;
     if (this.isPlaying[deckId]) {
       this.stop(deckId);
+      this.pauseOffsets[deckId] = newPos; // set AFTER stop to avoid overwrite
       this._resumePlayback(deckId, newPos);
+    } else {
+      this.pauseOffsets[deckId] = newPos;
     }
   }
 
@@ -755,16 +758,13 @@ class AudioPlayer {
 
     const newOffset = duration * percent;
 
-    // Save state
-    this.pauseOffsets[deckId] = newOffset;
-
-    // If currently playing, restart from there.
-    // If paused, just update offset so next Play starts there.
-
     if (this.isPlaying[deckId]) {
-      // Was playing — restart from new position
+      // Stop first, then set offset to avoid stop() overwriting it
       await this.stop(deckId);
-      this._resumePlayback(deckId, this.pauseOffsets[deckId]);
+      this.pauseOffsets[deckId] = newOffset;
+      this._resumePlayback(deckId, newOffset);
+    } else {
+      this.pauseOffsets[deckId] = newOffset;
     }
   }
 

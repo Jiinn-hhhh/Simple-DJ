@@ -37,35 +37,37 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
       draggable={track.status === 'ready'}
       onDragStart={handleDragStart}
     >
-      <div className="track-item-row">
-        {isEditing ? (
-          <input
-            className="track-item-title-input"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            onBlur={handleTitleSave}
-            onKeyDown={handleKeyDown}
-            autoFocus
-          />
-        ) : (
-          <div className="track-item-title" onDoubleClick={() => setIsEditing(true)}>
-            {track.title}
-          </div>
+      <div className="track-info">
+        <div className="track-item-row">
+          {isEditing ? (
+            <input
+              className="track-item-title-input"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
+          ) : (
+            <div className="track-item-title" onDoubleClick={() => setIsEditing(true)}>
+              {track.title}
+            </div>
+          )}
+          <button className="track-x-btn" onClick={() => onDelete(track.id, track.title)} title="Delete">&times;</button>
+        </div>
+        <div className="track-item-meta">
+          {track.bpm && <span>{Math.round(track.bpm)} BPM</span>}
+          {track.key && <span>{track.key}</span>}
+          {track.duration && <span>{formatDuration(track.duration)}</span>}
+        </div>
+        {track.status === 'error' && (
+          <div className="track-item-error">{track.error_message || 'Processing failed'}</div>
         )}
-        <button className="track-x-btn" onClick={() => onDelete(track.id, track.title)} title="Delete">&times;</button>
       </div>
-      <div className="track-item-meta">
-        {track.bpm && <span>{Math.round(track.bpm)} BPM</span>}
-        {track.key && <span>{track.key}</span>}
-        {track.duration && <span>{formatDuration(track.duration)}</span>}
-      </div>
-      {track.status === 'error' && (
-        <div className="track-item-error">{track.error_message || 'Processing failed'}</div>
-      )}
       {track.status === 'ready' && (
         <div className="track-deck-btns">
-          <button className="track-deck-btn" onClick={() => onLoadToDeck('A', track)}>DECK A</button>
-          <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>DECK B</button>
+          <button className="track-deck-btn" onClick={() => onLoadToDeck('A', track)}>A</button>
+          <button className="track-deck-btn" onClick={() => onLoadToDeck('B', track)}>B</button>
         </div>
       )}
     </div>
