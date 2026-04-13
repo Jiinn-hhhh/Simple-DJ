@@ -181,7 +181,7 @@ const Deck = ({
                 {track && (
                     <div style={{
                         position: 'absolute', top: '10px', left: '50%',
-                        transform: 'translate(-50%, 0)', width: '100%', height: '80px',
+                        transform: 'translate(-50%, 0)', width: '100%', height: '60px',
                         boxSizing: 'border-box', background: '#000',
                         border: isPlaying ? `3px solid ${deckId === 'A' ? 'var(--neon-green)' : 'var(--neon-pink)'}` : '3px solid #333',
                         borderRadius: '6px', zIndex: 10, display: 'flex',

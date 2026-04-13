@@ -30,6 +30,7 @@ body {
     color: var(--text-main);
     height: 100vh;
     overflow: hidden;
+    overflow-y: auto;
     user-select: none;
 }
 
@@ -100,11 +101,12 @@ body {
     background: var(--panel-bg);
     border: 1px solid var(--panel-border);
     border-radius: 8px;
-    padding: 20px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     position: relative;
+    min-height: 0;
 }
 
 /* Deck */
@@ -455,7 +457,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
 .deck-header h2 {
@@ -497,19 +499,20 @@ body {
 
 /* --- VINYL --- */
 .disc-container {
-    flex: 1;
+    flex: 0 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
-    min-height: 250px;
+    min-height: 160px;
+    max-height: 220px;
 }
 
 .vinyl-disc {
-    width: 80%;
+    width: 70%;
     /* Relative to container */
-    max-width: 350px;
-    /* Max size */
+    max-width: 200px;
+    /* Max size — compact for pro layout */
     aspect-ratio: 1/1;
     /* Keep circle */
     height: auto;
@@ -535,17 +538,15 @@ body {
 }
 
 .disc-label {
-    width: 110px;
-    /* Increased size */
-    height: 110px;
-    /* Increased size */
+    width: 70px;
+    height: 70px;
     border-radius: 50%;
     background: var(--neon-pink);
-    border: 4px solid #fff;
+    border: 3px solid #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.8rem;
+    font-size: 1.2rem;
     font-weight: bold;
     color: white;
 }
@@ -554,7 +555,13 @@ body {
 .deck-controls {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 6px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
 }
 
 .upload-section {
@@ -582,18 +589,19 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
 }
 
 .play-btn {
-    width: 60px;
-    height: 60px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     background: #222;
     color: #fff;
-    font-size: 1.8rem;
+    font-size: 1.4rem;
     cursor: pointer;
     border: 3px solid #333;
+    flex-shrink: 0;
 }
 
 .play-btn.active {
@@ -613,9 +621,10 @@ body {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--panel-border);
     color: var(--text-dim);
-    padding: 8px 0;
+    padding: 5px 0;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 3px;
+    font-size: 0.75rem;
 }
 
 .glass-btn.active {
@@ -633,8 +642,9 @@ body {
     background: #111;
     border: 1px solid #333;
     color: #555;
-    padding: 6px;
+    padding: 4px;
     cursor: pointer;
+    font-size: 0.7rem;
 }
 
 .stem-btn.active {
@@ -702,17 +712,17 @@ body {
 .hotcue-pads {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
+    gap: 3px;
 }
 
 .hotcue-pad {
-    padding: 8px 0;
+    padding: 5px 0;
     border: 2px solid #333;
-    border-radius: 4px;
+    border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
     color: #666;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.6rem;
+    font-size: 0.5rem;
     cursor: pointer;
     transition: all 0.1s ease;
 }
@@ -736,18 +746,18 @@ body {
 .beat-jump-controls {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
 }
 
 .beat-jump-btn {
     flex: 1;
-    padding: 6px 0;
+    padding: 4px 0;
     background: #111;
     border: 1px solid #333;
     color: var(--neon-blue);
-    font-size: 1rem;
+    font-size: 0.85rem;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 3px;
     transition: all 0.1s ease;
 }
 
@@ -773,10 +783,10 @@ body {
 .beat-jump-size-value {
     color: var(--neon-blue);
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.6rem;
-    min-width: 32px;
+    font-size: 0.5rem;
+    min-width: 28px;
     text-align: center;
-    padding: 4px 2px;
+    padding: 2px 2px;
 }
 
 .beat-jump-size-arrow {
@@ -832,12 +842,12 @@ body {
 
 .pad-mode-btn {
     flex: 1;
-    padding: 4px 0;
+    padding: 3px 0;
     background: transparent;
     border: none;
     color: #666;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.5rem;
+    font-size: 0.45rem;
     cursor: pointer;
     border-radius: 3px;
     transition: all 0.15s ease;
@@ -856,17 +866,17 @@ body {
 .looproll-pads {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
+    gap: 3px;
 }
 
 .looproll-pad {
-    padding: 8px 0;
+    padding: 5px 0;
     border: 2px solid #333;
-    border-radius: 4px;
+    border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
     color: #888;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.5rem;
+    font-size: 0.45rem;
     cursor: pointer;
     transition: all 0.1s ease;
     user-select: none;
@@ -892,7 +902,7 @@ body {
 /* --- COLOR WAVEFORM --- */
 .color-waveform-container {
     width: 100%;
-    height: 60px;
+    height: 48px;
     border: 1px solid #333;
     border-radius: 4px;
     overflow: hidden;
