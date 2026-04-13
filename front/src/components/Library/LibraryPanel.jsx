@@ -15,6 +15,7 @@ export default function LibraryPanel({
   const errorTracks = tracks.filter(t => t.status === 'error');
 
   const queuePending = uploadQueueInfo?.pending || 0;
+  const lastError = uploadQueueInfo?.lastError;
 
   const handlePanelDragOver = (e) => {
     e.preventDefault();
@@ -52,6 +53,10 @@ export default function LibraryPanel({
             <button className="clear-queue-btn" onClick={onClearQueue}>CLEAR</button>
           )}
         </div>
+      )}
+
+      {lastError && (
+        <div className="upload-error-toast">{lastError}</div>
       )}
 
       {processingTracks.length > 0 && (

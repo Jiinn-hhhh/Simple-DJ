@@ -256,6 +256,19 @@
   flex-shrink: 0;
 }
 
+/* Upload Error Toast */
+.upload-error-toast {
+  padding: 6px 10px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--neon-pink, #ff0055);
+  background: rgba(255, 0, 85, 0.08);
+  border-bottom: 1px solid #22222a;
+  flex-shrink: 0;
+  word-break: break-word;
+}
+
 /* Processing Queue */
 .processing-queue {
   padding: 8px 10px;

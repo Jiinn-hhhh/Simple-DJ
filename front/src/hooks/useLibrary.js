@@ -13,7 +13,7 @@ export default function useLibrary(user) {
   const processingRef = useRef(false);
   const abortRef = useRef(null); // AbortController for current upload
   const currentTrackIdRef = useRef(null); // track ID of current upload
-  const [uploadQueueInfo, setUploadQueueInfo] = useState({ pending: 0, currentFile: null });
+  const [uploadQueueInfo, setUploadQueueInfo] = useState({ pending: 0, currentFile: null, lastError: null });
 
   // Fetch user's tracks from Supabase
   const fetchTracks = useCallback(async () => {
@@ -74,7 +74,7 @@ export default function useLibrary(user) {
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) throw new Error(insertError.message || 'Failed to create track record');
 
     currentTrackIdRef.current = track.id;
 
@@ -117,7 +117,7 @@ export default function useLibrary(user) {
 
     while (queueRef.current.length > 0) {
       const file = queueRef.current[0];
-      setUploadQueueInfo({ pending: queueRef.current.length, currentFile: file.name });
+      setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length, currentFile: file.name }));
 
       // Create AbortController for this upload
       const controller = new AbortController();
@@ -129,15 +129,17 @@ export default function useLibrary(user) {
 
       try {
         await uploadSingle(file, controller.signal);
+        setUploadQueueInfo(prev => ({ ...prev, lastError: null }));
       } catch (err) {
+        const errMsg = err?.message || String(err);
         if (err.name === 'AbortError') {
           console.warn(`Upload cancelled or timed out: "${file.name}"`);
-          // Clean up the track record if it was created
           if (currentTrackIdRef.current) {
             await supabase.from('tracks').delete().eq('id', currentTrackIdRef.current).catch(() => {});
           }
         } else {
-          console.error(`Upload failed, skipping: "${file.name}"`, err);
+          console.error(`Upload failed, skipping: "${file.name}" —`, errMsg);
+          setUploadQueueInfo(prev => ({ ...prev, lastError: `${file.name}: ${errMsg}` }));
         }
       }
 
@@ -147,7 +149,7 @@ export default function useLibrary(user) {
       queueRef.current.shift();
     }
 
-    setUploadQueueInfo({ pending: 0, currentFile: null });
+    setUploadQueueInfo(prev => ({ ...prev, pending: 0, currentFile: null }));
     processingRef.current = false;
   }, [uploadSingle]);
 
