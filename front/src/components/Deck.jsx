@@ -211,8 +211,7 @@ const Deck = ({
                         <div style={{ width: '100%', height: '4px', background: '#333', borderRadius: '2px', overflow: 'hidden' }}>
                             <div style={{
                                 width: `${separationProgress}%`, height: '100%',
-                                background: 'var(--neon-green)', transition: 'width 0.3s ease',
-                                boxShadow: '0 0 8px var(--neon-green)'
+                                background: 'var(--neon-green)', transition: 'width 0.3s ease'
                             }} />
                         </div>
                     </div>
@@ -272,27 +271,36 @@ const Deck = ({
                             </div>
                         </div>
 
-                        <LoopRollPads
-                            activeRoll={activeLoopRoll}
-                            onStart={onStartLoopRoll}
-                            onEnd={onEndLoopRoll}
-                            onChangeSize={onChangeLoopRollSize}
-                        />
-
-                        {hotCues && (
-                            <HotCuePads
-                                hotCues={hotCues}
-                                onSetCue={onSetHotCue}
-                                onJumpCue={onJumpHotCue}
-                                onDeleteCue={onDeleteHotCue}
+                        <div className="control-section">
+                            <span className="control-label">LOOP ROLL</span>
+                            <LoopRollPads
+                                activeRoll={activeLoopRoll}
+                                onStart={onStartLoopRoll}
+                                onEnd={onEndLoopRoll}
+                                onChangeSize={onChangeLoopRollSize}
                             />
-                        )}
+                        </div>
 
-                        <BeatJumpControls
-                            beatJumpSize={beatJumpSize || 1}
-                            onSetSize={onSetBeatJumpSize}
-                            onJump={onBeatJump}
-                        />
+                        <div className="control-section">
+                            <span className="control-label">HOT CUE</span>
+                            {hotCues && (
+                                <HotCuePads
+                                    hotCues={hotCues}
+                                    onSetCue={onSetHotCue}
+                                    onJumpCue={onJumpHotCue}
+                                    onDeleteCue={onDeleteHotCue}
+                                />
+                            )}
+                        </div>
+
+                        <div className="control-section">
+                            <span className="control-label">BEAT JUMP</span>
+                            <BeatJumpControls
+                                beatJumpSize={beatJumpSize || 1}
+                                onSetSize={onSetBeatJumpSize}
+                                onJump={onBeatJump}
+                            />
+                        </div>
 
                         <div className="stems-row" onMouseLeave={() => setStemDrag({ ...stemDrag, active: false })}>
                             {STEMS.map(stem => (

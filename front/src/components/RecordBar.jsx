@@ -15,37 +15,33 @@ export default function RecordBar({
   const isCountingDown = countdown != null;
 
   return (
-    <>
-      {/* Countdown overlay */}
+    <div className="record-bar">
+      {/* Inline countdown */}
       {isCountingDown && (
-        <div className="countdown-overlay">
-          <div className="countdown-number">{countdown}</div>
+        <span className="record-countdown">{countdown}</span>
+      )}
+
+      {isRecording && (
+        <div className="record-indicator">
+          <span className="record-dot" />
+          <span className="record-time">{formatTime(recordingTime)}</span>
         </div>
       )}
 
-      <div className="record-bar">
-        {isRecording && (
-          <div className="record-indicator">
-            <span className="record-dot" />
-            <span className="record-time">{formatTime(recordingTime)}</span>
-          </div>
-        )}
-
-        {!isRecording && !isCountingDown ? (
-          <>
-            <button className="record-btn audio" onClick={onStartAudio} title="Mix audio recording (.wav)">
-              AUDIO REC
-            </button>
-            <button className="record-btn video" onClick={onStartVideo} title="Screen + audio recording (.mp4)">
-              VIDEO REC
-            </button>
-          </>
-        ) : (
-          <button className="record-btn stop" onClick={isRecordingAudio || isCountingDown ? onStopAudio : onStopVideo}>
-            {isCountingDown ? 'CANCEL' : 'STOP'}
+      {!isRecording && !isCountingDown ? (
+        <>
+          <button className="record-btn audio" onClick={onStartAudio} title="Mix audio recording (.wav)">
+            AUDIO REC
           </button>
-        )}
-      </div>
-    </>
+          <button className="record-btn video" onClick={onStartVideo} title="Screen + audio recording (.mp4)">
+            VIDEO REC
+          </button>
+        </>
+      ) : (
+        <button className="record-btn stop" onClick={isRecordingAudio || isCountingDown ? onStopAudio : onStopVideo}>
+          {isCountingDown ? 'CANCEL' : 'STOP'}
+        </button>
+      )}
+    </div>
   );
 }

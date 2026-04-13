@@ -73,7 +73,7 @@ const XYPad = ({ onEffectChange }) => {
                     position: 'relative',
                     cursor: 'crosshair',
                     overflow: 'hidden',
-                    boxShadow: isActive ? '0 0 10px rgba(0, 255, 255, 0.3)' : 'inset 0 0 10px #000'
+                    boxShadow: 'inset 0 0 10px #000'
                 }}
             >
                 {/* Grid Lines */}
@@ -90,7 +90,7 @@ const XYPad = ({ onEffectChange }) => {
                     background: isActive ? '#0ff' : '#005555',
                     borderRadius: '50%',
                     transform: 'translate(-50%, 50%)',
-                    boxShadow: isActive ? '0 0 15px #0ff, 0 0 30px #0ff' : 'none',
+                    boxShadow: 'none',
                     transition: isActive ? 'none' : 'all 0.2s ease-out',
                     pointerEvents: 'none'
                 }}></div>

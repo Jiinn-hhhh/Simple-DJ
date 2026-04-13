@@ -24,7 +24,7 @@
   color: var(--neon-blue, #00e5ff);
   text-align: center;
   margin: 0 0 32px;
-  text-shadow: 0 0 20px rgba(0, 229, 255, 0.8);
+  /* glow removed */
   letter-spacing: -1px;
 }
 
@@ -99,7 +99,7 @@
 
 .auth-input:focus {
   border-color: var(--neon-green, #00ff9d);
-  box-shadow: 0 0 8px rgba(0, 255, 157, 0.3);
+  /* glow removed */
 }
 
 /* Submit Button */
@@ -119,7 +119,7 @@
 
 .auth-submit:hover:not(:disabled) {
   background: #33ffb5;
-  box-shadow: 0 0 16px rgba(0, 255, 157, 0.5);
+  /* glow removed */
 }
 
 .auth-submit:disabled {
@@ -178,7 +178,7 @@
 
 .auth-google:hover:not(:disabled) {
   border-color: var(--neon-blue, #00e5ff);
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+  /* glow removed */
   color: var(--neon-blue, #00e5ff);
 }
 

@@ -66,7 +66,6 @@ body {
     margin: 0;
     font-size: 1rem;
     color: var(--text-main);
-    text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
     letter-spacing: -2px;
 }
 
@@ -289,7 +288,6 @@ body {
     background: var(--neon-green);
     border: 2px solid #fff;
     cursor: pointer;
-    box-shadow: 0 0 5px var(--neon-green);
     margin-top: -3px;
 }
 
@@ -330,7 +328,6 @@ body {
     background: var(--neon-yellow);
     border: 2px solid #fff;
     cursor: pointer;
-    box-shadow: 0 0 5px var(--neon-yellow);
     margin-top: -3px;
     /* Center on 6px track? (12-6)/2 = 3. So -3 up. */
 }
@@ -554,7 +551,6 @@ body {
     margin-top: -9px;
     border-radius: 2px;
     cursor: ew-resize;
-    box-shadow: 0 0 10px var(--neon-pink);
 }
 
 .xf-labels {
@@ -656,7 +652,6 @@ body {
 .vinyl-disc.scratching {
     animation: none;
     border-color: var(--neon-yellow);
-    box-shadow: 0 0 20px rgba(240, 255, 0, 0.3);
     cursor: grabbing !important;
     transition: none;
 }
@@ -699,22 +694,17 @@ body {
 }
 .spectrum-overlay.active.deck-a {
     border-color: var(--neon-green);
-    box-shadow: 0 0 10px rgba(0, 255, 157, 0.4);
 }
 .spectrum-overlay.active.deck-b {
     border-color: var(--neon-pink);
-    box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
 }
 
 /* --- CONTROLS --- */
 .deck-controls {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: hidden;
-    justify-content: space-between;
-    gap: 2px;
+    flex: 0 1 auto;
+    gap: 3px;
 }
 
 
@@ -734,8 +724,8 @@ body {
 }
 
 .play-btn {
-    width: 36px;
-    height: 36px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     background: #222;
     color: #fff;
@@ -748,7 +738,6 @@ body {
 .play-btn.active {
     border-color: var(--neon-green);
     color: var(--neon-green);
-    box-shadow: 0 0 15px rgba(0, 255, 157, 0.4);
 }
 
 .feature-grid {
@@ -762,7 +751,7 @@ body {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--panel-border);
     color: var(--text-dim);
-    padding: 4px 0;
+    padding: 8px 0;
     cursor: pointer;
     border-radius: 3px;
     font-size: 0.75rem;
@@ -783,7 +772,7 @@ body {
     background: #111;
     border: 1px solid #333;
     color: #555;
-    padding: 6px;
+    padding: 10px;
     cursor: pointer;
     font-size: 0.9rem;
 }
@@ -852,7 +841,7 @@ body {
 }
 
 .hotcue-pad {
-    padding: 8px 0;
+    padding: 12px 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
@@ -865,8 +854,7 @@ body {
 
 .hotcue-pad.active {
     color: #fff;
-    text-shadow: 0 0 8px var(--pad-color);
-    box-shadow: 0 0 8px var(--pad-color), inset 0 0 6px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
 }
 
 .hotcue-pad:hover {
@@ -887,7 +875,7 @@ body {
 
 .beat-jump-btn {
     flex: 1;
-    padding: 6px 0;
+    padding: 10px 0;
     background: #111;
     border: 1px solid #333;
     color: var(--neon-blue);
@@ -944,7 +932,6 @@ body {
     background: var(--neon-yellow);
     color: #000;
     border-color: var(--neon-yellow);
-    box-shadow: 0 0 8px rgba(240, 255, 0, 0.4);
     font-weight: bold;
 }
 
@@ -953,7 +940,6 @@ body {
     background: var(--neon-pink);
     color: #fff;
     border-color: var(--neon-pink);
-    box-shadow: 0 0 8px rgba(255, 0, 85, 0.4);
     font-weight: bold;
 }
 
@@ -962,7 +948,6 @@ body {
     background: #ff6600;
     color: #fff;
     border-color: #ff6600;
-    box-shadow: 0 0 8px rgba(255, 102, 0, 0.4);
     font-weight: bold;
 }
 
@@ -1006,7 +991,7 @@ body {
 }
 
 .looproll-pad {
-    padding: 6px 0;
+    padding: 12px 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
@@ -1022,7 +1007,6 @@ body {
     background: rgba(0, 229, 255, 0.2);
     color: var(--neon-blue);
     border-color: var(--neon-blue);
-    box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
 }
 
 .looproll-pad:hover {
@@ -1038,7 +1022,7 @@ body {
 /* --- COLOR WAVEFORM --- */
 .color-waveform-container {
     width: 100%;
-    height: 40px;
+    height: 48px;
     border: 1px solid #333;
     border-radius: 4px;
     overflow: hidden;
@@ -1050,4 +1034,19 @@ body {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+/* --- CONTROL SECTION LABELS --- */
+.control-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.control-label {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.45rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 1px;
 }

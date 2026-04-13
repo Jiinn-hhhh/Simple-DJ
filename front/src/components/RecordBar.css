@@ -32,7 +32,7 @@
   cursor: pointer;
   border: 1px solid;
   background: transparent;
-  transition: background 0.2s, box-shadow 0.2s;
+  transition: background 0.2s;
 }
 
 .record-btn.audio {
@@ -42,7 +42,6 @@
 
 .record-btn.audio:hover {
   background: rgba(255, 0, 85, 0.1);
-  box-shadow: 0 0 8px rgba(255, 0, 85, 0.3);
 }
 
 .record-btn.video {
@@ -52,7 +51,6 @@
 
 .record-btn.video:hover {
   background: rgba(0, 229, 255, 0.1);
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
 }
 
 .record-btn.stop {
@@ -62,35 +60,15 @@
 }
 
 .record-btn.stop:hover {
-  box-shadow: 0 0 12px rgba(255, 0, 85, 0.5);
+  opacity: 0.85;
 }
 
-/* --- COUNTDOWN OVERLAY --- */
-.countdown-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  pointer-events: none;
-  backdrop-filter: blur(2px);
-}
-
-.countdown-number {
+/* Inline countdown number */
+.record-countdown {
   font-family: 'Press Start 2P', cursive;
-  font-size: 8rem;
+  font-size: 1.2rem;
   color: var(--neon-pink, #ff0055);
-  text-shadow: 0 0 40px rgba(255, 0, 85, 0.8), 0 0 80px rgba(255, 0, 85, 0.4);
-  animation: countdown-pulse 1s ease-in-out infinite;
-}
-
-@keyframes countdown-pulse {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.8; }
-  100% { transform: scale(1); opacity: 1; }
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
 }

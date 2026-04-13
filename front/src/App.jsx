@@ -146,7 +146,7 @@ function App() {
     <div className="app-container">
       {authLoading ? (
         <div className="loading-overlay">
-          <div className="pixel-font" style={{ fontSize: '1.5rem', color: 'var(--neon-green)', textAlign: 'center', textShadow: '0 0 10px rgba(0, 255, 157, 0.8)' }}>
+          <div className="pixel-font" style={{ fontSize: '1.5rem', color: 'var(--neon-green)', textAlign: 'center' }}>
             LOADING...
           </div>
         </div>
@@ -180,7 +180,7 @@ function App() {
                   fontSize: '1.5rem',
                   color: status === 'OFFLINE' ? 'var(--neon-pink)' : 'var(--neon-green)',
                   textAlign: 'center', marginBottom: '20px',
-                  textShadow: `0 0 10px ${status === 'OFFLINE' ? 'rgba(255, 0, 85, 0.8)' : 'rgba(0, 255, 157, 0.8)'}`,
+                  /* glow removed */
                 }}>
                   {status}
                 </div>
