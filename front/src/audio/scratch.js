@@ -5,6 +5,10 @@ export function startScratch(deckId) {
   const pos = this.getCurrentPosition(deckId);
   const savedRate = this.playbackRates[deckId] || 1.0;
 
+  if (this.slipMode[deckId] && !this.isSlipActive(deckId)) {
+    this.beginSlipSession(deckId);
+  }
+
   this.stop(deckId);
 
   this._scratchState[deckId] = {

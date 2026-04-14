@@ -3,6 +3,10 @@
 function applyLoopRoll(deckId, beats, bpm) {
   if (!bpm || bpm <= 0) return;
 
+  if (this.slipMode[deckId] && !this.isSlipActive(deckId)) {
+    this.beginSlipSession(deckId);
+  }
+
   this.loopRollActive[deckId] = true;
 
   const beatDuration = 60 / bpm;

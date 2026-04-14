@@ -55,6 +55,7 @@ class AudioPlayer {
 
     // Slip Mode state
     this.slipMode = {}; // { deckId: boolean }
+    this.slipActive = {}; // { deckId: boolean }
     this.slipVirtualStart = {}; // { deckId: contextTime when slip started }
     this.slipVirtualOffset = {}; // { deckId: buffer offset when slip started }
     this.slipSavedRate = {}; // { deckId: rate at slip start }

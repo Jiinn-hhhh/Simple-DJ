@@ -26,8 +26,8 @@ export default function usePlaybackPosition(audioPlayerRef, isPlayingA, isPlayin
     const audible = ap.getAudiblePosition ? ap.getAudiblePosition(deckId) : ap.getCurrentPosition(deckId);
     setPosition(Math.min(1, Math.max(0, audible / duration)));
 
-    const slipEnabled = ap.slipMode?.[deckId];
-    if (!slipEnabled || !ap.getVirtualPosition) {
+    const slipActive = ap.isSlipActive?.(deckId);
+    if (!slipActive || !ap.getVirtualPosition) {
       setSlipPosition(null);
       return;
     }
