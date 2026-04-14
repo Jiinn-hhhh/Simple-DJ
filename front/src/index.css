@@ -750,13 +750,13 @@ body {
 
 @media (max-width: 1366px) {
     .vinyl-disc {
-        --vinyl-size: min(72cqi, 94cqb, 320px);
+        --vinyl-size: min(56cqi, 82cqb, 248px);
     }
 }
 
 @media (min-width: 1800px) {
     .vinyl-disc {
-        --vinyl-size: min(56cqi, 82cqb, 248px);
+        --vinyl-size: min(72cqi, 94cqb, 320px);
     }
 }
 
