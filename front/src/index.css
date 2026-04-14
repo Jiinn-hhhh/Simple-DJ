@@ -752,6 +752,10 @@ body {
     .vinyl-disc {
         --vinyl-size: min(46cqi, 72cqb, 205px);
     }
+
+    .main-layout.library-open .vinyl-disc {
+        --vinyl-size: min(62cqi, 88cqb, 270px);
+    }
 }
 
 @media (min-width: 1800px) {
