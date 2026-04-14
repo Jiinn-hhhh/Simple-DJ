@@ -52,11 +52,22 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     }
   }, [audioPlayerRef, trackA, trackB, setMasterBpm]);
 
+  const resetDeckPlaybackState = useCallback((deckId) => {
+    const ds = deckState(deckId);
+    const ap = audioPlayerRef.current;
+
+    ap.stop(deckId);
+    ap.pauseOffsets[deckId] = 0;
+    ap.startTimes[deckId] = null;
+    ds.setPlaying(false);
+  }, [audioPlayerRef, deckState]);
+
   // --- Load track from file (analyze → play → separate) ---
   const loadTrack = useCallback(async (deckId, file) => {
     const ds = deckState(deckId);
     setStatus(`LOADING ${file.name.toUpperCase()}...`);
     ds.setLoadingFile(file.name);
+    resetDeckPlaybackState(deckId);
 
     try {
       setStatus('ANALYZING...');
@@ -89,7 +100,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     } finally {
       ds.setLoadingFile(null);
     }
-  }, [deckState, audioPlayerRef, masterBpm, syncBpm, setStatus]);
+  }, [deckState, audioPlayerRef, masterBpm, syncBpm, setStatus, resetDeckPlaybackState]);
 
   // --- Separate track into stems ---
   const separateTrack = useCallback(async (deckId, file, trackData, bpmToUse) => {
@@ -156,6 +167,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     const loadingLabel = libraryTrack.original_filename || libraryTrack.title || 'TRACK';
     setStatus(`LOADING ${libraryTrack.title.toUpperCase()}...`);
     ds.setLoadingFile(loadingLabel);
+    resetDeckPlaybackState(deckId);
     try {
       const stemUrls = await getStemUrls(libraryTrack);
       if (!stemUrls) throw new Error('Failed to get stem URLs');
@@ -187,7 +199,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     } finally {
       ds.setLoadingFile(null);
     }
-  }, [deckState, audioPlayerRef, syncBpm, getStemUrls, setStatus]);
+  }, [deckState, audioPlayerRef, syncBpm, getStemUrls, setStatus, resetDeckPlaybackState]);
 
   // --- Playback ---
   const togglePlay = useCallback(async (deckId) => {
