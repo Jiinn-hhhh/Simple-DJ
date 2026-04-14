@@ -65,10 +65,17 @@ function App() {
 
   // --- System init ---
   useEffect(() => {
-    // Bypass backend connection for UI design tasks
-    setHfSpaceUrl("");
-    setStatus("SYSTEM READY");
-    setIsSystemReady(true);
+    initSystem()
+      .then(({ hfSpaceUrl: url }) => {
+        setHfSpaceUrl(url);
+        setStatus("SYSTEM READY");
+        setIsSystemReady(true);
+      })
+      .catch((err) => {
+        console.error("System init error:", err);
+        setStatus("OFFLINE");
+        setIsSystemReady(false);
+      });
 
     return () => audioPlayerRef.current?.cleanup();
   }, []);
@@ -134,8 +141,6 @@ function App() {
   // --- Guard wrapper for deck/mixer actions ---
   const guard = (fn) => (...args) => { if (isSystemReady) fn(...args); };
 
-  const dummyTrack = { id: 'dummy', filename: 'DUMMY TRACK FOR UI DESIGN', bpm: 128, key: '8A', duration: 300, separated: true };
-
   // --- Render ---
   return (
     <div className="app-container">
@@ -145,7 +150,7 @@ function App() {
             LOADING...
           </div>
         </div>
-      ) : false ? (
+      ) : !user ? (
         <AuthScreen onSignIn={signIn} onSignUp={signUp} onSignInWithGoogle={signInWithGoogle} />
       ) : (
         <div className={`main-layout ${isLibraryOpen ? 'library-open' : ''}`}>
@@ -255,7 +260,7 @@ function App() {
             <div className="console-layout" style={{ opacity: isSystemReady ? 1 : 0.3, pointerEvents: isSystemReady ? 'auto' : 'none' }}>
               <Deck
                 deckId="A"
-                track={decks.trackA || dummyTrack}
+                track={decks.trackA}
                 isPlaying={decks.isPlayingA}
                 playbackRate={getPlaybackRate(decks.trackA, masterBpm)}
                 effectiveKey={keyLockA ? decks.trackA?.key : getShiftedKey(decks.trackA?.key, decks.trackA?.bpm, masterBpm)}
@@ -275,7 +280,7 @@ function App() {
                 onScratchMove={handleScratchMove}
                 onScratchEnd={handleScratchEnd}
                 visualizerNode={audioPlayerRef.current.getAnalyser('A')}
-                loadingTrack={decks.loadingFileA || 'dummy_test_track_for_design.mp3'}
+                loadingTrack={decks.loadingFileA}
                 quantizeEnabled={decks.quantizeA}
                 onToggleQuantize={() => guard(decks.toggleQuantize)('A')}
                 hotCues={hotCues.hotCuesA}
@@ -319,7 +324,7 @@ function App() {
 
               <Deck
                 deckId="B"
-                track={decks.trackB || dummyTrack}
+                track={decks.trackB}
                 isPlaying={decks.isPlayingB}
                 playbackRate={getPlaybackRate(decks.trackB, masterBpm)}
                 effectiveKey={keyLockB ? decks.trackB?.key : getShiftedKey(decks.trackB?.key, decks.trackB?.bpm, masterBpm)}
