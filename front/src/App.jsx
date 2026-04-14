@@ -227,6 +227,18 @@ function App() {
                   onStopVideo={recorder.stopVideoRecording}
                   onCancel={recorder.cancelRecordingCountdown}
                 />
+                {recorder.videoStatusMessage && (
+                  <div
+                    className="status-bar"
+                    style={{
+                      color: 'var(--neon-pink)',
+                      borderColor: 'var(--neon-pink)',
+                      background: 'rgba(255, 0, 85, 0.12)',
+                    }}
+                  >
+                    {recorder.videoStatusMessage}
+                  </div>
+                )}
                 <button onClick={() => setShowHelp(true)} className="topbar-btn help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
                 <button onClick={signOut} className="topbar-btn logout-btn pixel-font">LOGOUT</button>
               </div>
