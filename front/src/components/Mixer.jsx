@@ -1,21 +1,6 @@
 import React from 'react';
 import XYPad from './XYPad';
 
-const ReloadGunIcon = () => (
-  <svg
-    viewBox="0 0 64 32"
-    width="22"
-    height="12"
-    aria-hidden="true"
-    style={{ marginBottom: '3px' }}
-  >
-    <path
-      d="M4 14h18l7-6h11l5 4h8v8h-7l-3 6h-7l2-6H27l-5 5H10l2-5H4z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
 const Mixer = ({
   crossfader,
   onCrossfaderChange,
@@ -158,7 +143,7 @@ const Mixer = ({
               className="glass-btn sampler-glass-btn"
               title="Reload"
             >
-              <ReloadGunIcon />
+              <span style={{ fontSize: '1.05rem', marginBottom: '2px' }}>🔫</span>
               <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>LOAD</span>
             </button>
             <button
