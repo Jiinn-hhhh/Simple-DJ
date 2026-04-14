@@ -1,6 +1,6 @@
 // hooks/useMixer.js — Mixer, crossfader, EQ, filter, BPM, effects
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export default function useMixer(audioPlayerRef, trackA, trackB) {
   const [volumeA, setVolumeA] = useState(1.0);
@@ -97,6 +97,10 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
     if (type === 'down') audioPlayerRef.current.playDown();
     if (type === 'yea') audioPlayerRef.current.playYea();
   }, [audioPlayerRef, effectVolume]);
+
+  useEffect(() => {
+    applyVolumes(volumeA, volumeB, crossfader, masterVolume);
+  }, [volumeA, volumeB, crossfader, masterVolume, trackA?.id, trackB?.id, applyVolumes]);
 
   return {
     volumeA, volumeB, crossfader, filterA, filterB,

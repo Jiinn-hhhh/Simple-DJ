@@ -54,7 +54,6 @@ function App() {
   const {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume, masterBpm,
-    setCrossfader,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
     handleEffectVolumeChange,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
@@ -113,8 +112,8 @@ function App() {
       if (lower === 's') { decks.togglePlay('A'); return; }
       if (lower === 'l') { decks.togglePlay('B'); return; }
       if (key === ' ') { e.preventDefault(); decks.togglePlay(decks.isPlayingA ? 'A' : decks.isPlayingB ? 'B' : 'A'); return; }
-      if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.05)); return; }
-      if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.05)); return; }
+      if (key === 'ArrowLeft') { handleCrossfaderChange(Math.max(0, crossfader - 0.05)); return; }
+      if (key === 'ArrowRight') { handleCrossfaderChange(Math.min(1, crossfader + 0.05)); return; }
       if (key === 'Tab') { e.preventDefault(); setIsLibraryOpen(prev => !prev); return; }
       if (lower === 'q') { setIsQuantizeEnabled(prev => !prev); return; }
       if (lower === 'w') { decks.toggleSlipMode('A'); return; }
@@ -134,7 +133,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleMasterBpmChange, setCrossfader]);
+  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleMasterBpmChange, handleCrossfaderChange, crossfader]);
 
   // --- Loop Roll ---
   const loopRoll = useLoopRoll(audioPlayerRef);

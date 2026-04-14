@@ -17,6 +17,7 @@ class AudioPlayer {
     this.stemGainNodes = {};
     // Structure: { trackId: GainNode } (Master gain for the track)
     this.trackGainNodes = {};
+    this.desiredTrackVolumes = {};
     // Structure: { trackId: BiquadFilterNode }
     this.trackFilterNodes = {};
     // Structure: { trackId: { low: Gain, ... } }
@@ -245,7 +246,7 @@ class AudioPlayer {
     if (!this.trackGainNodes[trackId]) {
       // Master Gain for Track
       const trackGain = this.audioContext.createGain();
-      trackGain.gain.value = 1.0;
+      trackGain.gain.value = this.desiredTrackVolumes[trackId] ?? 1.0;
 
       this.trackEqNodes[trackId] = {
         lowGain: this.audioContext.createGain(),
@@ -486,11 +487,18 @@ class AudioPlayer {
   }
 
   setVolume(trackId, volume) {
+    const nextVolume = Math.max(0, Math.min(1, volume));
+    this.desiredTrackVolumes[trackId] = nextVolume;
+
+    if (!this.audioContext) {
+      return;
+    }
+
     this.setupTrackGraph(trackId);
     const gainNode = this.trackGainNodes[trackId];
     const currentTime = this.audioContext.currentTime;
     gainNode.gain.cancelScheduledValues(currentTime);
-    gainNode.gain.setTargetAtTime(Math.max(0, Math.min(1, volume)), currentTime, 0.05);
+    gainNode.gain.setTargetAtTime(nextVolume, currentTime, 0.05);
   }
 
   setPlaybackRate(trackId, rate) {
