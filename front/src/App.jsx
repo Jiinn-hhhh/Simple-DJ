@@ -24,7 +24,7 @@ function App() {
     uploadQueueInfo, cancelProcessingTrack, clearQueue
   } = useLibrary(user);
 
-  const [status, setStatus] = useState("INSERT COIN");
+  const [status, setStatus] = useState("SYSTEM LOADING...");
   const [isSystemReady, setIsSystemReady] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [helpTab, setHelpTab] = useState('guide');
@@ -169,7 +169,7 @@ function App() {
       {authLoading ? (
         <div className="loading-overlay">
           <div className="pixel-font" style={{ fontSize: '1.5rem', color: 'var(--neon-green)', textAlign: 'center' }}>
-            LOADING...
+            SYSTEM LOADING...
           </div>
         </div>
       ) : !user ? (
