@@ -11,6 +11,7 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
   const [eqA, setEqA] = useState({ high: 100, mid: 100, low: 100 });
   const [eqB, setEqB] = useState({ high: 100, mid: 100, low: 100 });
   const [masterVolume, setMasterVolume] = useState(1.0);
+  const [effectVolume, setEffectVolume] = useState(1.0);
   const [masterBpm, setMasterBpm] = useState(128);
   const [keyLockA, setKeyLockA] = useState(false);
   const [keyLockB, setKeyLockB] = useState(false);
@@ -39,6 +40,12 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
     setMasterVolume(val);
     applyVolumes(volumeA, volumeB, crossfader, val);
   }, [volumeA, volumeB, crossfader, applyVolumes]);
+
+  const handleEffectVolumeChange = useCallback((val) => {
+    const next = Math.max(0, Math.min(1, val));
+    setEffectVolume(next);
+    audioPlayerRef.current.setSamplerVolume?.(next);
+  }, [audioPlayerRef]);
 
   // --- EQ ---
   const handleEqChange = useCallback((deckId, band, val) => {
@@ -82,19 +89,21 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
   }, [audioPlayerRef]);
 
   const triggerSampler = useCallback((type) => {
+    audioPlayerRef.current.setSamplerVolume?.(effectVolume);
     if (type === 'airhorn') audioPlayerRef.current.playAirHorn();
     if (type === 'siren') audioPlayerRef.current.playSiren();
     if (type === 'reload') audioPlayerRef.current.playReload();
     if (type === 'gunshot') audioPlayerRef.current.playGunshot();
     if (type === 'down') audioPlayerRef.current.playDown();
     if (type === 'yea') audioPlayerRef.current.playYea();
-  }, [audioPlayerRef]);
+  }, [audioPlayerRef, effectVolume]);
 
   return {
     volumeA, volumeB, crossfader, filterA, filterB,
-    eqA, eqB, masterVolume, masterBpm, setMasterBpm,
+    eqA, eqB, masterVolume, effectVolume, masterBpm, setMasterBpm,
     setCrossfader,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
+    handleEffectVolumeChange,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,

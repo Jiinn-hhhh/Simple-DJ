@@ -7,6 +7,12 @@ const SAMPLER_SAMPLE_URLS = {
   yea: '/sfx/yea.wav',
 };
 
+function getSamplerVolumeLevel() {
+  return typeof this.samplerVolume === 'number'
+    ? Math.max(0, Math.min(1, this.samplerVolume))
+    : 1;
+}
+
 async function ensureSamplerAudioContext() {
   if (!this.audioContext || this.audioContext.state === 'closed') {
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -68,9 +74,13 @@ async function playSamplerBuffer(sampleKey, gainValue = 0.9) {
   source.buffer = buffer;
   source.connect(gain);
   gain.connect(this.masterNodes.input);
-  gain.gain.setValueAtTime(gainValue, this.audioContext.currentTime);
+  gain.gain.setValueAtTime(gainValue * getSamplerVolumeLevel.call(this), this.audioContext.currentTime);
 
   source.start();
+}
+
+export function setSamplerVolume(volume) {
+  this.samplerVolume = Math.max(0, Math.min(1, volume));
 }
 
 export async function preloadSamplerSamples() {
@@ -91,7 +101,7 @@ export async function playAirHorn() {
 
   const mainGain = this.audioContext.createGain();
   mainGain.connect(this.masterNodes.input);
-  mainGain.gain.setValueAtTime(0.8, t);
+  mainGain.gain.setValueAtTime(0.8 * getSamplerVolumeLevel.call(this), t);
   mainGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
 
   freqs.forEach(f => {
@@ -135,8 +145,9 @@ export async function playSiren() {
   lfo.start(t);
   osc.start(t);
 
-  gain.gain.setValueAtTime(0.5, t);
-  gain.gain.linearRampToValueAtTime(0.5, t + 0.6);
+  const level = getSamplerVolumeLevel.call(this);
+  gain.gain.setValueAtTime(0.5 * level, t);
+  gain.gain.linearRampToValueAtTime(0.5 * level, t + 0.6);
   gain.gain.exponentialRampToValueAtTime(0.01, t + 1.0);
 
   osc.stop(t + 1.0);

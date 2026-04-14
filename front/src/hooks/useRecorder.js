@@ -64,10 +64,14 @@ export default function useRecorder(audioPlayerRef) {
   const countdownTimerRef = useRef(null);
   const videoScreenStreamRef = useRef(null);
   const pendingScreenStreamRef = useRef(null);
+  const combinedVideoStreamRef = useRef(null);
   const videoMimeTypeRef = useRef('video/webm');
   const videoFileExtRef = useRef('webm');
   const videoStartedAtRef = useRef(0);
   const videoPickerInProgressRef = useRef(false);
+  const videoStopPromiseRef = useRef(null);
+  const videoStopResolveRef = useRef(null);
+  const videoStateRef = useRef('idle');
 
   const startTimer = () => {
     startTimeRef.current = Date.now();
@@ -97,6 +101,65 @@ export default function useRecorder(audioPlayerRef) {
     ap.initMasterBus();
     return ap;
   }, [audioPlayerRef]);
+
+  const createVideoStopPromise = useCallback(() => {
+    if (videoStopPromiseRef.current) return videoStopPromiseRef.current;
+    videoStopPromiseRef.current = new Promise((resolve) => {
+      videoStopResolveRef.current = resolve;
+    });
+    return videoStopPromiseRef.current;
+  }, []);
+
+  const resolveVideoStopPromise = useCallback(() => {
+    if (!videoStopResolveRef.current) return;
+    const resolve = videoStopResolveRef.current;
+    videoStopResolveRef.current = null;
+    videoStopPromiseRef.current = null;
+    resolve();
+  }, []);
+
+  const cleanupVideoSession = useCallback(({
+    stopPending = true,
+    stopScreen = true,
+    stopCombined = true,
+  } = {}) => {
+    const recorder = mediaRecorderRef.current;
+    const pendingStream = pendingScreenStreamRef.current;
+    const screenStream = videoScreenStreamRef.current;
+    const combinedStream = combinedVideoStreamRef.current;
+
+    pendingStream?.getVideoTracks().forEach((track) => {
+      track.onended = null;
+    });
+    screenStream?.getVideoTracks().forEach((track) => {
+      track.onended = null;
+    });
+
+    if (recorder) {
+      recorder.onstart = null;
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      recorder.onerror = null;
+    }
+
+    if (stopPending) pendingStream?.getTracks().forEach((track) => track.stop());
+    if (stopScreen) screenStream?.getTracks().forEach((track) => track.stop());
+    if (stopCombined) combinedStream?.getTracks().forEach((track) => track.stop());
+
+    chunksRef.current = [];
+    mediaRecorderRef.current = null;
+    pendingScreenStreamRef.current = null;
+    videoScreenStreamRef.current = null;
+    combinedVideoStreamRef.current = null;
+    videoStartedAtRef.current = 0;
+    videoMimeTypeRef.current = 'video/webm';
+    videoFileExtRef.current = 'webm';
+    videoPickerInProgressRef.current = false;
+    videoStateRef.current = 'idle';
+    setIsRecordingVideo(false);
+    stopTimer();
+    resolveVideoStopPromise();
+  }, [resolveVideoStopPromise]);
 
   // --- Countdown helper ---
   const runCountdown = useCallback((onComplete) => {
@@ -224,14 +287,13 @@ export default function useRecorder(audioPlayerRef) {
   // --- Video Recording (MP4/WebM) ---
   const _startVideoRecordingImpl = useCallback(async () => {
     const screenStream = pendingScreenStreamRef.current;
-    if (!screenStream) return;
+    if (!screenStream || videoStateRef.current !== 'countdown') return;
 
     try {
       await ensureAudioEngine();
       const videoTrack = screenStream.getVideoTracks()[0];
-      if (!videoTrack) {
-        screenStream.getTracks().forEach((t) => t.stop());
-        pendingScreenStreamRef.current = null;
+      if (!videoTrack || videoTrack.readyState !== 'live') {
+        cleanupVideoSession({ stopPending: true, stopScreen: false, stopCombined: false });
         return;
       }
 
@@ -239,10 +301,13 @@ export default function useRecorder(audioPlayerRef) {
       const audioStream = audioPlayerRef.current?.getOutputStream();
       const tracks = [...screenStream.getVideoTracks()];
       if (audioStream) {
-        audioStream.getAudioTracks().forEach(t => tracks.push(t));
+        audioStream.getAudioTracks().forEach((track) => {
+          tracks.push(typeof track.clone === 'function' ? track.clone() : track);
+        });
       }
 
       const combinedStream = new MediaStream(tracks);
+      combinedVideoStreamRef.current = combinedStream;
       chunksRef.current = [];
 
       // Try MP4 first (Safari), fall back to WebM
@@ -265,8 +330,16 @@ export default function useRecorder(audioPlayerRef) {
       videoFileExtRef.current = fileExt;
       videoScreenStreamRef.current = screenStream;
       pendingScreenStreamRef.current = null;
-      videoStartedAtRef.current = Date.now();
       mediaRecorderRef.current = recorder;
+      videoStateRef.current = 'starting';
+      createVideoStopPromise();
+
+      recorder.onstart = () => {
+        videoStartedAtRef.current = Date.now();
+        videoStateRef.current = 'recording';
+        setIsRecordingVideo(true);
+        startTimer();
+      };
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -281,52 +354,40 @@ export default function useRecorder(audioPlayerRef) {
           const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
           download(blob, `SimpleDJ-session-${timestamp}.${videoFileExtRef.current}`);
         }
-
-        chunksRef.current = [];
-        videoStartedAtRef.current = 0;
-        videoScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
-        videoScreenStreamRef.current = null;
-        mediaRecorderRef.current = null;
-        setIsRecordingVideo(false);
-        stopTimer();
+        cleanupVideoSession({ stopPending: false, stopScreen: true, stopCombined: true });
       };
 
-      videoTrack.onended = () => {
-        if (pendingScreenStreamRef.current === screenStream) {
-          pendingScreenStreamRef.current = null;
-          clearCountdown();
-          return;
-        }
-        if (mediaRecorderRef.current?.state === 'recording') {
-          mediaRecorderRef.current.stop();
+      recorder.onerror = (event) => {
+        console.error('Video recorder error:', event.error || event);
+        if (recorder.state !== 'inactive') {
+          videoStateRef.current = 'stopping';
+          recorder.stop();
+        } else {
+          cleanupVideoSession({ stopPending: false, stopScreen: true, stopCombined: true });
         }
       };
 
       recorder.start(100);
-      setIsRecordingVideo(true);
-      startTimer();
     } catch (err) {
       console.error('Screen recording error:', err);
-      screenStream.getTracks().forEach((t) => t.stop());
-      pendingScreenStreamRef.current = null;
-      videoScreenStreamRef.current = null;
-      mediaRecorderRef.current = null;
-      setIsRecordingVideo(false);
-      stopTimer();
+      cleanupVideoSession({ stopPending: true, stopScreen: true, stopCombined: true });
     }
-  }, [audioPlayerRef, ensureAudioEngine, stopTimer, clearCountdown]);
+  }, [audioPlayerRef, cleanupVideoSession, createVideoStopPromise, ensureAudioEngine]);
 
   const startVideoRecording = useCallback(async () => {
     if (
       isRecordingVideo ||
       countdown != null ||
+      videoStateRef.current !== 'idle' ||
       mediaRecorderRef.current?.state === 'recording' ||
       pendingScreenStreamRef.current ||
+      videoStopPromiseRef.current ||
       videoPickerInProgressRef.current
     ) {
       return;
     }
 
+    videoStateRef.current = 'picking';
     videoPickerInProgressRef.current = true;
 
     try {
@@ -336,47 +397,61 @@ export default function useRecorder(audioPlayerRef) {
       });
 
       const videoTrack = screenStream.getVideoTracks()[0];
-      if (!videoTrack) {
-        screenStream.getTracks().forEach((t) => t.stop());
+      if (!videoTrack || videoTrack.readyState !== 'live') {
+        cleanupVideoSession({ stopPending: false, stopScreen: true, stopCombined: false });
         return;
       }
 
+      videoTrack.onended = () => {
+        if (pendingScreenStreamRef.current === screenStream) {
+          clearCountdown();
+          cleanupVideoSession({ stopPending: false, stopScreen: false, stopCombined: false });
+          return;
+        }
+
+        const recorder = mediaRecorderRef.current;
+        if (recorder && recorder.state !== 'inactive') {
+          videoStateRef.current = 'stopping';
+          createVideoStopPromise();
+          recorder.stop();
+          return;
+        }
+
+        cleanupVideoSession({ stopPending: false, stopScreen: false, stopCombined: true });
+      };
+
       pendingScreenStreamRef.current = screenStream;
       await ensureAudioEngine();
+      videoStateRef.current = 'countdown';
       runCountdown(_startVideoRecordingImpl);
     } catch (err) {
       console.error('Screen selection error:', err);
-      pendingScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
-      pendingScreenStreamRef.current = null;
+      cleanupVideoSession({ stopPending: true, stopScreen: true, stopCombined: false });
     } finally {
       videoPickerInProgressRef.current = false;
     }
-  }, [isRecordingVideo, countdown, runCountdown, _startVideoRecordingImpl, ensureAudioEngine]);
+  }, [isRecordingVideo, countdown, runCountdown, _startVideoRecordingImpl, ensureAudioEngine, clearCountdown, cleanupVideoSession, createVideoStopPromise]);
 
   const stopVideoRecording = useCallback(() => {
     if (clearCountdown()) {
-      pendingScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
-      pendingScreenStreamRef.current = null;
+      cleanupVideoSession({ stopPending: true, stopScreen: false, stopCombined: false });
       return;
     }
 
-    if (mediaRecorderRef.current?.state === 'recording') {
+    if (mediaRecorderRef.current?.state === 'recording' || mediaRecorderRef.current?.state === 'paused') {
+      videoStateRef.current = 'stopping';
+      createVideoStopPromise();
       mediaRecorderRef.current.stop();
     } else {
-      videoScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
-      videoScreenStreamRef.current = null;
-      mediaRecorderRef.current = null;
-      setIsRecordingVideo(false);
-      stopTimer();
+      cleanupVideoSession({ stopPending: true, stopScreen: true, stopCombined: true });
     }
-  }, [clearCountdown]);
+  }, [clearCountdown, cleanupVideoSession, createVideoStopPromise]);
 
   const cancelRecordingCountdown = useCallback(() => {
     if (clearCountdown()) {
-      pendingScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
-      pendingScreenStreamRef.current = null;
+      cleanupVideoSession({ stopPending: true, stopScreen: false, stopCombined: false });
     }
-  }, [clearCountdown]);
+  }, [clearCountdown, cleanupVideoSession]);
 
   return {
     isRecordingAudio, isRecordingVideo, recordingTime, countdown,

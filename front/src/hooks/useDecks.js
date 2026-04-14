@@ -152,12 +152,14 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     const otherTrack = deckId === 'A' ? trackB : trackA;
     if (otherTrack?.id && otherTrack.id === libraryTrack.id) return;
 
+    const ds = deckState(deckId);
+    const loadingLabel = libraryTrack.original_filename || libraryTrack.title || 'TRACK';
     setStatus(`LOADING ${libraryTrack.title.toUpperCase()}...`);
+    ds.setLoadingFile(loadingLabel);
     try {
       const stemUrls = await getStemUrls(libraryTrack);
       if (!stemUrls) throw new Error('Failed to get stem URLs');
 
-      const ds = deckState(deckId);
       ds.setTrack({
         id: libraryTrack.id,
         filename: libraryTrack.original_filename,
@@ -182,6 +184,8 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     } catch (err) {
       console.error('Library load error:', err);
       setStatus('ERROR: ' + err.message);
+    } finally {
+      ds.setLoadingFile(null);
     }
   }, [deckState, audioPlayerRef, syncBpm, getStemUrls, setStatus]);
 

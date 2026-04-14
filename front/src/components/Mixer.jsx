@@ -18,7 +18,9 @@ const Mixer = ({
   masterBpm,
   onBpmChange,
   masterVolume,
+  effectVolume,
   onMasterVolumeChange,
+  onEffectVolumeChange,
   onMasterEffect,
   onTriggerSampler,
   quantizeEnabled,
@@ -128,6 +130,19 @@ const Mixer = ({
           >
             QUANTIZE
           </button>
+
+          <div className="control-group" style={{ width: '100%', marginBottom: '8px' }}>
+            <label className="mixer-label">SFX VOL</label>
+            <div className="filter-display">{Math.round(effectVolume * 100)}%</div>
+            <input
+              type="range"
+              min="0" max="1" step="0.01"
+              value={effectVolume}
+              onChange={(e) => onEffectVolumeChange(parseFloat(e.target.value))}
+              className="knob-slider-horizontal"
+              title={`Sampler Volume: ${Math.round(effectVolume * 100)}%`}
+            />
+          </div>
 
           {/* SAMPLER BUTTONS */}
           <div className="sampler-grid">

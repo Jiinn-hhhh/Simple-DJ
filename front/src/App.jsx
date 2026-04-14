@@ -53,9 +53,10 @@ function App() {
   // Use mixerWithTracks for BPM-related handlers that need track refs
   const {
     volumeA, volumeB, crossfader, filterA, filterB,
-    eqA, eqB, masterVolume, masterBpm,
+    eqA, eqB, masterVolume, effectVolume, masterBpm,
     setCrossfader,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
+    handleEffectVolumeChange,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,
@@ -346,7 +347,9 @@ function App() {
                 masterBpm={masterBpm}
                 onBpmChange={guard(handleMasterBpmChange)}
                 masterVolume={masterVolume}
+                effectVolume={effectVolume}
                 onMasterVolumeChange={guard(handleMasterVolumeChange)}
+                onEffectVolumeChange={guard(handleEffectVolumeChange)}
                 onMasterEffect={guard(handleMasterEffect)}
                 onTriggerSampler={guard(triggerSampler)}
                 quantizeEnabled={isQuantizeEnabled}
