@@ -84,6 +84,10 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
   const triggerSampler = useCallback((type) => {
     if (type === 'airhorn') audioPlayerRef.current.playAirHorn();
     if (type === 'siren') audioPlayerRef.current.playSiren();
+    if (type === 'reload') audioPlayerRef.current.playReload();
+    if (type === 'gunshot') audioPlayerRef.current.playGunshot();
+    if (type === 'down') audioPlayerRef.current.playDown();
+    if (type === 'yea') audioPlayerRef.current.playYea();
   }, [audioPlayerRef]);
 
   return {

@@ -1,4 +1,55 @@
-// audio/sampler.js — Synth-based sampler sounds (air horn, siren)
+// audio/sampler.js — Synth-based sampler sounds + file-backed one-shots
+
+const SAMPLER_SAMPLE_URLS = {
+  reload: '/sfx/reload.wav',
+  gunshot: '/sfx/gunshot.wav',
+  down: '/sfx/down.wav',
+  yea: '/sfx/yea.wav',
+};
+
+async function getSamplerBuffer(sampleKey) {
+  if (!this.audioContext) await this.init();
+
+  if (!this.samplerBuffers) {
+    this.samplerBuffers = {};
+  }
+
+  if (this.samplerBuffers[sampleKey]) {
+    return this.samplerBuffers[sampleKey];
+  }
+
+  const url = SAMPLER_SAMPLE_URLS[sampleKey];
+  if (!url) {
+    throw new Error(`Unknown sampler sample: ${sampleKey}`);
+  }
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load sampler sample: ${sampleKey}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = await this.audioContext.decodeAudioData(arrayBuffer.slice(0));
+  this.samplerBuffers[sampleKey] = buffer;
+  return buffer;
+}
+
+async function playSamplerBuffer(sampleKey, gainValue = 0.9) {
+  if (!this.audioContext) await this.init();
+  this.initMasterBus();
+  if (this.audioContext.state === 'suspended') await this.audioContext.resume();
+
+  const buffer = await getSamplerBuffer.call(this, sampleKey);
+  const source = this.audioContext.createBufferSource();
+  const gain = this.audioContext.createGain();
+
+  source.buffer = buffer;
+  source.connect(gain);
+  gain.connect(this.masterNodes.input);
+  gain.gain.setValueAtTime(gainValue, this.audioContext.currentTime);
+
+  source.start();
+}
 
 export async function playAirHorn() {
   if (!this.audioContext) await this.init();
@@ -61,4 +112,20 @@ export async function playSiren() {
 
   osc.stop(t + 1.0);
   lfo.stop(t + 1.0);
+}
+
+export async function playReload() {
+  await playSamplerBuffer.call(this, 'reload', 0.9);
+}
+
+export async function playGunshot() {
+  await playSamplerBuffer.call(this, 'gunshot', 0.95);
+}
+
+export async function playDown() {
+  await playSamplerBuffer.call(this, 'down', 0.85);
+}
+
+export async function playYea() {
+  await playSamplerBuffer.call(this, 'yea', 0.9);
 }

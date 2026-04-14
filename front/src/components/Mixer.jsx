@@ -121,7 +121,7 @@ const Mixer = ({
         <div className="mixer-column center-fx" style={{ flex: '1 1 180px', maxWidth: '240px', minWidth: '120px' }}>
 
           {/* SAMPLER BUTTONS */}
-          <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '15px' }}>
+          <div className="sampler-grid">
             <button
               onClick={() => onTriggerSampler('airhorn')}
               className="glass-btn sampler-glass-btn"
@@ -137,6 +137,38 @@ const Mixer = ({
             >
               <span style={{ fontSize: '1.2rem', marginBottom: '2px' }}>🚨</span>
               <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>SIREN</span>
+            </button>
+            <button
+              onClick={() => onTriggerSampler('reload')}
+              className="glass-btn sampler-glass-btn"
+              title="Reload"
+            >
+              <span style={{ fontSize: '1.05rem', marginBottom: '2px' }}>⟳</span>
+              <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>LOAD</span>
+            </button>
+            <button
+              onClick={() => onTriggerSampler('gunshot')}
+              className="glass-btn sampler-glass-btn"
+              title="Gunshot"
+            >
+              <span style={{ fontSize: '1.05rem', marginBottom: '2px' }}>💥</span>
+              <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>SHOT</span>
+            </button>
+            <button
+              onClick={() => onTriggerSampler('down')}
+              className="glass-btn sampler-glass-btn"
+              title="Down"
+            >
+              <span style={{ fontSize: '1.05rem', marginBottom: '2px' }}>⬇</span>
+              <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>DOWN</span>
+            </button>
+            <button
+              onClick={() => onTriggerSampler('yea')}
+              className="glass-btn sampler-glass-btn"
+              title="Yea"
+            >
+              <span style={{ fontSize: '1.05rem', marginBottom: '2px' }}>🗣</span>
+              <span className="pixel-font" style={{ fontSize: '0.45rem', opacity: 0.7 }}>YEA</span>
             </button>
           </div>
 
