@@ -750,7 +750,7 @@ body {
 
 @media (max-width: 1366px) {
     .vinyl-disc {
-        --vinyl-size: min(82cqb, 240px);
+        --vinyl-size: min(74cqb, 210px);
     }
 }
 
@@ -1306,7 +1306,7 @@ body {
 
 @media (max-width: 1366px) and (max-height: 960px) {
     .vinyl-disc {
-        --vinyl-size: min(82cqb, 240px);
+        --vinyl-size: min(74cqb, 210px);
     }
 }
 
