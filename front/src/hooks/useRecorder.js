@@ -63,9 +63,11 @@ export default function useRecorder(audioPlayerRef) {
   const pcmBuffersRef = useRef([]);
   const countdownTimerRef = useRef(null);
   const videoScreenStreamRef = useRef(null);
+  const pendingScreenStreamRef = useRef(null);
   const videoMimeTypeRef = useRef('video/webm');
   const videoFileExtRef = useRef('webm');
   const videoStartedAtRef = useRef(0);
+  const videoPickerInProgressRef = useRef(false);
 
   const startTimer = () => {
     startTimeRef.current = Date.now();
@@ -221,16 +223,15 @@ export default function useRecorder(audioPlayerRef) {
 
   // --- Video Recording (MP4/WebM) ---
   const _startVideoRecordingImpl = useCallback(async () => {
+    const screenStream = pendingScreenStreamRef.current;
+    if (!screenStream) return;
+
     try {
       await ensureAudioEngine();
-
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: 'browser' },
-        audio: false,
-      });
       const videoTrack = screenStream.getVideoTracks()[0];
       if (!videoTrack) {
         screenStream.getTracks().forEach((t) => t.stop());
+        pendingScreenStreamRef.current = null;
         return;
       }
 
@@ -263,6 +264,7 @@ export default function useRecorder(audioPlayerRef) {
       videoMimeTypeRef.current = mimeType || recorder.mimeType || 'video/webm';
       videoFileExtRef.current = fileExt;
       videoScreenStreamRef.current = screenStream;
+      pendingScreenStreamRef.current = null;
       videoStartedAtRef.current = Date.now();
       mediaRecorderRef.current = recorder;
 
@@ -290,6 +292,11 @@ export default function useRecorder(audioPlayerRef) {
       };
 
       videoTrack.onended = () => {
+        if (pendingScreenStreamRef.current === screenStream) {
+          pendingScreenStreamRef.current = null;
+          clearCountdown();
+          return;
+        }
         if (mediaRecorderRef.current?.state === 'recording') {
           mediaRecorderRef.current.stop();
         }
@@ -300,21 +307,56 @@ export default function useRecorder(audioPlayerRef) {
       startTimer();
     } catch (err) {
       console.error('Screen recording error:', err);
+      screenStream.getTracks().forEach((t) => t.stop());
+      pendingScreenStreamRef.current = null;
+      videoScreenStreamRef.current = null;
+      mediaRecorderRef.current = null;
       setIsRecordingVideo(false);
       stopTimer();
     }
-  }, [audioPlayerRef, ensureAudioEngine, stopTimer]);
+  }, [audioPlayerRef, ensureAudioEngine, stopTimer, clearCountdown]);
 
-  const startVideoRecording = useCallback(() => {
-    if (isRecordingVideo || countdown != null) return;
-    void ensureAudioEngine().catch((err) => {
-      console.error('Audio engine init failed:', err);
-    });
-    runCountdown(_startVideoRecordingImpl);
+  const startVideoRecording = useCallback(async () => {
+    if (
+      isRecordingVideo ||
+      countdown != null ||
+      mediaRecorderRef.current?.state === 'recording' ||
+      pendingScreenStreamRef.current ||
+      videoPickerInProgressRef.current
+    ) {
+      return;
+    }
+
+    videoPickerInProgressRef.current = true;
+
+    try {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { displaySurface: 'browser' },
+        audio: false,
+      });
+
+      const videoTrack = screenStream.getVideoTracks()[0];
+      if (!videoTrack) {
+        screenStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      pendingScreenStreamRef.current = screenStream;
+      await ensureAudioEngine();
+      runCountdown(_startVideoRecordingImpl);
+    } catch (err) {
+      console.error('Screen selection error:', err);
+      pendingScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      pendingScreenStreamRef.current = null;
+    } finally {
+      videoPickerInProgressRef.current = false;
+    }
   }, [isRecordingVideo, countdown, runCountdown, _startVideoRecordingImpl, ensureAudioEngine]);
 
   const stopVideoRecording = useCallback(() => {
     if (clearCountdown()) {
+      pendingScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      pendingScreenStreamRef.current = null;
       return;
     }
 
@@ -330,7 +372,10 @@ export default function useRecorder(audioPlayerRef) {
   }, [clearCountdown]);
 
   const cancelRecordingCountdown = useCallback(() => {
-    clearCountdown();
+    if (clearCountdown()) {
+      pendingScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      pendingScreenStreamRef.current = null;
+    }
   }, [clearCountdown]);
 
   return {
