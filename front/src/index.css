@@ -750,7 +750,7 @@ body {
 
 @media (max-width: 1366px) {
     .vinyl-disc {
-        --vinyl-size: min(50cqi, 76cqb, 220px);
+        --vinyl-size: min(46cqi, 72cqb, 205px);
     }
 }
 
@@ -1267,7 +1267,7 @@ body {
     }
 
     .main-layout:not(.library-open) .vinyl-disc {
-        --vinyl-size: min(80cqi, 92cqb, 360px);
+        --vinyl-size: min(72cqi, 86cqb, 300px);
     }
 
     .main-layout:not(.library-open) .deck-controls {
