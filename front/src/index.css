@@ -827,8 +827,13 @@ body {
     gap: 3px;
     flex: 1;
     min-height: 0;
+    transition: opacity 0.15s ease;
 }
 
+.deck-controls-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
 
 .deck-empty-hint {
     text-align: center;

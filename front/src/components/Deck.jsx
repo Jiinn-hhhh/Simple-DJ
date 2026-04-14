@@ -142,6 +142,7 @@ const Deck = ({
 
     const spinDuration = playbackRate > 0 ? `${2 / playbackRate}s` : '2s';
     const hasTrack = Boolean(track);
+    const showDeckControls = hasTrack && !loadingTrack;
 
     const vinylClass = [
         'vinyl-disc',
@@ -238,7 +239,7 @@ const Deck = ({
                 )}
             </div>
 
-            <div className="deck-controls">
+            <div className={`deck-controls ${showDeckControls ? '' : 'deck-controls-hidden'}`}>
                 {hasTrack ? (
                     <>
                         <ColorWaveform

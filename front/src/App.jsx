@@ -80,6 +80,14 @@ function App() {
     return () => audioPlayerRef.current?.cleanup();
   }, []);
 
+  useEffect(() => {
+    if (!user || !isSystemReady) return;
+
+    audioPlayerRef.current.preloadSamplerSamples?.().catch((err) => {
+      console.error('Sampler preload failed:', err);
+    });
+  }, [user, isSystemReady]);
+
 
   // --- Hot Cues ---
   const hotCues = useHotCues(audioPlayerRef);

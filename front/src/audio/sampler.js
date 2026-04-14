@@ -7,15 +7,29 @@ const SAMPLER_SAMPLE_URLS = {
   yea: '/sfx/yea.wav',
 };
 
+async function ensureSamplerAudioContext() {
+  if (!this.audioContext || this.audioContext.state === 'closed') {
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  return this.audioContext;
+}
+
 async function getSamplerBuffer(sampleKey) {
-  if (!this.audioContext) await this.init();
+  await ensureSamplerAudioContext.call(this);
 
   if (!this.samplerBuffers) {
     this.samplerBuffers = {};
   }
+  if (!this.samplerBufferPromises) {
+    this.samplerBufferPromises = {};
+  }
 
   if (this.samplerBuffers[sampleKey]) {
     return this.samplerBuffers[sampleKey];
+  }
+  if (this.samplerBufferPromises[sampleKey]) {
+    return this.samplerBufferPromises[sampleKey];
   }
 
   const url = SAMPLER_SAMPLE_URLS[sampleKey];
@@ -23,15 +37,23 @@ async function getSamplerBuffer(sampleKey) {
     throw new Error(`Unknown sampler sample: ${sampleKey}`);
   }
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to load sampler sample: ${sampleKey}`);
-  }
+  this.samplerBufferPromises[sampleKey] = (async () => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to load sampler sample: ${sampleKey}`);
+    }
 
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = await this.audioContext.decodeAudioData(arrayBuffer.slice(0));
-  this.samplerBuffers[sampleKey] = buffer;
-  return buffer;
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = await this.audioContext.decodeAudioData(arrayBuffer.slice(0));
+    this.samplerBuffers[sampleKey] = buffer;
+    return buffer;
+  })();
+
+  try {
+    return await this.samplerBufferPromises[sampleKey];
+  } finally {
+    delete this.samplerBufferPromises[sampleKey];
+  }
 }
 
 async function playSamplerBuffer(sampleKey, gainValue = 0.9) {
@@ -49,6 +71,13 @@ async function playSamplerBuffer(sampleKey, gainValue = 0.9) {
   gain.gain.setValueAtTime(gainValue, this.audioContext.currentTime);
 
   source.start();
+}
+
+export async function preloadSamplerSamples() {
+  await ensureSamplerAudioContext.call(this);
+  await Promise.all(
+    Object.keys(SAMPLER_SAMPLE_URLS).map((sampleKey) => getSamplerBuffer.call(this, sampleKey))
+  );
 }
 
 export async function playAirHorn() {
