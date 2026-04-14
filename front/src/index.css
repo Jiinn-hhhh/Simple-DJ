@@ -714,15 +714,10 @@ body {
 }
 
 .vinyl-disc {
-    width: 65%;
-    /* Relative to container */
-    max-width: 280px;
-    max-height: 90%;
-    /* Grows with container, capped */
+    height: 90%;
     aspect-ratio: 1/1;
-    /* Keep circle */
-    height: auto;
-    /* Let aspect ratio define height */
+    width: auto;
+    max-width: min(65%, 280px);
     border-radius: 50%;
     background: repeating-radial-gradient(#111, #111 2px, #1a1a1a 3px);
     border: 4px solid #080808;
@@ -1196,8 +1191,8 @@ body {
 /* --- RESPONSIVE: MacBook Air (height <= 960px) --- */
 @media (max-height: 960px) {
     :root {
-        --waveform-min: 40px;
-        --control-row-min: 26px;
+        --waveform-min: 35px;
+        --control-row-min: 22px;
         --looproll-min: 24px;
         --hotcue-min: 24px;
         --beatjump-min: 22px;
@@ -1214,6 +1209,25 @@ body {
 
     .deck-controls {
         flex: 1;
+    }
+
+    /* 플레이 버튼 축소 */
+    .play-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 0.9rem;
+    }
+
+    /* QUANTIZE/SLIP/KEY/LOOP 버튼 축소 */
+    .glass-btn {
+        height: 28px;
+        font-size: 0.65rem;
+    }
+
+    /* LOOP ROLL, HOT CUE, BEAT JUMP 라벨 폰트 축소 */
+    .control-label {
+        font-size: 0.85rem;
+        letter-spacing: 2px;
     }
 }
 
