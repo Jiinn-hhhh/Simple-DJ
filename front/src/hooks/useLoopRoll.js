@@ -6,9 +6,9 @@ export default function useLoopRoll(audioPlayerRef) {
   const [activeRollA, setActiveRollA] = useState(null); // active beat size or null
   const [activeRollB, setActiveRollB] = useState(null);
 
-  const startLoopRoll = useCallback((deckId, beats, bpm) => {
+  const startLoopRoll = useCallback((deckId, beats, bpm, masterBpm = null) => {
     if (!bpm) return;
-    audioPlayerRef.current.startLoopRoll(deckId, beats, bpm);
+    audioPlayerRef.current.startLoopRoll(deckId, beats, bpm, masterBpm);
     if (deckId === 'A') setActiveRollA(beats);
     else setActiveRollB(beats);
   }, [audioPlayerRef]);
@@ -20,9 +20,9 @@ export default function useLoopRoll(audioPlayerRef) {
   }, [audioPlayerRef]);
 
   // Atomic size change during drag — no audible gap
-  const changeLoopRollSize = useCallback((deckId, beats, bpm) => {
+  const changeLoopRollSize = useCallback((deckId, beats, bpm, masterBpm = null) => {
     if (!bpm) return;
-    audioPlayerRef.current.changeLoopRollSize(deckId, beats, bpm);
+    audioPlayerRef.current.changeLoopRollSize(deckId, beats, bpm, masterBpm);
     if (deckId === 'A') setActiveRollA(beats);
     else setActiveRollB(beats);
   }, [audioPlayerRef]);

@@ -11,7 +11,7 @@ export function setHotCue(deckId, index, bpm) {
   }
   if (this.hotCues[deckId][index]) return; // already set
 
-  let position = this.getCurrentPosition(deckId);
+  let position = this.getAudiblePosition(deckId);
   if (this.quantizeEnabled[deckId] && bpm) {
     position = this.quantizeToBeat(position, bpm, 'nearest');
   }
@@ -23,10 +23,10 @@ export function setHotCue(deckId, index, bpm) {
   return this.hotCues[deckId][index];
 }
 
-export async function jumpToHotCue(deckId, index) {
+export async function jumpToHotCue(deckId, index, masterBpm = null) {
   if (!this.hotCues[deckId]?.[index]) return;
   const cue = this.hotCues[deckId][index];
-  await this.seek(deckId, cue.position / this.getTrackDuration(deckId));
+  await this.jumpToPosition(deckId, cue.position, masterBpm);
 }
 
 export function deleteHotCue(deckId, index) {

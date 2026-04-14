@@ -1,14 +1,12 @@
 // audio/loopSystem.js — Loop in/out, loop roll
 
-export function startLoopRoll(deckId, beats, bpm) {
+function applyLoopRoll(deckId, beats, bpm) {
   if (!bpm || bpm <= 0) return;
 
-  // Slip auto-enable 제거: slip OFF면 그냥 루프만 돌리고, 놓으면 그 자리에서 계속 재생
-  // slip ON이면 기존 slip 동작 유지 (놓으면 원래 진행 위치로 복귀)
   this.loopRollActive[deckId] = true;
 
   const beatDuration = 60 / bpm;
-  const currentPos = this.getCurrentPosition(deckId);
+  const currentPos = this.getAudiblePosition(deckId);
   const loopStart = this.quantizeToBeat(currentPos, bpm, 'floor');
   const loopEnd = loopStart + (beats * beatDuration);
 
@@ -29,9 +27,30 @@ export function startLoopRoll(deckId, beats, bpm) {
   this.loopPoints[deckId].active = true;
 }
 
+export async function startLoopRoll(deckId, beats, bpm, masterBpm = null) {
+  if (!bpm || bpm <= 0) return;
+
+  if (this.quantizeEnabled[deckId] && masterBpm && this.isPlaying[deckId]) {
+    await this.scheduleQuantizedAction(deckId, masterBpm, 'loopRoll', async () => {
+      applyLoopRoll.call(this, deckId, beats, bpm);
+    });
+    return;
+  }
+
+  applyLoopRoll.call(this, deckId, beats, bpm);
+}
+
 // Atomic loop size change during drag — no end/start cycle, no audible gap
-export function changeLoopRollSize(deckId, beats, bpm) {
-  if (!bpm || bpm <= 0 || !this.loopRollActive[deckId]) return;
+export async function changeLoopRollSize(deckId, beats, bpm, masterBpm = null) {
+  if (!bpm || bpm <= 0) return;
+
+  const pending = this.pendingQuantizedActions?.[deckId];
+  if (pending?.type === 'loopRoll') {
+    await this.startLoopRoll(deckId, beats, bpm, masterBpm || pending.masterBpm || null);
+    return;
+  }
+
+  if (!this.loopRollActive[deckId]) return;
   if (!this.loopPoints[deckId]) return;
 
   const beatDuration = 60 / bpm;
@@ -51,14 +70,36 @@ export function changeLoopRollSize(deckId, beats, bpm) {
 }
 
 export function endLoopRoll(deckId) {
+  const pending = this.pendingQuantizedActions?.[deckId];
+  if (pending?.type === 'loopRoll') {
+    this.clearScheduledAction(deckId);
+    this.loopRollActive[deckId] = false;
+    return;
+  }
+
   if (!this.loopRollActive[deckId]) return;
+
+  const source = Object.values(this.sourceNodes[deckId] || {})[0];
+  if (source?.loop) {
+    const loopStart = source.loopStart;
+    const loopEnd = source.loopEnd;
+    const loopDuration = loopEnd - loopStart;
+    const rate = this.playbackRates?.[deckId] || 1.0;
+    const elapsed = this.audioContext.currentTime - this.startTimes[deckId];
+    const bufferLinearTime = (this.pauseOffsets[deckId] || 0) + (elapsed * rate);
+
+    if (loopDuration > 0 && bufferLinearTime > loopStart) {
+      const actualPosition = loopStart + ((bufferLinearTime - loopStart) % loopDuration);
+      this.pauseOffsets[deckId] = actualPosition;
+      this.startTimes[deckId] = this.audioContext.currentTime;
+    }
+  }
 
   this._forEachSource(deckId, source => { if (source) source.loop = false; });
   if (this.loopPoints[deckId]) {
     delete this.loopPoints[deckId];
   }
 
-  // slip ON일 때만 원래 위치로 복귀. OFF면 현재 위치에서 계속 재생.
   if (this.slipMode[deckId]) {
     this.slipReturn(deckId);
   }
@@ -70,7 +111,7 @@ export function setLoopIn(deckId, trackBpm) {
   if (!this.sourceNodes?.[deckId]) return;
   if (this.startTimes[deckId] === null) return;
 
-  const position = this.getCurrentPosition(deckId);
+  const position = this.getAudiblePosition(deckId);
   const quantized = this.quantizeToBeat(position, trackBpm, 'nearest');
 
   if (!this.loopPoints) this.loopPoints = {};
@@ -81,7 +122,7 @@ export function setLoopIn(deckId, trackBpm) {
 export function setLoopOut(deckId, trackBpm) {
   if (!this.sourceNodes?.[deckId] || !this.loopPoints?.[deckId]) return;
 
-  const position = this.getCurrentPosition(deckId);
+  const position = this.getAudiblePosition(deckId);
   let quantized = this.quantizeToBeat(position, trackBpm, 'nearest');
 
   const start = this.loopPoints[deckId].start;

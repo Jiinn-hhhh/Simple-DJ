@@ -5,43 +5,80 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 export default function usePlaybackPosition(audioPlayerRef, isPlayingA, isPlayingB) {
   const [positionA, setPositionA] = useState(0); // 0-1 normalized
   const [positionB, setPositionB] = useState(0);
+  const [slipPositionA, setSlipPositionA] = useState(null);
+  const [slipPositionB, setSlipPositionB] = useState(null);
   const rafRef = useRef(null);
 
-  const update = useCallback(() => {
+  const updateDeckPosition = useCallback((deckId) => {
     const ap = audioPlayerRef.current;
     if (!ap) return;
 
-    if (isPlayingA) {
-      const dur = ap.getTrackDuration('A');
-      if (dur > 0) {
-        setPositionA(Math.min(1, Math.max(0, ap.getCurrentPosition('A') / dur)));
-      }
+    const duration = ap.getTrackDuration(deckId);
+    const setPosition = deckId === 'A' ? setPositionA : setPositionB;
+    const setSlipPosition = deckId === 'A' ? setSlipPositionA : setSlipPositionB;
+
+    if (duration <= 0) {
+      setPosition(0);
+      setSlipPosition(null);
+      return;
     }
 
-    if (isPlayingB) {
-      const dur = ap.getTrackDuration('B');
-      if (dur > 0) {
-        setPositionB(Math.min(1, Math.max(0, ap.getCurrentPosition('B') / dur)));
-      }
+    const audible = ap.getAudiblePosition ? ap.getAudiblePosition(deckId) : ap.getCurrentPosition(deckId);
+    setPosition(Math.min(1, Math.max(0, audible / duration)));
+
+    const slipEnabled = ap.slipMode?.[deckId];
+    if (!slipEnabled || !ap.getVirtualPosition) {
+      setSlipPosition(null);
+      return;
     }
 
-    rafRef.current = requestAnimationFrame(update);
-  }, [audioPlayerRef, isPlayingA, isPlayingB]);
+    const virtual = ap.getVirtualPosition(deckId);
+    if (Math.abs(virtual - audible) < 0.01) {
+      setSlipPosition(null);
+      return;
+    }
+
+    setSlipPosition(Math.min(1, Math.max(0, virtual / duration)));
+  }, [audioPlayerRef]);
 
   useEffect(() => {
-    if (isPlayingA || isPlayingB) {
-      rafRef.current = requestAnimationFrame(update);
+    if (!(isPlayingA || isPlayingB)) {
+      return undefined;
     }
+
+    const tick = () => {
+      if (isPlayingA) updateDeckPosition('A');
+      if (isPlayingB) updateDeckPosition('B');
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [isPlayingA, isPlayingB, update]);
+  }, [isPlayingA, isPlayingB, updateDeckPosition]);
 
   // Immediate position update after seek (even when paused)
   const seekPosition = useCallback((deckId, percent) => {
-    if (deckId === 'A') setPositionA(Math.min(1, Math.max(0, percent)));
-    else setPositionB(Math.min(1, Math.max(0, percent)));
+    if (deckId === 'A') {
+      setPositionA(Math.min(1, Math.max(0, percent)));
+      setSlipPositionA(null);
+    } else {
+      setPositionB(Math.min(1, Math.max(0, percent)));
+      setSlipPositionB(null);
+    }
   }, []);
 
-  return { positionA, positionB, seekPosition };
+  const syncPosition = useCallback((deckId) => {
+    updateDeckPosition(deckId);
+  }, [updateDeckPosition]);
+
+  return {
+    positionA,
+    positionB,
+    slipPositionA,
+    slipPositionB,
+    seekPosition,
+    syncPosition,
+  };
 }

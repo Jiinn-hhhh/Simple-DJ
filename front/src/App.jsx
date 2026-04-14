@@ -30,15 +30,12 @@ function App() {
   const [helpTab, setHelpTab] = useState('guide');
   const [hfSpaceUrl, setHfSpaceUrl] = useState("");
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isQuantizeEnabled, setIsQuantizeEnabled] = useState(false);
 
   const audioPlayerRef = useRef(new AudioPlayer());
 
   // --- Mixer hook ---
   const mixer = useMixer(audioPlayerRef, null, null); // trackA/B passed below after decks init
-  // We need a two-phase approach: mixer needs tracks for BPM sync
-  // So we use a ref-based approach for the circular dependency
-  const mixerRef = useRef(mixer);
-  mixerRef.current = mixer;
 
   // --- Decks hook ---
   const decks = useDecks(
@@ -48,6 +45,7 @@ function App() {
     hfSpaceUrl,
     setStatus,
     getStemUrls,
+    isQuantizeEnabled,
   );
 
   // Patch mixer's track refs for BPM change handler
@@ -88,6 +86,11 @@ function App() {
     });
   }, [user, isSystemReady]);
 
+  useEffect(() => {
+    audioPlayerRef.current.setQuantize('A', isQuantizeEnabled);
+    audioPlayerRef.current.setQuantize('B', isQuantizeEnabled);
+  }, [isQuantizeEnabled]);
+
 
   // --- Hot Cues ---
   const hotCues = useHotCues(audioPlayerRef);
@@ -112,7 +115,7 @@ function App() {
       if (key === 'ArrowLeft') { setCrossfader(prev => Math.max(0, prev - 0.05)); return; }
       if (key === 'ArrowRight') { setCrossfader(prev => Math.min(1, prev + 0.05)); return; }
       if (key === 'Tab') { e.preventDefault(); setIsLibraryOpen(prev => !prev); return; }
-      if (lower === 'q') { decks.toggleQuantize('A'); return; }
+      if (lower === 'q') { setIsQuantizeEnabled(prev => !prev); return; }
       if (lower === 'w') { decks.toggleSlipMode('A'); return; }
       if (lower === 'e') { toggleKeyLock('A'); return; }
       if (key === '-' || key === '_') { handleMasterBpmChange(Math.max(60, masterBpm - 1)); return; }
@@ -123,7 +126,7 @@ function App() {
         const idx = num - 1;
         const cues = e.shiftKey ? hotCues.hotCuesB : hotCues.hotCuesA;
         const track = e.shiftKey ? decks.trackB : decks.trackA;
-        if (cues[idx]) { hotCues.jumpToHotCue(deck, idx); }
+        if (cues[idx]) { hotCues.jumpToHotCue(deck, idx, masterBpm); }
         else { hotCues.setHotCue(deck, idx, track?.bpm, track); }
         return;
       }
@@ -136,7 +139,14 @@ function App() {
   const loopRoll = useLoopRoll(audioPlayerRef);
 
   // --- Playback Position (for waveform) ---
-  const { positionA, positionB, seekPosition } = usePlaybackPosition(audioPlayerRef, decks.isPlayingA, decks.isPlayingB);
+  const {
+    positionA,
+    positionB,
+    slipPositionA,
+    slipPositionB,
+    seekPosition,
+    syncPosition,
+  } = usePlaybackPosition(audioPlayerRef, decks.isPlayingA, decks.isPlayingB);
 
   // --- Recorder ---
   const recorder = useRecorder(audioPlayerRef);
@@ -147,7 +157,10 @@ function App() {
   const handleScratchEnd = (deckId, bpm) => audioPlayerRef.current.endScratch(deckId, bpm);
 
   // --- Guard wrapper for deck/mixer actions ---
-  const guard = (fn) => (...args) => { if (isSystemReady) fn(...args); };
+  const guard = (fn) => (...args) => {
+    if (!isSystemReady) return undefined;
+    return fn(...args);
+  };
 
   // --- Render ---
   return (
@@ -238,10 +251,10 @@ function App() {
                         <div>Stems: mute/unmute drums, bass, vocals, other</div>
                         <div>Hot Cues: click pad to save position, click again to jump</div>
                         <div>Loop: IN sets start, OUT sets end, EXIT leaves loop</div>
-                        <div>Loop Roll: hold pad for beat-synced repeat, release to return</div>
+                        <div>Loop Roll: hold pad for beat-synced repeat, release to continue or slip-return</div>
                         <div>Slip Mode: scratching/looping returns to original position</div>
                         <div>Key Lock: keep pitch when changing BPM</div>
-                        <div>Quantize: snap actions to nearest beat</div>
+                        <div>Quantize: global start timing snaps to the next master beat</div>
                         <div>EQ: adjust low/mid/high frequencies per deck</div>
                         <div>Filter: low-pass (left) / high-pass (right)</div>
                         <div>FX Pad: X=reverb/distortion, Y=intensity</div>
@@ -251,7 +264,7 @@ function App() {
                         <div className="help-row"><kbd>S</kbd> Deck A play/pause</div>
                         <div className="help-row"><kbd>L</kbd> Deck B play/pause</div>
                         <div className="help-row"><kbd>Space</kbd> Active deck play/pause</div>
-                        <div className="help-row"><kbd>Q</kbd> Quantize toggle</div>
+                        <div className="help-row"><kbd>Q</kbd> Global quantize toggle</div>
                         <div className="help-row"><kbd>W</kbd> Slip mode toggle</div>
                         <div className="help-row"><kbd>E</kbd> Key lock toggle</div>
                         <div className="help-row"><kbd>1-4</kbd> Deck A hot cues</div>
@@ -277,6 +290,7 @@ function App() {
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
                 waveformData={decks.waveformDataA}
                 playbackPosition={positionA}
+                slipPlaybackPosition={slipPositionA}
                 activeStems={decks.stemsA}
                 onToggleStem={(stem) => guard(decks.toggleStem)('A', stem)}
                 isSeparating={decks.isSeparatingA}
@@ -290,23 +304,29 @@ function App() {
                 onScratchEnd={handleScratchEnd}
                 visualizerNode={audioPlayerRef.current.getAnalyser('A')}
                 loadingTrack={decks.loadingFileA}
-                quantizeEnabled={decks.quantizeA}
-                onToggleQuantize={() => guard(decks.toggleQuantize)('A')}
                 hotCues={hotCues.hotCuesA}
                 onSetHotCue={(idx) => guard(hotCues.setHotCue)('A', idx, decks.trackA?.bpm, decks.trackA)}
-                onJumpHotCue={(idx) => guard(hotCues.jumpToHotCue)('A', idx)}
+                onJumpHotCue={async (idx) => {
+                  if (!isSystemReady) return;
+                  await hotCues.jumpToHotCue('A', idx, isQuantizeEnabled ? masterBpm : null);
+                  syncPosition('A');
+                }}
                 onDeleteHotCue={(idx) => guard(hotCues.deleteHotCue)('A', idx, decks.trackA)}
                 beatJumpSize={decks.beatJumpSizeA}
                 onSetBeatJumpSize={(size) => decks.setBeatJumpSize('A', size)}
-                onBeatJump={(dir) => guard(decks.handleBeatJump)('A', dir)}
+                onBeatJump={async (dir) => {
+                  if (!isSystemReady) return;
+                  await decks.handleBeatJump('A', dir);
+                  syncPosition('A');
+                }}
                 keyLockEnabled={keyLockA}
                 onToggleKeyLock={() => guard(toggleKeyLock)('A')}
                 slipModeEnabled={decks.slipModeA}
                 onToggleSlipMode={() => guard(decks.toggleSlipMode)('A')}
                 activeLoopRoll={loopRoll.activeRollA}
-                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('A', beats, decks.trackA?.bpm)}
+                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('A', beats, decks.trackA?.bpm, masterBpm)}
                 onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('A')}
-                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('A', beats, decks.trackA?.bpm)}
+                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('A', beats, decks.trackA?.bpm, masterBpm)}
               />
 
               <Mixer
@@ -329,6 +349,8 @@ function App() {
                 onMasterVolumeChange={guard(handleMasterVolumeChange)}
                 onMasterEffect={guard(handleMasterEffect)}
                 onTriggerSampler={guard(triggerSampler)}
+                quantizeEnabled={isQuantizeEnabled}
+                onToggleQuantize={() => setIsQuantizeEnabled(prev => !prev)}
               />
 
               <Deck
@@ -341,6 +363,7 @@ function App() {
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
                 waveformData={decks.waveformDataB}
                 playbackPosition={positionB}
+                slipPlaybackPosition={slipPositionB}
                 activeStems={decks.stemsB}
                 onToggleStem={(stem) => guard(decks.toggleStem)('B', stem)}
                 isSeparating={decks.isSeparatingB}
@@ -354,23 +377,29 @@ function App() {
                 onScratchEnd={handleScratchEnd}
                 visualizerNode={audioPlayerRef.current.getAnalyser('B')}
                 loadingTrack={decks.loadingFileB}
-                quantizeEnabled={decks.quantizeB}
-                onToggleQuantize={() => guard(decks.toggleQuantize)('B')}
                 hotCues={hotCues.hotCuesB}
                 onSetHotCue={(idx) => guard(hotCues.setHotCue)('B', idx, decks.trackB?.bpm, decks.trackB)}
-                onJumpHotCue={(idx) => guard(hotCues.jumpToHotCue)('B', idx)}
+                onJumpHotCue={async (idx) => {
+                  if (!isSystemReady) return;
+                  await hotCues.jumpToHotCue('B', idx, isQuantizeEnabled ? masterBpm : null);
+                  syncPosition('B');
+                }}
                 onDeleteHotCue={(idx) => guard(hotCues.deleteHotCue)('B', idx, decks.trackB)}
                 beatJumpSize={decks.beatJumpSizeB}
                 onSetBeatJumpSize={(size) => decks.setBeatJumpSize('B', size)}
-                onBeatJump={(dir) => guard(decks.handleBeatJump)('B', dir)}
+                onBeatJump={async (dir) => {
+                  if (!isSystemReady) return;
+                  await decks.handleBeatJump('B', dir);
+                  syncPosition('B');
+                }}
                 keyLockEnabled={keyLockB}
                 onToggleKeyLock={() => guard(toggleKeyLock)('B')}
                 slipModeEnabled={decks.slipModeB}
                 onToggleSlipMode={() => guard(decks.toggleSlipMode)('B')}
                 activeLoopRoll={loopRoll.activeRollB}
-                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('B', beats, decks.trackB?.bpm)}
+                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('B', beats, decks.trackB?.bpm, masterBpm)}
                 onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('B')}
-                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('B', beats, decks.trackB?.bpm)}
+                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('B', beats, decks.trackB?.bpm, masterBpm)}
               />
             </div>
           </div>

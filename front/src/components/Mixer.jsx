@@ -20,7 +20,9 @@ const Mixer = ({
   masterVolume,
   onMasterVolumeChange,
   onMasterEffect,
-  onTriggerSampler
+  onTriggerSampler,
+  quantizeEnabled,
+  onToggleQuantize,
 }) => {
 
   // Helper to visualize filter value
@@ -119,6 +121,13 @@ const Mixer = ({
 
         {/* CENTER COLUMN: FX & SAMPLER */}
         <div className="mixer-column center-fx" style={{ flex: '1 1 180px', maxWidth: '240px', minWidth: '120px' }}>
+          <button
+            onClick={onToggleQuantize}
+            className={`glass-btn mixer-quantize-btn quantize ${quantizeEnabled ? 'active' : ''}`}
+            title="Global Quantize"
+          >
+            QUANTIZE
+          </button>
 
           {/* SAMPLER BUTTONS */}
           <div className="sampler-grid">

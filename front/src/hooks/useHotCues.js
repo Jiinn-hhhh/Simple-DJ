@@ -75,8 +75,8 @@ export default function useHotCues(audioPlayerRef) {
     });
   }, [audioPlayerRef]);
 
-  const jumpToHotCue = useCallback((deckId, index) => {
-    audioPlayerRef.current.jumpToHotCue(deckId, index);
+  const jumpToHotCue = useCallback((deckId, index, masterBpm = null) => {
+    return audioPlayerRef.current.jumpToHotCue(deckId, index, masterBpm);
   }, [audioPlayerRef]);
 
   const deleteHotCue = useCallback((deckId, index, track) => {

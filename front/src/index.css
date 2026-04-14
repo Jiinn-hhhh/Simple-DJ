@@ -438,6 +438,13 @@ body {
     gap: 8px;
 }
 
+.mixer-quantize-btn {
+    width: 100%;
+    height: 34px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.62rem;
+}
+
 
 
 
@@ -886,7 +893,7 @@ body {
 
 .feature-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 3px;
     flex: 1;
 }
@@ -1040,12 +1047,20 @@ body {
     box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
 }
 
+.hotcue-pad.current-active {
+    border-color: var(--neon-yellow) !important;
+    box-shadow: 0 0 10px rgba(255, 245, 0, 0.35), inset 0 0 6px rgba(255, 245, 0, 0.18);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
 .hotcue-pad:hover {
     border-color: #555;
     background: rgba(255, 255, 255, 0.08);
 }
 
-.hotcue-pad.active:hover {
+.hotcue-pad.active:hover,
+.hotcue-pad.current-active:hover {
     filter: brightness(1.2);
 }
 

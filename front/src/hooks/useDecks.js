@@ -1,13 +1,13 @@
 // hooks/useDecks.js — Dual deck state, track loading, separation, playback
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { analyzeTrack, startSeparation, pollJobStatus } from '../lib/api';
 import { analyzeWaveform } from '../lib/waveformAnalyzer';
 
 const STEMS_OFF = { drums: false, bass: false, vocals: false, other: false };
 const STEMS_ON = { drums: true, bass: true, vocals: true, other: true };
 
-export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpaceUrl, setStatus, getStemUrls) {
+export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpaceUrl, setStatus, getStemUrls, quantizeEnabled) {
   const [trackA, setTrackA] = useState(null);
   const [trackB, setTrackB] = useState(null);
   const [isPlayingA, setIsPlayingA] = useState(false);
@@ -20,8 +20,6 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
   const [separationProgressB, setSeparationProgressB] = useState(0);
   const [loadingFileA, setLoadingFileA] = useState(null);
   const [loadingFileB, setLoadingFileB] = useState(null);
-  const [quantizeA, setQuantizeA] = useState(false);
-  const [quantizeB, setQuantizeB] = useState(false);
   const [beatJumpSizeA, setBeatJumpSizeA] = useState(1);
   const [beatJumpSizeB, setBeatJumpSizeB] = useState(1);
   const [slipModeA, setSlipModeA] = useState(false);
@@ -77,6 +75,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       ds.setStems(STEMS_OFF);
 
       const objectUrl = URL.createObjectURL(file);
+      audioPlayerRef.current.setTrackBpm(deckId, trackData.bpm);
       await audioPlayerRef.current.loadAudio(deckId, 'full', objectUrl);
       analyzeWaveformForDeck(deckId);
 
@@ -169,6 +168,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       });
 
       const ap = audioPlayerRef.current;
+      ap.setTrackBpm(deckId, libraryTrack.bpm || 128);
       ap.audioBuffers[deckId] = {};
       const stemNames = Object.keys(stemUrls);
       await Promise.all(stemNames.map(s => ap.loadAudio(deckId, s, stemUrls[s])));
@@ -196,12 +196,17 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       ap.pauseOffsets[deckId] = pos;
       ds.setPlaying(false);
     } else {
+      if (ap.hasScheduledAction(deckId)) {
+        ap.clearScheduledAction(deckId);
+        return;
+      }
       if (ds.track?.bpm) ap.setPlaybackRate(deckId, masterBpm / ds.track.bpm);
       const offset = ap.pauseOffsets[deckId] || 0;
-      await ap.play(deckId, offset);
+      if (quantizeEnabled) await ap.playQuantized(deckId, offset, masterBpm);
+      else await ap.play(deckId, offset);
       ds.setPlaying(true);
     }
-  }, [deckState, audioPlayerRef, masterBpm]);
+  }, [deckState, audioPlayerRef, masterBpm, quantizeEnabled]);
 
   // --- Stems ---
   const toggleStem = useCallback((deckId, stemName) => {
@@ -231,34 +236,18 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     audioPlayerRef.current.seek(deckId, percent);
   }, [audioPlayerRef]);
 
-  // --- Quantize ---
-  const toggleQuantize = useCallback((deckId) => {
-    const ap = audioPlayerRef.current;
-    if (deckId === 'A') {
-      setQuantizeA(prev => {
-        ap.setQuantize('A', !prev);
-        return !prev;
-      });
-    } else {
-      setQuantizeB(prev => {
-        ap.setQuantize('B', !prev);
-        return !prev;
-      });
-    }
-  }, [audioPlayerRef]);
-
   // --- Beat Jump ---
   const setBeatJumpSize = useCallback((deckId, size) => {
     if (deckId === 'A') setBeatJumpSizeA(size);
     else setBeatJumpSizeB(size);
   }, []);
 
-  const handleBeatJump = useCallback((deckId, direction) => {
+  const handleBeatJump = useCallback(async (deckId, direction) => {
     const t = deckId === 'A' ? trackA : trackB;
     const size = deckId === 'A' ? beatJumpSizeA : beatJumpSizeB;
     if (!t?.bpm) return;
-    audioPlayerRef.current.beatJump(deckId, direction * size, t.bpm);
-  }, [audioPlayerRef, trackA, trackB, beatJumpSizeA, beatJumpSizeB]);
+    await audioPlayerRef.current.beatJump(deckId, direction * size, t.bpm, quantizeEnabled ? masterBpm : null);
+  }, [audioPlayerRef, trackA, trackB, beatJumpSizeA, beatJumpSizeB, masterBpm, quantizeEnabled]);
 
   // --- Waveform Analysis ---
   const analyzeWaveformForDeck = useCallback((deckId) => {
@@ -298,7 +287,6 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     loadTrack, loadTrackFromLibrary,
     togglePlay, toggleStem,
     handleLoopIn, handleLoopOut, handleExitLoop, handleSeek,
-    quantizeA, quantizeB, toggleQuantize,
     beatJumpSizeA, beatJumpSizeB, setBeatJumpSize, handleBeatJump,
     slipModeA, slipModeB, toggleSlipMode,
     waveformDataA, waveformDataB,

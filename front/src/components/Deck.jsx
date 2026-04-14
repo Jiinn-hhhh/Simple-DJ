@@ -31,8 +31,6 @@ const Deck = ({
     visualizerNode,
     loadingTrack,
     // Pro DJ controls
-    quantizeEnabled,
-    onToggleQuantize,
     hotCues,
     onSetHotCue,
     onJumpHotCue,
@@ -46,6 +44,7 @@ const Deck = ({
     // Waveform
     waveformData,
     playbackPosition,
+    slipPlaybackPosition,
     // Slip Mode + Loop Roll
     slipModeEnabled,
     onToggleSlipMode,
@@ -143,6 +142,21 @@ const Deck = ({
     const spinDuration = playbackRate > 0 ? `${2 / playbackRate}s` : '2s';
     const hasTrack = Boolean(track);
     const showDeckControls = hasTrack && !loadingTrack;
+    const currentTrackPosition = hasTrack && track?.duration ? (playbackPosition || 0) * track.duration : 0;
+    const hotCueTolerance = track?.bpm ? Math.max(0.12, (60 / track.bpm) / 2) : 0.12;
+    let currentHotCueIndex = null;
+    let nearestCueDelta = Infinity;
+
+    if (hasTrack && hotCues && track?.duration) {
+        hotCues.forEach((cue, index) => {
+            if (!cue) return;
+            const cueDelta = Math.abs(cue.position - currentTrackPosition);
+            if (cueDelta <= hotCueTolerance && cueDelta < nearestCueDelta) {
+                nearestCueDelta = cueDelta;
+                currentHotCueIndex = index;
+            }
+        });
+    }
 
     const vinylClass = [
         'vinyl-disc',
@@ -245,6 +259,7 @@ const Deck = ({
                         <ColorWaveform
                             waveformData={waveformData}
                             position={playbackPosition || 0}
+                            slipPosition={slipPlaybackPosition}
                             hotCues={hotCues}
                             duration={track?.duration}
                             bpm={track?.bpm}
@@ -267,14 +282,6 @@ const Deck = ({
                         {hasTrack && isPlaying ? '||' : '▶'}
                     </button>
                     <div className="feature-grid">
-                        <button
-                            className={`glass-btn quantize ${hasTrack && quantizeEnabled ? 'active' : ''}`}
-                            onClick={hasTrack ? onToggleQuantize : undefined}
-                            title="Quantize"
-                            disabled={!hasTrack}
-                        >
-                            QUANTIZE
-                        </button>
                         <button
                             className={`glass-btn slip ${hasTrack && slipModeEnabled ? 'active' : ''}`}
                             onClick={hasTrack ? onToggleSlipMode : undefined}
@@ -326,6 +333,7 @@ const Deck = ({
                         hotCues && (
                             <HotCuePads
                                 hotCues={hotCues}
+                                currentCueIndex={currentHotCueIndex}
                                 onSetCue={onSetHotCue}
                                 onJumpCue={onJumpHotCue}
                                 onDeleteCue={onDeleteHotCue}

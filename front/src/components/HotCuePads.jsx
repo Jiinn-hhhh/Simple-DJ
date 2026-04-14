@@ -9,7 +9,7 @@ const PAD_COLORS = [
 
 const LONG_PRESS_MS = 500;
 
-const HotCuePads = ({ hotCues, onSetCue, onJumpCue, onDeleteCue }) => {
+const HotCuePads = ({ hotCues, currentCueIndex, onSetCue, onJumpCue, onDeleteCue }) => {
   const longPressRef = useRef({});
 
   const handleClick = (index) => {
@@ -51,7 +51,7 @@ const HotCuePads = ({ hotCues, onSetCue, onJumpCue, onDeleteCue }) => {
       {hotCues.slice(0, 4).map((cue, i) => (
         <button
           key={i}
-          className={`hotcue-pad ${cue ? 'active' : ''}`}
+          className={`hotcue-pad ${cue ? 'active' : ''} ${currentCueIndex === i ? 'current-active' : ''}`}
           style={{
             '--pad-color': cue ? cue.color : PAD_COLORS[i],
             borderColor: cue ? cue.color : '#333',

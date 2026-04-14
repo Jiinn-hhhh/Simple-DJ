@@ -40,6 +40,7 @@ class AudioPlayer {
     // Offset state for time tracking
     this.pauseOffsets = {};
     this.loopPoints = {};
+    this.trackBpms = {};
 
     // Quantize state
     this.quantizeEnabled = {}; // { deckId: boolean }
@@ -59,6 +60,8 @@ class AudioPlayer {
 
     // Loop Roll state
     this.loopRollActive = {}; // { deckId: boolean }
+    this.pendingQuantizedActions = {}; // { deckId: { timeoutId, type, when, masterBpm } }
+    this.masterQuantizeAnchorTime = null;
   }
 
   // Initialize Audio Context
@@ -452,6 +455,7 @@ class AudioPlayer {
   }
 
   stop(trackId) {
+    this.clearScheduledAction(trackId);
     if (this.sourceNodes[trackId]) {
       this._forEachSource(trackId, node => { try { node.stop(); } catch (e) { } });
       this.sourceNodes[trackId] = {};
@@ -592,15 +596,134 @@ class AudioPlayer {
     this.quantizeEnabled[deckId] = enabled;
   }
 
+  setTrackBpm(deckId, bpm) {
+    this.trackBpms[deckId] = bpm || 0;
+  }
+
+  hasScheduledAction(deckId) {
+    return Boolean(this.pendingQuantizedActions[deckId]);
+  }
+
+  clearScheduledAction(deckId) {
+    const pending = this.pendingQuantizedActions[deckId];
+    if (!pending) return;
+    clearTimeout(pending.timeoutId);
+    delete this.pendingQuantizedActions[deckId];
+  }
+
+  getQuantizeReferenceDeck(deckId) {
+    const otherDeckId = deckId === 'A' ? 'B' : 'A';
+    if (this.isPlaying[otherDeckId] && this.trackBpms[otherDeckId]) return otherDeckId;
+    if (this.isPlaying[deckId] && this.trackBpms[deckId]) return deckId;
+    return null;
+  }
+
+  getNextQuantizedStartTime(deckId, masterBpm) {
+    if (!this.audioContext || !masterBpm || masterBpm <= 0) {
+      return this.audioContext?.currentTime || 0;
+    }
+
+    const now = this.audioContext.currentTime;
+    const referenceDeckId = this.getQuantizeReferenceDeck(deckId);
+
+    if (referenceDeckId) {
+      const referenceBpm = this.trackBpms[referenceDeckId];
+      const playbackRate = this.playbackRates[referenceDeckId] || 1.0;
+      const beatDuration = 60 / referenceBpm;
+      const referencePosition = this.getAudiblePosition(referenceDeckId);
+      const nextBeatIndex = Math.ceil((referencePosition / beatDuration) - 1e-6);
+      const nextBeatPosition = nextBeatIndex * beatDuration;
+      const secondsUntilBeat = Math.max(0, (nextBeatPosition - referencePosition) / playbackRate);
+      return now + secondsUntilBeat;
+    }
+
+    const beatDuration = 60 / masterBpm;
+    if (this.masterQuantizeAnchorTime == null) {
+      this.masterQuantizeAnchorTime = now;
+    }
+
+    const beatsElapsed = (now - this.masterQuantizeAnchorTime) / beatDuration;
+    const nextBeatIndex = Math.ceil(beatsElapsed - 1e-6);
+    return this.masterQuantizeAnchorTime + (Math.max(0, nextBeatIndex) * beatDuration);
+  }
+
+  async scheduleQuantizedAction(deckId, masterBpm, type, callback) {
+    await this.init();
+    this.clearScheduledAction(deckId);
+
+    const executeAt = this.getNextQuantizedStartTime(deckId, masterBpm);
+    const delayMs = Math.max(0, (executeAt - this.audioContext.currentTime) * 1000);
+
+    return new Promise((resolve, reject) => {
+      let timeoutId = null;
+      const run = async () => {
+        const pending = this.pendingQuantizedActions[deckId];
+        if (pending?.timeoutId === timeoutId) {
+          delete this.pendingQuantizedActions[deckId];
+        }
+
+        try {
+          await callback();
+          resolve(executeAt);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      if (delayMs <= 10) {
+        run();
+        return;
+      }
+
+      timeoutId = window.setTimeout(run, delayMs);
+      this.pendingQuantizedActions[deckId] = {
+        timeoutId,
+        type,
+        when: executeAt,
+        masterBpm,
+      };
+    });
+  }
+
+  async playQuantized(deckId, offset, masterBpm) {
+    return this.scheduleQuantizedAction(deckId, masterBpm, 'play', async () => {
+      this._resumePlayback(deckId, offset);
+    });
+  }
+
   // --- Hot Cues ---
 
   // --- Beat Jump ---
 
-  beatJump(deckId, beats, bpm) {
+  async jumpToPosition(deckId, position, masterBpm = null) {
+    const duration = this.getTrackDuration(deckId);
+    if (!duration) return;
+
+    const newPos = Math.max(0, Math.min(duration, position));
+
+    if (this.isPlaying[deckId] && this.quantizeEnabled[deckId] && masterBpm) {
+      await this.scheduleQuantizedAction(deckId, masterBpm, 'jump', async () => {
+        this.stop(deckId);
+        this.pauseOffsets[deckId] = newPos;
+        this._resumePlayback(deckId, newPos);
+      });
+      return;
+    }
+
+    if (this.isPlaying[deckId]) {
+      this.stop(deckId);
+      this.pauseOffsets[deckId] = newPos;
+      this._resumePlayback(deckId, newPos);
+    } else {
+      this.pauseOffsets[deckId] = newPos;
+    }
+  }
+
+  async beatJump(deckId, beats, bpm, masterBpm = null) {
     if (!bpm || bpm <= 0) return;
     const beatDuration = 60 / bpm;
     const jumpAmount = beats * beatDuration;
-    const currentPos = this.getCurrentPosition(deckId);
+    const currentPos = this.getAudiblePosition(deckId);
     const duration = this.getTrackDuration(deckId);
 
     let newPos = currentPos + jumpAmount;
@@ -609,13 +732,7 @@ class AudioPlayer {
     }
     newPos = Math.max(0, Math.min(duration, newPos));
 
-    if (this.isPlaying[deckId]) {
-      this.stop(deckId);
-      this.pauseOffsets[deckId] = newPos; // set AFTER stop to avoid overwrite
-      this._resumePlayback(deckId, newPos);
-    } else {
-      this.pauseOffsets[deckId] = newPos;
-    }
+    await this.jumpToPosition(deckId, newPos, masterBpm);
   }
 
   // --- Key Lock ---
@@ -741,6 +858,25 @@ class AudioPlayer {
     return (this.pauseOffsets[deckId] || 0) + elapsed * rate;
   }
 
+  getAudiblePosition(deckId) {
+    const linearPosition = this.getCurrentPosition(deckId);
+    const source = Object.values(this.sourceNodes[deckId] || {})[0];
+
+    if (!this.isPlaying[deckId] || !source || !source.loop) {
+      return linearPosition;
+    }
+
+    const loopStart = source.loopStart;
+    const loopEnd = source.loopEnd;
+    const loopDuration = loopEnd - loopStart;
+
+    if (loopDuration <= 0 || linearPosition <= loopStart) {
+      return linearPosition;
+    }
+
+    return loopStart + ((linearPosition - loopStart) % loopDuration);
+  }
+
   // Seek: Jump to percentage (0.0 - 1.0)
   async seek(deckId, percent) {
     // 1. Stop current
@@ -771,7 +907,7 @@ class AudioPlayer {
   getNormalizedPosition(deckId) {
     const duration = this.getTrackDuration(deckId);
     if (duration <= 0) return 0;
-    return Math.min(1, Math.max(0, this.getCurrentPosition(deckId) / duration));
+    return Math.min(1, Math.max(0, this.getAudiblePosition(deckId) / duration));
   }
 
   getLoopPointsNormalized(deckId) {
