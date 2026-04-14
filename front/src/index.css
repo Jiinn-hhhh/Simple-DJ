@@ -715,7 +715,7 @@ body {
 }
 
 .vinyl-disc {
-    --vinyl-size: min(65cqi, 90cqb, 280px);
+    --vinyl-size: min(62cqi, 88cqb, 270px);
     width: var(--vinyl-size);
     height: var(--vinyl-size);
     flex: 0 0 auto;
@@ -746,6 +746,18 @@ body {
 .vinyl-disc.scratch-releasing {
     animation: none;
     transition: transform 0.3s ease-out, border-color 0.3s, box-shadow 0.3s;
+}
+
+@media (max-width: 1366px) {
+    .vinyl-disc {
+        --vinyl-size: min(72cqi, 94cqb, 320px);
+    }
+}
+
+@media (min-width: 1800px) {
+    .vinyl-disc {
+        --vinyl-size: min(56cqi, 82cqb, 248px);
+    }
 }
 
 .disc-label {
