@@ -6,6 +6,8 @@ import LoopRollPads from './LoopRollPads';
 import ColorWaveform from './ColorWaveform';
 
 const STEMS = ['drums', 'bass', 'vocals', 'other'];
+const LOOP_ROLL_LABELS = ['1/8', '1/4', '1/2', '1', '2', '4'];
+const EMPTY_HOT_CUES = [1, 2, 3, 4];
 
 const Deck = ({
     deckId,
@@ -139,6 +141,7 @@ const Deck = ({
     };
 
     const spinDuration = playbackRate > 0 ? `${2 / playbackRate}s` : '2s';
+    const hasTrack = Boolean(track);
 
     const vinylClass = [
         'vinyl-disc',
@@ -177,11 +180,11 @@ const Deck = ({
                 </div>
             </div>
 
-            {track && (
-                <div className={`spectrum-overlay ${isPlaying ? 'active' : ''} ${deckId === 'A' ? 'deck-a' : 'deck-b'}`}>
+            <div className={`spectrum-overlay ${hasTrack && isPlaying ? 'active' : ''} ${deckId === 'A' ? 'deck-a' : 'deck-b'} ${!hasTrack ? 'placeholder' : ''}`}>
+                {hasTrack && (
                     <SpectrumAnalyzer analyserNode={visualizerNode} color={deckId === 'A' ? '#00ff00' : '#ff00ff'} />
-                </div>
-            )}
+                )}
+            </div>
 
             <div className="disc-container" style={{ position: 'relative' }}>
                 <div
@@ -198,6 +201,12 @@ const Deck = ({
                         {deckId === 'A' ? 'LEFT' : 'RIGHT'}
                     </div>
                 </div>
+
+                {!hasTrack && !loadingTrack && (
+                    <div className="deck-empty-hint disc-empty-hint">
+                        <span>Drag a track from Library</span>
+                    </div>
+                )}
 
                 {isSeparating && (
                     <div style={{
@@ -230,11 +239,7 @@ const Deck = ({
             </div>
 
             <div className="deck-controls">
-                {!track ? (
-                    <div className="deck-empty-hint">
-                        <span>Drag a track from Library</span>
-                    </div>
-                ) : (
+                {hasTrack ? (
                     <>
                         <ColorWaveform
                             waveformData={waveformData}
@@ -245,96 +250,136 @@ const Deck = ({
                             deckId={deckId}
                             onSeek={onSeek}
                         />
-
-                        <div className="control-row">
-                            <button className={`play-btn ${isPlaying ? 'active' : ''}`} onClick={onPlayPause}>
-                                {isPlaying ? '||' : '▶'}
-                            </button>
-                            <div className="feature-grid">
-                                <button
-                                    className={`glass-btn quantize ${quantizeEnabled ? 'active' : ''}`}
-                                    onClick={onToggleQuantize}
-                                    title="Quantize"
-                                >
-                                    QUANTIZE
-                                </button>
-                                <button
-                                    className={`glass-btn slip ${slipModeEnabled ? 'active' : ''}`}
-                                    onClick={onToggleSlipMode}
-                                    title="Slip Mode"
-                                >
-                                    SLIP
-                                </button>
-                                <button
-                                    className={`glass-btn keylock ${keyLockEnabled ? 'active' : ''}`}
-                                    onClick={onToggleKeyLock}
-                                    title="Key Lock"
-                                >
-                                    KEY
-                                </button>
-                                <button
-                                    className={`glass-btn loop ${loopState !== 'inactive' ? 'active' : ''}`}
-                                    onClick={handleLoopToggle}
-                                    style={{ border: loopState === 'in' ? '2px dashed var(--neon-yellow)' : undefined }}
-                                >
-                                    {loopState === 'inactive' ? 'LOOP' : (loopState === 'in' ? 'OUT' : 'EXIT')}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="control-section">
-                            <span className="control-label">LOOP ROLL</span>
-                            <LoopRollPads
-                                activeRoll={activeLoopRoll}
-                                onStart={onStartLoopRoll}
-                                onEnd={onEndLoopRoll}
-                                onChangeSize={onChangeLoopRollSize}
-                            />
-                        </div>
-
-                        <div className="control-section">
-                            <span className="control-label">HOT CUE</span>
-                            {hotCues && (
-                                <HotCuePads
-                                    hotCues={hotCues}
-                                    onSetCue={onSetHotCue}
-                                    onJumpCue={onJumpHotCue}
-                                    onDeleteCue={onDeleteHotCue}
-                                />
-                            )}
-                        </div>
-
-                        <div className="control-section">
-                            <span className="control-label">BEAT JUMP</span>
-                            <BeatJumpControls
-                                beatJumpSize={beatJumpSize || 1}
-                                onSetSize={onSetBeatJumpSize}
-                                onJump={onBeatJump}
-                            />
-                        </div>
-
-                        <div className="stems-row" onMouseLeave={() => setStemDrag({ ...stemDrag, active: false })}>
-                            {STEMS.map(stem => (
-                                <button
-                                    key={stem}
-                                    className={`stem-btn ${activeStems[stem] ? 'active' : ''}`}
-                                    onMouseDown={() => {
-                                        const newState = !activeStems[stem];
-                                        setStemDrag({ active: true, targetState: newState });
-                                        onToggleStem(stem);
-                                    }}
-                                    onMouseEnter={() => {
-                                        if (stemDrag.active && activeStems[stem] !== stemDrag.targetState) onToggleStem(stem);
-                                    }}
-                                    onMouseUp={() => setStemDrag({ ...stemDrag, active: false })}
-                                    disabled={!track.separated}
-                                >
-                                    {stem.toUpperCase()}
-                                </button>
-                            ))}
-                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="color-waveform-container waveform-placeholder" aria-hidden="true" />
                     </>
                 )}
+
+                <div className="control-row">
+                    <button
+                        className={`play-btn ${hasTrack && isPlaying ? 'active' : ''}`}
+                        onClick={hasTrack ? onPlayPause : undefined}
+                        disabled={!hasTrack}
+                    >
+                        {hasTrack && isPlaying ? '||' : '▶'}
+                    </button>
+                    <div className="feature-grid">
+                        <button
+                            className={`glass-btn quantize ${hasTrack && quantizeEnabled ? 'active' : ''}`}
+                            onClick={hasTrack ? onToggleQuantize : undefined}
+                            title="Quantize"
+                            disabled={!hasTrack}
+                        >
+                            QUANTIZE
+                        </button>
+                        <button
+                            className={`glass-btn slip ${hasTrack && slipModeEnabled ? 'active' : ''}`}
+                            onClick={hasTrack ? onToggleSlipMode : undefined}
+                            title="Slip Mode"
+                            disabled={!hasTrack}
+                        >
+                            SLIP
+                        </button>
+                        <button
+                            className={`glass-btn keylock ${hasTrack && keyLockEnabled ? 'active' : ''}`}
+                            onClick={hasTrack ? onToggleKeyLock : undefined}
+                            title="Key Lock"
+                            disabled={!hasTrack}
+                        >
+                            KEY
+                        </button>
+                        <button
+                            className={`glass-btn loop ${hasTrack && loopState !== 'inactive' ? 'active' : ''}`}
+                            onClick={hasTrack ? handleLoopToggle : undefined}
+                            style={hasTrack && loopState === 'in' ? { border: '2px dashed var(--neon-yellow)' } : undefined}
+                            disabled={!hasTrack}
+                        >
+                            {hasTrack ? (loopState === 'inactive' ? 'LOOP' : (loopState === 'in' ? 'OUT' : 'EXIT')) : 'LOOP'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="control-section">
+                    <span className="control-label">LOOP ROLL</span>
+                    {hasTrack ? (
+                        <LoopRollPads
+                            activeRoll={activeLoopRoll}
+                            onStart={onStartLoopRoll}
+                            onEnd={onEndLoopRoll}
+                            onChangeSize={onChangeLoopRollSize}
+                        />
+                    ) : (
+                        <div className="looproll-pads" aria-hidden="true">
+                            {LOOP_ROLL_LABELS.map((label) => (
+                                <button key={label} className="looproll-pad" disabled>{label}</button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="control-section">
+                    <span className="control-label">HOT CUE</span>
+                    {hasTrack ? (
+                        hotCues && (
+                            <HotCuePads
+                                hotCues={hotCues}
+                                onSetCue={onSetHotCue}
+                                onJumpCue={onJumpHotCue}
+                                onDeleteCue={onDeleteHotCue}
+                            />
+                        )
+                    ) : (
+                        <div className="hotcue-pads" aria-hidden="true">
+                            {EMPTY_HOT_CUES.map((cue) => (
+                                <button key={cue} className="hotcue-pad" disabled>{cue}</button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="control-section">
+                    <span className="control-label">BEAT JUMP</span>
+                    {hasTrack ? (
+                        <BeatJumpControls
+                            beatJumpSize={beatJumpSize || 1}
+                            onSetSize={onSetBeatJumpSize}
+                            onJump={onBeatJump}
+                        />
+                    ) : (
+                        <div className="beat-jump-controls" aria-hidden="true">
+                            <button className="beat-jump-btn" disabled>◀</button>
+                            <div className="beat-jump-size">
+                                <button className="beat-jump-size-arrow" disabled>‹</button>
+                                <span className="beat-jump-size-value">1</span>
+                                <button className="beat-jump-size-arrow" disabled>›</button>
+                            </div>
+                            <button className="beat-jump-btn" disabled>▶</button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="stems-row" onMouseLeave={() => setStemDrag({ ...stemDrag, active: false })}>
+                    {STEMS.map(stem => (
+                        <button
+                            key={stem}
+                            className={`stem-btn ${hasTrack && activeStems[stem] ? 'active' : ''}`}
+                            onMouseDown={hasTrack ? () => {
+                                const newState = !activeStems[stem];
+                                setStemDrag({ active: true, targetState: newState });
+                                onToggleStem(stem);
+                            } : undefined}
+                            onMouseEnter={hasTrack ? () => {
+                                if (stemDrag.active && activeStems[stem] !== stemDrag.targetState) onToggleStem(stem);
+                            } : undefined}
+                            onMouseUp={hasTrack ? () => setStemDrag({ ...stemDrag, active: false }) : undefined}
+                            disabled={!hasTrack || !track?.separated}
+                        >
+                            {stem.toUpperCase()}
+                        </button>
+                    ))}
+                </div>
             </div>
         </div>
     );
