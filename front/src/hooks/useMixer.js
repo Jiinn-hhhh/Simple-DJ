@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 
-export default function useMixer(audioPlayerRef, trackA, trackB) {
+export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterBpm = null, externalSetMasterBpm = null) {
   const [volumeA, setVolumeA] = useState(1.0);
   const [volumeB, setVolumeB] = useState(1.0);
   const [crossfader, setCrossfader] = useState(0.5);
@@ -12,9 +12,12 @@ export default function useMixer(audioPlayerRef, trackA, trackB) {
   const [eqB, setEqB] = useState({ high: 100, mid: 100, low: 100 });
   const [masterVolume, setMasterVolume] = useState(1.0);
   const [effectVolume, setEffectVolume] = useState(1.0);
-  const [masterBpm, setMasterBpm] = useState(128);
+  const [internalMasterBpm, setInternalMasterBpm] = useState(128);
   const [keyLockA, setKeyLockA] = useState(false);
   const [keyLockB, setKeyLockB] = useState(false);
+
+  const masterBpm = externalMasterBpm ?? internalMasterBpm;
+  const setMasterBpm = externalSetMasterBpm ?? setInternalMasterBpm;
 
   // --- Volume math with crossfader curve ---
   const applyVolumes = useCallback((volA, volB, xf, masterVol) => {

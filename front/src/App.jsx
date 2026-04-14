@@ -31,35 +31,30 @@ function App() {
   const [hfSpaceUrl, setHfSpaceUrl] = useState("");
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isQuantizeEnabled, setIsQuantizeEnabled] = useState(false);
+  const [masterBpm, setMasterBpm] = useState(128);
 
   const audioPlayerRef = useRef(new AudioPlayer());
-
-  // --- Mixer hook ---
-  const mixer = useMixer(audioPlayerRef, null, null); // trackA/B passed below after decks init
 
   // --- Decks hook ---
   const decks = useDecks(
     audioPlayerRef,
-    mixer.masterBpm,
-    mixer.setMasterBpm,
+    masterBpm,
+    setMasterBpm,
     hfSpaceUrl,
     setStatus,
     getStemUrls,
     isQuantizeEnabled,
   );
 
-  // Patch mixer's track refs for BPM change handler
-  const mixerWithTracks = useMixer(audioPlayerRef, decks.trackA, decks.trackB);
-  // Use mixerWithTracks for BPM-related handlers that need track refs
   const {
     volumeA, volumeB, crossfader, filterA, filterB,
-    eqA, eqB, masterVolume, effectVolume, masterBpm,
+    eqA, eqB, masterVolume, effectVolume,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
     handleEffectVolumeChange,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,
-  } = mixerWithTracks;
+  } = useMixer(audioPlayerRef, decks.trackA, decks.trackB, masterBpm, setMasterBpm);
 
   // --- System init ---
   useEffect(() => {
