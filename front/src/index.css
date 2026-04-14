@@ -715,7 +715,7 @@ body {
 }
 
 .vinyl-disc {
-    --vinyl-size: min(62cqi, 88cqb, 270px);
+    --vinyl-size: min(88cqb, 270px);
     width: var(--vinyl-size);
     height: var(--vinyl-size);
     flex: 0 0 auto;
@@ -748,19 +748,9 @@ body {
     transition: transform 0.3s ease-out, border-color 0.3s, box-shadow 0.3s;
 }
 
-@media (max-width: 1366px) {
-    .vinyl-disc {
-        --vinyl-size: min(46cqi, 72cqb, 205px);
-    }
-
-    .main-layout.library-open .vinyl-disc {
-        --vinyl-size: min(62cqi, 88cqb, 270px);
-    }
-}
-
 @media (min-width: 1800px) {
     .vinyl-disc {
-        --vinyl-size: min(72cqi, 94cqb, 320px);
+        --vinyl-size: min(94cqb, 320px);
     }
 }
 
@@ -1265,16 +1255,16 @@ body {
         height: 40px;
     }
 
-    .main-layout:not(.library-open) .disc-container {
+    .disc-container {
         flex: 1 1 0;
         min-height: 0;
     }
 
-    .main-layout:not(.library-open) .vinyl-disc {
-        --vinyl-size: min(72cqi, 86cqb, 300px);
+    .vinyl-disc {
+        --vinyl-size: min(86cqb, 300px);
     }
 
-    .main-layout:not(.library-open) .deck-controls {
+    .deck-controls {
         flex: 0 0 auto;
         grid-template-rows:
             50px
@@ -1305,6 +1295,12 @@ body {
     .control-label {
         font-size: 0.85rem;
         letter-spacing: 2px;
+    }
+}
+
+@media (max-width: 1366px) and (max-height: 960px) {
+    .vinyl-disc {
+        --vinyl-size: min(88cqb, 270px);
     }
 }
 
