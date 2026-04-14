@@ -4,6 +4,7 @@ export default function RecordBar({
   isRecordingAudio, isRecordingVideo, recordingTime, countdown,
   onStartAudio, onStopAudio,
   onStartVideo, onStopVideo,
+  onCancel,
 }) {
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
@@ -38,7 +39,7 @@ export default function RecordBar({
           </button>
         </>
       ) : (
-        <button className="record-btn stop" onClick={isRecordingAudio || isCountingDown ? onStopAudio : onStopVideo}>
+        <button className="record-btn stop" onClick={isCountingDown ? onCancel : (isRecordingAudio ? onStopAudio : onStopVideo)}>
           {isCountingDown ? 'CANCEL' : 'STOP'}
         </button>
       )}

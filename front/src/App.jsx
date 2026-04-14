@@ -212,6 +212,7 @@ function App() {
                   onStopAudio={recorder.stopAudioRecording}
                   onStartVideo={recorder.startVideoRecording}
                   onStopVideo={recorder.stopVideoRecording}
+                  onCancel={recorder.cancelRecordingCountdown}
                 />
                 <button onClick={() => setShowHelp(true)} className="topbar-btn help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
                 <button onClick={signOut} className="topbar-btn logout-btn pixel-font">LOGOUT</button>

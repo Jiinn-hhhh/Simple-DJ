@@ -59,9 +59,13 @@ export default function useRecorder(audioPlayerRef) {
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
-  const scriptNodeRef = useRef(null);
+  const audioCaptureRef = useRef(null);
   const pcmBuffersRef = useRef([]);
   const countdownTimerRef = useRef(null);
+  const videoScreenStreamRef = useRef(null);
+  const videoMimeTypeRef = useRef('video/webm');
+  const videoFileExtRef = useRef('webm');
+  const videoStartedAtRef = useRef(0);
 
   const startTimer = () => {
     startTimeRef.current = Date.now();
@@ -76,6 +80,22 @@ export default function useRecorder(audioPlayerRef) {
     setRecordingTime(0);
   };
 
+  const clearCountdown = useCallback(() => {
+    if (!countdownTimerRef.current) return false;
+    clearInterval(countdownTimerRef.current);
+    countdownTimerRef.current = null;
+    setCountdown(null);
+    return true;
+  }, []);
+
+  const ensureAudioEngine = useCallback(async () => {
+    const ap = audioPlayerRef.current;
+    if (!ap) return null;
+    await ap.init();
+    ap.initMasterBus();
+    return ap;
+  }, [audioPlayerRef]);
+
   // --- Countdown helper ---
   const runCountdown = useCallback((onComplete) => {
     let count = 3;
@@ -86,7 +106,9 @@ export default function useRecorder(audioPlayerRef) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
         setCountdown(null);
-        onComplete();
+        Promise.resolve(onComplete()).catch((err) => {
+          console.error('Recording start error:', err);
+        });
       } else {
         setCountdown(count);
       }
@@ -94,19 +116,21 @@ export default function useRecorder(audioPlayerRef) {
   }, []);
 
   // --- Audio Recording (WAV) ---
-  const _startAudioRecordingImpl = useCallback(() => {
-    const ap = audioPlayerRef.current;
+  const _startAudioRecordingImpl = useCallback(async () => {
+    const ap = await ensureAudioEngine();
     if (!ap?.audioContext || !ap?.masterNodes) {
       console.warn('Audio engine not ready');
       return;
     }
 
     // Prevent double-start
-    if (scriptNodeRef.current) return;
+    if (audioCaptureRef.current) return;
 
     const ctx = ap.audioContext;
     const bufferSize = 4096;
     const scriptNode = ctx.createScriptProcessor(bufferSize, 2, 2);
+    const silentSink = ctx.createGain();
+    silentSink.gain.value = 0;
     pcmBuffersRef.current = [];
 
     scriptNode.onaudioprocess = (e) => {
@@ -123,50 +147,51 @@ export default function useRecorder(audioPlayerRef) {
 
     // Tap from the master stream destination (no double-output)
     const streamDest = ap.masterNodes.streamDest;
+    let mediaSource = null;
     if (streamDest) {
       const mediaStream = streamDest.stream;
-      const mediaSource = ctx.createMediaStreamSource(mediaStream);
+      mediaSource = ctx.createMediaStreamSource(mediaStream);
       mediaSource.connect(scriptNode);
-      // Don't connect scriptNode to destination to avoid double output
-      scriptNode.connect(ctx.createGain()); // silent sink to keep scriptNode alive
-      scriptNodeRef.current = scriptNode;
-      scriptNodeRef.current._mediaSource = mediaSource;
     } else {
       // Fallback: direct tap (may cause double output)
       ap.masterNodes.filter.connect(scriptNode);
-      scriptNode.connect(ctx.createGain());
-      scriptNodeRef.current = scriptNode;
     }
+
+    // Keep the processor alive without audible output.
+    scriptNode.connect(silentSink);
+    silentSink.connect(ctx.destination);
+    audioCaptureRef.current = { scriptNode, mediaSource, silentSink };
 
     setIsRecordingAudio(true);
     startTimer();
-  }, [audioPlayerRef]);
+  }, [ensureAudioEngine]);
 
   const startAudioRecording = useCallback(() => {
     // Guard: already recording or countdown in progress
     if (isRecordingAudio || countdown != null) return;
+    void ensureAudioEngine().catch((err) => {
+      console.error('Audio engine init failed:', err);
+    });
     runCountdown(_startAudioRecordingImpl);
-  }, [isRecordingAudio, countdown, runCountdown, _startAudioRecordingImpl]);
+  }, [isRecordingAudio, countdown, runCountdown, _startAudioRecordingImpl, ensureAudioEngine]);
 
   const stopAudioRecording = useCallback(() => {
     // Cancel countdown if in progress
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-      setCountdown(null);
+    if (clearCountdown()) {
       return;
     }
 
-    if (!scriptNodeRef.current) return;
+    if (!audioCaptureRef.current) return;
 
     const ap = audioPlayerRef.current;
     try {
-      if (scriptNodeRef.current._mediaSource) {
-        scriptNodeRef.current._mediaSource.disconnect();
+      if (audioCaptureRef.current.mediaSource) {
+        audioCaptureRef.current.mediaSource.disconnect();
       }
-      scriptNodeRef.current.disconnect();
+      audioCaptureRef.current.scriptNode.disconnect();
+      audioCaptureRef.current.silentSink.disconnect();
     } catch {}
-    scriptNodeRef.current = null;
+    audioCaptureRef.current = null;
 
     // Only encode/download if we actually recorded data
     if (pcmBuffersRef.current.length === 0) {
@@ -192,15 +217,22 @@ export default function useRecorder(audioPlayerRef) {
 
     setIsRecordingAudio(false);
     stopTimer();
-  }, [audioPlayerRef]);
+  }, [audioPlayerRef, clearCountdown]);
 
   // --- Video Recording (MP4/WebM) ---
   const _startVideoRecordingImpl = useCallback(async () => {
     try {
+      await ensureAudioEngine();
+
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: 'browser' },
         audio: false,
       });
+      const videoTrack = screenStream.getVideoTracks()[0];
+      if (!videoTrack) {
+        screenStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
 
       // Combine screen video + DJ audio
       const audioStream = audioPlayerRef.current?.getOutputStream();
@@ -214,66 +246,97 @@ export default function useRecorder(audioPlayerRef) {
 
       // Try MP4 first (Safari), fall back to WebM
       let mimeType = 'video/webm;codecs=vp9,opus';
-      let fileExt = 'mp4';
+      let fileExt = 'webm';
       if (MediaRecorder.isTypeSupported('video/mp4')) {
         mimeType = 'video/mp4';
       } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264,opus')) {
         mimeType = 'video/webm;codecs=h264,opus';
+      } else if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm';
       }
 
-      const recorder = new MediaRecorder(combinedStream, { mimeType });
+      if (mimeType === 'video/mp4') {
+        fileExt = 'mp4';
+      }
+
+      const recorder = new MediaRecorder(combinedStream, mimeType ? { mimeType } : undefined);
+      videoMimeTypeRef.current = mimeType || recorder.mimeType || 'video/webm';
+      videoFileExtRef.current = fileExt;
+      videoScreenStreamRef.current = screenStream;
+      videoStartedAtRef.current = Date.now();
+      mediaRecorderRef.current = recorder;
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-        download(blob, `SimpleDJ-session-${timestamp}.${fileExt}`);
+        const totalBytes = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+        const elapsedMs = videoStartedAtRef.current ? Date.now() - videoStartedAtRef.current : 0;
+
+        if (totalBytes > 2048 && elapsedMs > 300) {
+          const blob = new Blob(chunksRef.current, { type: videoMimeTypeRef.current });
+          const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+          download(blob, `SimpleDJ-session-${timestamp}.${videoFileExtRef.current}`);
+        }
+
         chunksRef.current = [];
-        screenStream.getTracks().forEach(t => t.stop());
+        videoStartedAtRef.current = 0;
+        videoScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+        videoScreenStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        setIsRecordingVideo(false);
+        stopTimer();
       };
 
-      screenStream.getVideoTracks()[0].onended = () => {
+      videoTrack.onended = () => {
         if (mediaRecorderRef.current?.state === 'recording') {
-          stopVideoRecording();
+          mediaRecorderRef.current.stop();
         }
       };
 
       recorder.start(100);
-      mediaRecorderRef.current = recorder;
       setIsRecordingVideo(true);
       startTimer();
     } catch (err) {
       console.error('Screen recording error:', err);
+      setIsRecordingVideo(false);
+      stopTimer();
     }
-  }, [audioPlayerRef]);
+  }, [audioPlayerRef, ensureAudioEngine, stopTimer]);
 
   const startVideoRecording = useCallback(() => {
     if (isRecordingVideo || countdown != null) return;
+    void ensureAudioEngine().catch((err) => {
+      console.error('Audio engine init failed:', err);
+    });
     runCountdown(_startVideoRecordingImpl);
-  }, [isRecordingVideo, countdown, runCountdown, _startVideoRecordingImpl]);
+  }, [isRecordingVideo, countdown, runCountdown, _startVideoRecordingImpl, ensureAudioEngine]);
 
   const stopVideoRecording = useCallback(() => {
-    if (countdownTimerRef.current) {
-      clearInterval(countdownTimerRef.current);
-      countdownTimerRef.current = null;
-      setCountdown(null);
+    if (clearCountdown()) {
       return;
     }
 
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
+    } else {
+      videoScreenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      videoScreenStreamRef.current = null;
+      mediaRecorderRef.current = null;
+      setIsRecordingVideo(false);
+      stopTimer();
     }
-    mediaRecorderRef.current = null;
-    setIsRecordingVideo(false);
-    stopTimer();
-  }, []);
+  }, [clearCountdown]);
+
+  const cancelRecordingCountdown = useCallback(() => {
+    clearCountdown();
+  }, [clearCountdown]);
 
   return {
     isRecordingAudio, isRecordingVideo, recordingTime, countdown,
     startAudioRecording, stopAudioRecording,
     startVideoRecording, stopVideoRecording,
+    cancelRecordingCountdown,
   };
 }
