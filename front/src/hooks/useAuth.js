@@ -1,5 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import {
+  supabase,
+  supabaseAnonKey,
+  supabaseAuthSettingsUrl,
+} from '../lib/supabase';
+
+async function assertAuthServiceReachable() {
+  if (!supabaseAuthSettingsUrl || !supabaseAnonKey) {
+    throw new Error('Supabase auth is not configured.');
+  }
+
+  try {
+    const response = await fetch(supabaseAuthSettingsUrl, {
+      headers: { apikey: supabaseAnonKey },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Auth service responded with ${response.status}`);
+    }
+  } catch {
+    throw new Error('Authentication service is unreachable. Check the Supabase URL and keys.');
+  }
+}
 
 export default function useAuth() {
   const [user, setUser] = useState(null);
@@ -44,6 +67,8 @@ export default function useAuth() {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    await assertAuthServiceReachable();
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin }

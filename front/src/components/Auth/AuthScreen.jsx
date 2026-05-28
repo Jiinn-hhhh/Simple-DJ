@@ -53,6 +53,18 @@ export default function AuthScreen({ onSignIn, onSignUp, onSignInWithGoogle }) {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    resetMessages();
+    setSubmitting(true);
+
+    try {
+      await onSignInWithGoogle();
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed.');
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="auth-screen">
       <div className="auth-card">
@@ -130,7 +142,7 @@ export default function AuthScreen({ onSignIn, onSignUp, onSignInWithGoogle }) {
           <button
             type="button"
             className="auth-google"
-            onClick={onSignInWithGoogle}
+            onClick={handleGoogleSignIn}
             disabled={submitting}
           >
             CONTINUE WITH GOOGLE
