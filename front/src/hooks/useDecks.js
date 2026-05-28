@@ -41,16 +41,21 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     setLoadingFile: deckId === 'A' ? setLoadingFileA : setLoadingFileB,
   }), [trackA, trackB, isPlayingA, isPlayingB, stemsA, stemsB]);
 
-  // --- Sync BPM across both decks ---
-  const syncBpm = useCallback((targetBpm, deckId, trackBpm) => {
-    setMasterBpm(targetBpm);
+  // --- Initialize master BPM only when the console starts empty ---
+  const applyLoadBpm = useCallback((deckId, trackBpm) => {
+    if (!trackBpm) return masterBpm;
+
+    const targetBpm = !trackA && !trackB ? trackBpm : masterBpm;
+
+    if (!trackA && !trackB) {
+      setMasterBpm(targetBpm);
+    }
+
     const ap = audioPlayerRef.current;
     ap.setPlaybackRate(deckId, targetBpm / trackBpm);
-    const other = deckId === 'A' ? trackB : trackA;
-    if (other?.bpm) {
-      ap.setPlaybackRate(deckId === 'A' ? 'B' : 'A', targetBpm / other.bpm);
-    }
-  }, [audioPlayerRef, trackA, trackB, setMasterBpm]);
+
+    return targetBpm;
+  }, [audioPlayerRef, masterBpm, trackA, trackB, setMasterBpm]);
 
   const resetDeckPlaybackState = useCallback((deckId) => {
     const ds = deckState(deckId);
@@ -90,17 +95,17 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       await audioPlayerRef.current.loadAudio(deckId, 'full', objectUrl);
       analyzeWaveformForDeck(deckId);
 
-      if (analysis.bpm) syncBpm(analysis.bpm, deckId, analysis.bpm);
+      const bpmToUse = applyLoadBpm(deckId, trackData.bpm);
 
       setStatus('SEPARATING...');
-      await separateTrack(deckId, file, trackData, analysis.bpm || masterBpm);
+      await separateTrack(deckId, file, trackData, bpmToUse);
     } catch (err) {
       console.error(err);
       setStatus('ERROR: ' + err.message);
     } finally {
       ds.setLoadingFile(null);
     }
-  }, [deckState, audioPlayerRef, masterBpm, syncBpm, setStatus, resetDeckPlaybackState]);
+  }, [deckState, audioPlayerRef, applyLoadBpm, setStatus, resetDeckPlaybackState]);
 
   // --- Separate track into stems ---
   const separateTrack = useCallback(async (deckId, file, trackData, bpmToUse) => {
@@ -188,7 +193,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       await Promise.all(stemNames.map(s => ap.loadAudio(deckId, s, stemUrls[s])));
       analyzeWaveformForDeck(deckId);
 
-      if (libraryTrack.bpm) syncBpm(libraryTrack.bpm, deckId, libraryTrack.bpm);
+      applyLoadBpm(deckId, libraryTrack.bpm || 128);
 
       ds.setStems(STEMS_ON);
       stemNames.forEach(s => ap.muteStem(deckId, s, false));
@@ -199,7 +204,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     } finally {
       ds.setLoadingFile(null);
     }
-  }, [deckState, audioPlayerRef, syncBpm, getStemUrls, setStatus, resetDeckPlaybackState]);
+  }, [deckState, audioPlayerRef, applyLoadBpm, getStemUrls, setStatus, resetDeckPlaybackState]);
 
   // --- Playback ---
   const togglePlay = useCallback(async (deckId) => {
