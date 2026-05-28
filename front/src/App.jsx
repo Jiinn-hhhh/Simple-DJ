@@ -49,12 +49,13 @@ function App() {
   const {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume,
+    headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady, headphoneOutputLabel,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
-    handleEffectVolumeChange,
+    handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange, handleSelectHeadphoneOutput,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,
-  } = useMixer(audioPlayerRef, decks.trackA, decks.trackB, masterBpm, setMasterBpm);
+  } = useMixer(audioPlayerRef, decks.trackA, decks.trackB, masterBpm, setMasterBpm, setStatus);
 
   // --- System init ---
   useEffect(() => {
@@ -261,6 +262,7 @@ function App() {
                         <div>Loop Roll: hold pad for beat-synced repeat, release to continue or slip-return</div>
                         <div>Slip Mode: scratching/looping returns to original position</div>
                         <div>Key Lock: keep pitch when changing BPM</div>
+                        <div>HP Only: route a deck to the selected headphone output instead of master output</div>
                         <div>Quantize: global start timing snaps to the next master beat</div>
                         <div>EQ: adjust low/mid/high frequencies per deck</div>
                         <div>Filter: low-pass (left) / high-pass (right)</div>
@@ -354,8 +356,16 @@ function App() {
                 onBpmChange={guard(handleMasterBpmChange)}
                 masterVolume={masterVolume}
                 effectVolume={effectVolume}
+                headphoneOnlyA={headphoneOnlyA}
+                headphoneOnlyB={headphoneOnlyB}
+                headphoneVolume={headphoneVolume}
+                headphoneOutputReady={headphoneOutputReady}
+                headphoneOutputLabel={headphoneOutputLabel}
                 onMasterVolumeChange={guard(handleMasterVolumeChange)}
                 onEffectVolumeChange={guard(handleEffectVolumeChange)}
+                onToggleHeadphoneOnly={guard(handleHeadphoneOnlyToggle)}
+                onHeadphoneVolumeChange={guard(handleHeadphoneVolumeChange)}
+                onSelectHeadphoneOutput={guard(handleSelectHeadphoneOutput)}
                 onMasterEffect={guard(handleMasterEffect)}
                 onTriggerSampler={guard(triggerSampler)}
                 quantizeEnabled={isQuantizeEnabled}

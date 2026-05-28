@@ -445,6 +445,60 @@ body {
     font-size: 0.62rem;
 }
 
+.headphone-panel {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    box-sizing: border-box;
+    padding: 6px;
+    background: #111;
+    border: 1px solid #24242c;
+    border-radius: 4px;
+}
+
+.headphone-device-btn,
+.headphone-only-btn {
+    width: 100%;
+    min-height: 28px;
+    height: 28px;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.48rem;
+    letter-spacing: 0;
+}
+
+.headphone-device-btn.active {
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+    background: rgba(0, 229, 255, 0.12);
+}
+
+.headphone-only-btn {
+    border-color: #333;
+    color: #9a9aaa;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.headphone-only-btn.active {
+    border-color: var(--neon-yellow);
+    color: #000;
+    background: var(--neon-yellow);
+    box-shadow: 0 0 12px rgba(240, 255, 0, 0.35);
+}
+
+.headphone-device-label {
+    width: 100%;
+    min-height: 14px;
+    color: var(--text-dim);
+    font-size: 0.62rem;
+    line-height: 1.1;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 
 
 

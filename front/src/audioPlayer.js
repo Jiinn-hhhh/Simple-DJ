@@ -17,6 +17,14 @@ class AudioPlayer {
     this.stemGainNodes = {};
     // Structure: { trackId: GainNode } (Master gain for the track)
     this.trackGainNodes = {};
+    // Structure: { trackId: GainNode } (Post-EQ send to speaker/master output)
+    this.trackMasterSendNodes = {};
+    // Structure: { trackId: GainNode } (Post-EQ send to selected headphone output)
+    this.trackHeadphoneSendNodes = {};
+    this.headphoneOnlyStates = {};
+    this.headphoneVolume = 0.85;
+    this.headphoneOutputDevice = null;
+    this.headphoneAudioElement = null;
     this.desiredTrackVolumes = {};
     // Structure: { trackId: BiquadFilterNode }
     this.trackFilterNodes = {};
@@ -201,12 +209,117 @@ class AudioPlayer {
     this.masterNodes.reverbGain.connect(this.masterNodes.streamDest);
     this.masterNodes.distortionGain.connect(this.masterNodes.streamDest);
 
+    // 7. Independent headphone monitor bus. This is routed through a
+    // MediaStream-backed audio element so Chrome can send it to a separate
+    // physical output device via setSinkId().
+    this.headphoneNodes = {};
+    this.headphoneNodes.input = this.audioContext.createGain();
+    this.headphoneNodes.gain = this.audioContext.createGain();
+    this.headphoneNodes.gain.gain.value = this.headphoneVolume;
+    this.headphoneNodes.streamDest = this.audioContext.createMediaStreamDestination();
+    this.headphoneNodes.input.connect(this.headphoneNodes.gain);
+    this.headphoneNodes.gain.connect(this.headphoneNodes.streamDest);
+
     this.masterBusInitialized = true;
   }
 
   getOutputStream() {
     if (!this.masterNodes?.streamDest) return null;
     return this.masterNodes.streamDest.stream;
+  }
+
+  _supportsOutputDeviceSelection() {
+    return (
+      typeof window !== 'undefined' &&
+      typeof HTMLMediaElement !== 'undefined' &&
+      'setSinkId' in HTMLMediaElement.prototype
+    );
+  }
+
+  _ensureHeadphoneAudioElement() {
+    if (!this.headphoneNodes?.streamDest) return null;
+
+    if (!this.headphoneAudioElement) {
+      const audio = new Audio();
+      audio.autoplay = true;
+      audio.playsInline = true;
+      audio.srcObject = this.headphoneNodes.streamDest.stream;
+      this.headphoneAudioElement = audio;
+    } else if (this.headphoneAudioElement.srcObject !== this.headphoneNodes.streamDest.stream) {
+      this.headphoneAudioElement.srcObject = this.headphoneNodes.streamDest.stream;
+    }
+
+    return this.headphoneAudioElement;
+  }
+
+  async startHeadphoneOutput() {
+    await this.init();
+    this.initMasterBus();
+    const audio = this._ensureHeadphoneAudioElement();
+    if (!audio) return;
+    if (audio.paused) await audio.play();
+  }
+
+  async selectHeadphoneOutput() {
+    await this.init();
+    this.initMasterBus();
+
+    const audio = this._ensureHeadphoneAudioElement();
+    if (!audio || !this._supportsOutputDeviceSelection()) {
+      throw new Error('This browser cannot choose a separate headphone output.');
+    }
+
+    if (!navigator.mediaDevices?.selectAudioOutput) {
+      throw new Error('Headphone output picker is not available in this browser.');
+    }
+
+    const device = await navigator.mediaDevices.selectAudioOutput();
+    await audio.setSinkId(device.deviceId);
+    await this.startHeadphoneOutput();
+
+    this.headphoneOutputDevice = {
+      deviceId: device.deviceId,
+      label: device.label || 'Selected headphone output',
+    };
+
+    return this.headphoneOutputDevice;
+  }
+
+  setHeadphoneVolume(volume) {
+    this.headphoneVolume = Math.max(0, Math.min(1, volume));
+    if (!this.audioContext || !this.headphoneNodes?.gain) return;
+
+    const now = this.audioContext.currentTime;
+    this.headphoneNodes.gain.gain.cancelScheduledValues(now);
+    this.headphoneNodes.gain.gain.setTargetAtTime(this.headphoneVolume, now, 0.05);
+  }
+
+  _applyTrackRouting(trackId) {
+    if (!this.audioContext) return;
+
+    const now = this.audioContext.currentTime;
+    const masterSend = this.trackMasterSendNodes[trackId];
+    const headphoneSend = this.trackHeadphoneSendNodes[trackId];
+    const isHeadphoneOnly = !!this.headphoneOnlyStates[trackId];
+    const masterVolume = this.desiredTrackVolumes[trackId] ?? 1.0;
+
+    if (masterSend) {
+      masterSend.gain.cancelScheduledValues(now);
+      masterSend.gain.setTargetAtTime(isHeadphoneOnly ? 0 : masterVolume, now, 0.05);
+    }
+
+    if (headphoneSend) {
+      headphoneSend.gain.cancelScheduledValues(now);
+      headphoneSend.gain.setTargetAtTime(isHeadphoneOnly ? 1 : 0, now, 0.05);
+    }
+  }
+
+  setHeadphoneOnly(trackId, enabled) {
+    this.headphoneOnlyStates[trackId] = enabled;
+    if (!this.audioContext) return;
+
+    this.setupTrackGraph(trackId);
+    this._applyTrackRouting(trackId);
   }
 
   _createReverbImpulse(duration, decay) {
@@ -247,7 +360,7 @@ class AudioPlayer {
     if (!this.trackGainNodes[trackId]) {
       // Master Gain for Track
       const trackGain = this.audioContext.createGain();
-      trackGain.gain.value = this.desiredTrackVolumes[trackId] ?? 1.0;
+      trackGain.gain.value = 1.0;
 
       this.trackEqNodes[trackId] = {
         lowGain: this.audioContext.createGain(),
@@ -322,11 +435,19 @@ class AudioPlayer {
 
       filter.connect(analyser);
 
-      // Changed: Connect to Master Bus Input instead of Destination
-      analyser.connect(this.masterNodes.input);
+      const masterSend = this.audioContext.createGain();
+      const headphoneSend = this.audioContext.createGain();
+      this.trackMasterSendNodes[trackId] = masterSend;
+      this.trackHeadphoneSendNodes[trackId] = headphoneSend;
+
+      analyser.connect(masterSend);
+      masterSend.connect(this.masterNodes.input);
+      analyser.connect(headphoneSend);
+      headphoneSend.connect(this.headphoneNodes.input);
 
       this.trackGainNodes[trackId] = trackGain;
       this.trackFilterNodes[trackId] = filter;
+      this._applyTrackRouting(trackId);
     }
   }
 
@@ -496,10 +617,7 @@ class AudioPlayer {
     }
 
     this.setupTrackGraph(trackId);
-    const gainNode = this.trackGainNodes[trackId];
-    const currentTime = this.audioContext.currentTime;
-    gainNode.gain.cancelScheduledValues(currentTime);
-    gainNode.gain.setTargetAtTime(nextVolume, currentTime, 0.05);
+    this._applyTrackRouting(trackId);
   }
 
   setPlaybackRate(trackId, rate) {
@@ -945,6 +1063,11 @@ class AudioPlayer {
           this.audioContext.close();
         }
       }
+
+      if (this.headphoneAudioElement) {
+        this.headphoneAudioElement.pause();
+        this.headphoneAudioElement.srcObject = null;
+      }
     } catch (err) {
       console.warn("Error during AudioPlayer cleanup:", err);
     } finally {
@@ -952,7 +1075,13 @@ class AudioPlayer {
       this.sourceNodes = {};
       this.stemGainNodes = {};
       this.trackGainNodes = {};
+      this.trackMasterSendNodes = {};
+      this.trackHeadphoneSendNodes = {};
       this.trackFilterNodes = {};
+      this.masterNodes = null;
+      this.headphoneNodes = null;
+      this.headphoneAudioElement = null;
+      this.masterBusInitialized = false;
     }
   }
 }

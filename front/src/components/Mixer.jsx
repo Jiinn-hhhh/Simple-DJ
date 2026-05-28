@@ -19,8 +19,16 @@ const Mixer = ({
   onBpmChange,
   masterVolume,
   effectVolume,
+  headphoneOnlyA,
+  headphoneOnlyB,
+  headphoneVolume,
+  headphoneOutputReady,
+  headphoneOutputLabel,
   onMasterVolumeChange,
   onEffectVolumeChange,
+  onToggleHeadphoneOnly,
+  onHeadphoneVolumeChange,
+  onSelectHeadphoneOutput,
   onMasterEffect,
   onTriggerSampler,
   quantizeEnabled,
@@ -119,6 +127,15 @@ const Mixer = ({
             </div>
             <span className="deck-label">A</span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => onToggleHeadphoneOnly('A')}
+            className={`glass-btn headphone-only-btn ${headphoneOnlyA ? 'active' : ''}`}
+            title="Route Deck A to headphones only"
+          >
+            HP ONLY
+          </button>
         </div>
 
         {/* CENTER COLUMN: FX & SAMPLER */}
@@ -130,6 +147,29 @@ const Mixer = ({
           >
             QUANTIZE
           </button>
+
+          <div className="headphone-panel">
+            <button
+              type="button"
+              onClick={onSelectHeadphoneOutput}
+              className={`glass-btn headphone-device-btn ${headphoneOutputReady ? 'active' : ''}`}
+              title="Choose headphone output device"
+            >
+              HP OUT
+            </button>
+            <div className="headphone-device-label" title={headphoneOutputLabel || 'No headphone output selected'}>
+              {headphoneOutputReady ? (headphoneOutputLabel || 'SELECTED') : 'NO DEVICE'}
+            </div>
+            <label className="mixer-label tiny">HP VOL</label>
+            <input
+              type="range"
+              min="0" max="1" step="0.01"
+              value={headphoneVolume}
+              onChange={(e) => onHeadphoneVolumeChange(parseFloat(e.target.value))}
+              className="knob-slider-horizontal"
+              title={`Headphone Volume: ${Math.round(headphoneVolume * 100)}%`}
+            />
+          </div>
 
           <div className="control-group" style={{ width: '100%', marginBottom: '8px' }}>
             <label className="mixer-label">SFX VOL</label>
@@ -236,6 +276,15 @@ const Mixer = ({
             </div>
             <span className="deck-label">B</span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => onToggleHeadphoneOnly('B')}
+            className={`glass-btn headphone-only-btn ${headphoneOnlyB ? 'active' : ''}`}
+            title="Route Deck B to headphones only"
+          >
+            HP ONLY
+          </button>
         </div>
 
       </div>

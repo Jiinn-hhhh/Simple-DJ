@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 
-export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterBpm = null, externalSetMasterBpm = null) {
+export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterBpm = null, externalSetMasterBpm = null, setStatus = null) {
   const [volumeA, setVolumeA] = useState(1.0);
   const [volumeB, setVolumeB] = useState(1.0);
   const [crossfader, setCrossfader] = useState(0.5);
@@ -15,9 +15,17 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
   const [internalMasterBpm, setInternalMasterBpm] = useState(128);
   const [keyLockA, setKeyLockA] = useState(false);
   const [keyLockB, setKeyLockB] = useState(false);
+  const [headphoneOnlyA, setHeadphoneOnlyA] = useState(false);
+  const [headphoneOnlyB, setHeadphoneOnlyB] = useState(false);
+  const [headphoneVolume, setHeadphoneVolume] = useState(0.85);
+  const [headphoneOutputReady, setHeadphoneOutputReady] = useState(false);
+  const [headphoneOutputLabel, setHeadphoneOutputLabel] = useState('');
 
   const masterBpm = externalMasterBpm ?? internalMasterBpm;
   const setMasterBpm = externalSetMasterBpm ?? setInternalMasterBpm;
+  const reportStatus = useCallback((message) => {
+    if (setStatus) setStatus(message);
+  }, [setStatus]);
 
   // --- Volume math with crossfader curve ---
   const applyVolumes = useCallback((volA, volB, xf, masterVol) => {
@@ -50,6 +58,46 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
     audioPlayerRef.current.setSamplerVolume?.(next);
   }, [audioPlayerRef]);
 
+  const handleSelectHeadphoneOutput = useCallback(async () => {
+    try {
+      const output = await audioPlayerRef.current.selectHeadphoneOutput();
+      setHeadphoneOutputReady(true);
+      setHeadphoneOutputLabel(output?.label || 'HEADPHONES');
+      reportStatus('HEADPHONE OUTPUT READY');
+      return output;
+    } catch (err) {
+      console.warn('Headphone output selection failed:', err);
+      const cancelled = err?.name === 'NotAllowedError' || err?.name === 'AbortError';
+      reportStatus(cancelled ? 'HEADPHONE DEVICE NOT SELECTED' : 'HEADPHONE OUTPUT UNSUPPORTED');
+      return null;
+    }
+  }, [audioPlayerRef, reportStatus]);
+
+  const handleHeadphoneVolumeChange = useCallback((val) => {
+    const next = Math.max(0, Math.min(1, val));
+    setHeadphoneVolume(next);
+    audioPlayerRef.current.setHeadphoneVolume(next);
+  }, [audioPlayerRef]);
+
+  const handleHeadphoneOnlyToggle = useCallback(async (deckId) => {
+    const isCurrentlyOn = deckId === 'A' ? headphoneOnlyA : headphoneOnlyB;
+    const next = !isCurrentlyOn;
+
+    if (next) {
+      const output = headphoneOutputReady
+        ? await audioPlayerRef.current.startHeadphoneOutput().then(() => ({ ready: true })).catch(() => null)
+        : await handleSelectHeadphoneOutput();
+
+      if (!output) return;
+    }
+
+    if (deckId === 'A') setHeadphoneOnlyA(next);
+    else setHeadphoneOnlyB(next);
+
+    audioPlayerRef.current.setHeadphoneOnly(deckId, next);
+    reportStatus(`${deckId} HEADPHONE ONLY ${next ? 'ON' : 'OFF'}`);
+  }, [audioPlayerRef, headphoneOnlyA, headphoneOnlyB, headphoneOutputReady, handleSelectHeadphoneOutput, reportStatus]);
+
   // --- EQ ---
   const handleEqChange = useCallback((deckId, band, val) => {
     if (deckId === 'A') setEqA(prev => ({ ...prev, [band]: val }));
@@ -68,7 +116,7 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
     setMasterBpm(val);
     if (trackA?.bpm) audioPlayerRef.current.setPlaybackRate('A', val / trackA.bpm);
     if (trackB?.bpm) audioPlayerRef.current.setPlaybackRate('B', val / trackB.bpm);
-  }, [audioPlayerRef, trackA, trackB]);
+  }, [audioPlayerRef, trackA, trackB, setMasterBpm]);
 
   // --- Key Lock ---
   const toggleKeyLock = useCallback((deckId) => {
@@ -108,9 +156,10 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
   return {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume, masterBpm, setMasterBpm,
+    headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady, headphoneOutputLabel,
     setCrossfader,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
-    handleEffectVolumeChange,
+    handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange, handleSelectHeadphoneOutput,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,
