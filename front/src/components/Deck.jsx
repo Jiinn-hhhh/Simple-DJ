@@ -235,12 +235,6 @@ const Deck = ({
                     </div>
                 </div>
 
-                {!hasTrack && !loadingTrack && (
-                    <div className="deck-empty-hint disc-empty-hint">
-                        <span>Drag a track from Library or file</span>
-                    </div>
-                )}
-
                 {isSeparating && (
                     <div style={{
                         position: 'absolute', bottom: '10px', background: 'black',
@@ -270,6 +264,12 @@ const Deck = ({
                     </div>
                 )}
             </div>
+
+            {!hasTrack && !loadingTrack && (
+                <div className="deck-empty-zone">
+                    <span>Drag a track from Library or file</span>
+                </div>
+            )}
 
             <div className={`deck-controls ${showDeckControls ? '' : 'deck-controls-hidden'}`}>
                 {hasTrack ? (

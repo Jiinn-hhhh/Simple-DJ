@@ -373,24 +373,30 @@
 
 /* Library Toggle Button */
 .library-toggle {
-  position: fixed;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  position: relative;
+  flex: 0 0 34px;
+  width: 34px;
+  min-width: 34px;
+  height: 100%;
+  align-self: stretch;
   writing-mode: vertical-rl;
   text-orientation: mixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-family: 'Press Start 2P', cursive;
   font-size: 0.55rem;
   color: var(--neon-green, #00ff9d);
   background: #16161a;
-  border: 1px solid #33333f;
-  border-left: none;
-  border-radius: 0 6px 6px 0;
-  padding: 16px 8px;
+  border: none;
+  border-right: 1px solid #33333f;
+  border-left: 1px solid #24242d;
+  border-radius: 0;
+  padding: 0;
   cursor: pointer;
-  z-index: 999;
+  z-index: 2;
   letter-spacing: 3px;
-  transition: background 0.2s, box-shadow 0.2s, left 0.3s ease;
+  transition: background 0.2s, color 0.2s;
 }
 
 .library-toggle:hover {
@@ -399,5 +405,7 @@
 }
 
 .library-toggle.panel-open {
-  left: 300px;
+  color: var(--neon-green, #00ff9d);
+  background: #16161a;
+  border-right-color: var(--neon-green, #00ff9d);
 }
