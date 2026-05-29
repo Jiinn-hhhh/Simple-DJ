@@ -176,10 +176,16 @@ const Deck = ({
         scratchReleasing ? 'scratch-releasing' : '',
         isPlaying && !isScratching && !scratchReleasing ? 'spinning' : '',
     ].filter(Boolean).join(' ');
+    const deckClass = [
+        'deck-container',
+        hasTrack ? 'deck-loaded' : 'deck-empty',
+        loadingTrack ? 'deck-loading' : '',
+        isDragOver ? 'dragging' : '',
+    ].filter(Boolean).join(' ');
 
     return (
         <div
-            className={`deck-container ${isDragOver ? 'dragging' : ''}`}
+            className={deckClass}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}

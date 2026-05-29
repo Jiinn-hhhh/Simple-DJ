@@ -29,6 +29,14 @@
     --hotcue-min: 28px;
     --beatjump-min: 25px;
     --stems-min: 28px;
+    --deck-spectrum-height: 54px;
+    --deck-disc-min: 170px;
+    --deck-waveform-row: 64px;
+    --deck-control-row: 50px;
+    --deck-label-row: 18px;
+    --deck-pad-row: 46px;
+    --deck-beat-row: 52px;
+    --deck-stem-row: 52px;
 }
 
 body {
@@ -259,8 +267,6 @@ body {
     border: 1px solid var(--panel-border);
     border-radius: 8px;
     padding: 6px;
-    display: flex;
-    flex-direction: column;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     position: relative;
     min-height: 0;
@@ -268,9 +274,23 @@ body {
 
 /* Deck */
 .deck-container {
-    justify-content: flex-start;
+    display: grid;
+    grid-template-rows:
+        auto
+        var(--deck-spectrum-height)
+        minmax(var(--deck-disc-min), 1fr)
+        auto;
     gap: 4px;
     overflow: hidden;
+}
+
+.deck-container.deck-empty,
+.deck-container.deck-loading {
+    grid-template-rows:
+        auto
+        var(--deck-spectrum-height)
+        minmax(var(--deck-disc-min), 0.62fr)
+        minmax(0, 1fr);
 }
 
 .deck-container.dragging {
@@ -442,11 +462,19 @@ body {
     min-width: 0;
 }
 
+.mixer-action-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(78px, 1.2fr) minmax(58px, 0.9fr) minmax(0, 1fr);
+    gap: 4px;
+    min-width: 0;
+}
+
 .mixer-quantize-btn {
     width: 100%;
     height: 34px;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.62rem;
+    font-size: 0.52rem;
 }
 
 .headphone-panel {
@@ -488,6 +516,12 @@ body {
     font-family: 'Press Start 2P', cursive;
     font-size: 0.43rem;
     letter-spacing: 0;
+}
+
+.mixer-action-row .headphone-device-btn,
+.mixer-action-row .headphone-output-select {
+    height: 34px;
+    min-height: 34px;
 }
 
 .headphone-device-btn.active {
@@ -832,19 +866,21 @@ body {
 
 /* --- VINYL --- */
 .disc-container {
-    flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
     position: relative;
-    min-height: 60px;
+    min-height: 0;
+    overflow: hidden;
     container-type: size;
 }
 
 .vinyl-disc {
-    --vinyl-size: 270px;
-    width: var(--vinyl-size);
-    height: var(--vinyl-size);
+    --vinyl-max: 270px;
+    width: min(var(--vinyl-max), 88%);
+    width: min(var(--vinyl-max), 88cqw, calc(100cqh - 8px));
+    height: auto;
+    aspect-ratio: 1 / 1;
     flex: 0 0 auto;
     border-radius: 50%;
     background: repeating-radial-gradient(#111, #111 2px, #1a1a1a 3px);
@@ -877,13 +913,13 @@ body {
 
 @media (max-width: 1470px) {
     .vinyl-disc {
-        --vinyl-size: 220px;
+        --vinyl-max: 220px;
     }
 }
 
 @media (min-width: 1800px) {
     .vinyl-disc {
-        --vinyl-size: 320px;
+        --vinyl-max: 320px;
     }
 }
 
@@ -904,8 +940,8 @@ body {
 /* --- SPECTRUM OVERLAY --- */
 .spectrum-overlay {
     width: 90%;
-    height: 70px;
-    margin: 5px auto 0 auto;
+    height: 100%;
+    margin: 0 auto;
     /* Centered with a bit of top margin */
     background: rgba(0, 0, 0, 0.8);
     border: 2px solid #333;
@@ -916,6 +952,8 @@ body {
     align-items: center;
     overflow: hidden;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+    box-sizing: border-box;
+    min-height: 0;
 }
 
 .spectrum-overlay.active.deck-a {
@@ -934,24 +972,23 @@ body {
 .deck-controls {
     display: grid;
     grid-template-rows:
-        minmax(var(--waveform-min), 2fr)
-        minmax(var(--control-row-min), 1fr)
-        auto
-        minmax(var(--looproll-min), 1.2fr)
-        auto
-        minmax(var(--hotcue-min), 1.2fr)
-        auto
-        minmax(var(--beatjump-min), 1fr)
-        minmax(var(--stems-min), 1.5fr);
+        var(--deck-waveform-row)
+        var(--deck-control-row)
+        var(--deck-label-row)
+        var(--deck-pad-row)
+        var(--deck-label-row)
+        var(--deck-pad-row)
+        var(--deck-label-row)
+        var(--deck-beat-row)
+        var(--deck-stem-row);
     gap: 3px;
-    flex: 1;
+    align-content: start;
     min-height: 0;
     transition: opacity 0.15s ease;
 }
 
 .deck-controls-hidden {
-    opacity: 0;
-    pointer-events: none;
+    display: none;
 }
 
 .deck-empty-hint {
@@ -982,11 +1019,12 @@ body {
     justify-content: space-between;
     align-items: center;
     gap: 6px;
+    min-height: 0;
 }
 
 .play-btn {
-    width: 50px;
-    height: 50px;
+    width: var(--deck-control-row);
+    height: 100%;
     border-radius: 50%;
     background: #222;
     color: #fff;
@@ -1006,6 +1044,14 @@ body {
     grid-template-columns: repeat(3, 1fr);
     gap: 3px;
     flex: 1;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+.feature-grid .glass-btn {
+    height: 100%;
+    min-height: 0;
 }
 
 .glass-btn {
@@ -1056,7 +1102,9 @@ body {
 .stems-row {
     display: flex;
     gap: 3px;
-    align-self: center;
+    align-self: stretch;
+    width: 100%;
+    min-height: 0;
 }
 
 .stem-btn {
@@ -1064,13 +1112,15 @@ body {
     background: #111;
     border: 1px solid #333;
     color: #555;
-    padding: 10px 0;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     font-size: 1rem;
     font-weight: bold;
+    height: 100%;
+    min-width: 0;
 }
 
 .stem-btn.active {
@@ -1134,14 +1184,16 @@ body {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 3px;
-    align-self: center;
+    align-self: stretch;
+    width: 100%;
+    min-height: 0;
 }
 
 .hotcue-pad {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 0;
+    padding: 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
@@ -1150,6 +1202,8 @@ body {
     font-size: 0.75rem;
     cursor: pointer;
     transition: all 0.1s ease;
+    min-width: 0;
+    min-height: 0;
 }
 
 .hotcue-pad.active {
@@ -1179,7 +1233,9 @@ body {
     display: flex;
     align-items: stretch;
     gap: 3px;
-    align-self: center;
+    align-self: stretch;
+    width: 100%;
+    min-height: 0;
 }
 
 .beat-jump-btn {
@@ -1312,14 +1368,16 @@ body {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 3px;
-    align-self: center;
+    align-self: stretch;
+    width: 100%;
+    min-height: 0;
 }
 
 .looproll-pad {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 0;
+    padding: 0;
     border: 2px solid #333;
     border-radius: 3px;
     background: rgba(255, 255, 255, 0.03);
@@ -1329,6 +1387,8 @@ body {
     cursor: pointer;
     transition: all 0.1s ease;
     user-select: none;
+    min-width: 0;
+    min-height: 0;
 }
 
 .looproll-pad.active {
@@ -1383,7 +1443,11 @@ body {
     letter-spacing: 3px;
     text-align: center;
     line-height: 1;
-    align-self: end;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
 }
 
 /* --- RESPONSIVE: MacBook Air (height <= 960px) --- */
@@ -1395,35 +1459,18 @@ body {
         --hotcue-min: 24px;
         --beatjump-min: 22px;
         --stems-min: 24px;
-    }
-
-    .spectrum-overlay {
-        height: 40px;
-    }
-
-    .disc-container {
-        flex: 1 1 0;
-        min-height: 0;
-    }
-
-    .deck-controls {
-        flex: 0 0 auto;
-        grid-template-rows:
-            50px
-            auto
-            auto
-            auto
-            auto
-            auto
-            auto
-            auto
-            auto;
+        --deck-spectrum-height: 42px;
+        --deck-disc-min: 135px;
+        --deck-waveform-row: 58px;
+        --deck-control-row: 42px;
+        --deck-label-row: 16px;
+        --deck-pad-row: 42px;
+        --deck-beat-row: 48px;
+        --deck-stem-row: 48px;
     }
 
     /* 플레이 버튼 축소 */
     .play-btn {
-        width: 38px;
-        height: 38px;
         font-size: 0.9rem;
     }
 
@@ -1442,12 +1489,15 @@ body {
 
 /* --- RESPONSIVE: Very short viewport (height <= 780px) --- */
 @media (max-height: 780px) {
-    .disc-container {
-        flex: 0.35;
-    }
-
-    .spectrum-overlay {
-        height: 30px;
+    :root {
+        --deck-spectrum-height: 34px;
+        --deck-disc-min: 104px;
+        --deck-waveform-row: 48px;
+        --deck-control-row: 36px;
+        --deck-label-row: 14px;
+        --deck-pad-row: 34px;
+        --deck-beat-row: 40px;
+        --deck-stem-row: 40px;
     }
 }
 
@@ -1459,5 +1509,13 @@ body {
         --hotcue-min: 36px;
         --beatjump-min: 30px;
         --stems-min: 36px;
+        --deck-spectrum-height: 70px;
+        --deck-disc-min: 210px;
+        --deck-waveform-row: 78px;
+        --deck-control-row: 54px;
+        --deck-label-row: 20px;
+        --deck-pad-row: 52px;
+        --deck-beat-row: 56px;
+        --deck-stem-row: 56px;
     }
 }
