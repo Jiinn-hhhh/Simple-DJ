@@ -302,7 +302,7 @@ function App() {
               <div className="help-modal-overlay" onClick={() => setShowHelp(false)}>
                 <div className="help-modal" onClick={e => e.stopPropagation()}>
                   <div className="help-modal-header">
-                    <span className="pixel-font" style={{fontSize:'0.6rem',color:'var(--neon-green)'}}>SHORTCUTS</span>
+                    <span className="help-modal-title pixel-font">SHORTCUTS</span>
                     <button className="help-modal-close" onClick={() => setShowHelp(false)}>&times;</button>
                   </div>
                   <div className="help-tabs">

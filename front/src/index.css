@@ -231,8 +231,8 @@ body {
     background: #1e1e24;
     border: 1px solid #33333f;
     border-radius: 8px;
-    padding: 16px;
-    max-width: 320px;
+    padding: 18px;
+    max-width: 390px;
     width: 90%;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
@@ -244,11 +244,16 @@ body {
     margin-bottom: 10px;
 }
 
+.help-modal-title {
+    font-size: 0.72rem;
+    color: var(--neon-green);
+}
+
 .help-modal-close {
     background: transparent;
     border: none;
     color: #888;
-    font-size: 1.2rem;
+    font-size: 1.4rem;
     cursor: pointer;
 }
 
@@ -269,7 +274,7 @@ body {
     border: 1px solid #333;
     color: #666;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.4rem;
+    font-size: 0.5rem;
     cursor: pointer;
     transition: color 0.2s, background 0.2s;
 }
@@ -292,20 +297,21 @@ body {
     font-family: 'Rajdhani', sans-serif;
     max-height: 60vh;
     overflow-y: auto;
+    font-size: 0.95rem;
 }
 
 .help-section-title {
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.4rem;
+    font-size: 0.5rem;
     color: var(--neon-green);
     margin-bottom: 6px;
     letter-spacing: 1px;
 }
 
 .help-tips {
-    font-size: 0.75rem;
+    font-size: 0.95rem;
     color: #aaa;
-    line-height: 1.6;
+    line-height: 1.7;
     margin-bottom: 4px;
 }
 
@@ -318,8 +324,8 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 2px 0;
-    font-size: 0.75rem;
+    padding: 3px 0;
+    font-size: 0.95rem;
     color: #ccc;
 }
 
@@ -327,11 +333,11 @@ body {
     background: #111;
     border: 1px solid #333;
     border-radius: 3px;
-    padding: 1px 5px;
+    padding: 3px 6px;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.35rem;
+    font-size: 0.43rem;
     color: var(--neon-blue);
-    min-width: 40px;
+    min-width: 48px;
     text-align: center;
 }
 
