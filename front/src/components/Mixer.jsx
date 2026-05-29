@@ -143,40 +143,41 @@ const Mixer = ({
           </button>
 
           <div className="headphone-panel">
-            <button
-              type="button"
-              onClick={onRefreshHeadphoneOutputs}
-              className={`glass-btn headphone-device-btn ${headphoneOutputReady ? 'active' : ''}`}
-              title="Load headphone output devices"
-            >
-              HP OUT
-            </button>
-            <select
-              className="headphone-output-select"
-              value={headphoneOutputId}
-              onChange={(e) => onSelectHeadphoneOutput(e.target.value)}
-              disabled={!headphoneOutputs.length}
-              title="Headphone output line"
-            >
-              <option value="">SELECT LINE</option>
-              {headphoneOutputs.map((output) => (
-                <option key={output.deviceId} value={output.deviceId}>
-                  {output.label}
-                </option>
-              ))}
-            </select>
-            <div className="headphone-device-label" title={headphoneOutputLabel || headphoneOutputMessage}>
-              {headphoneOutputReady ? (headphoneOutputLabel || 'HP READY') : headphoneOutputMessage}
+            <div className="headphone-output-row">
+              <button
+                type="button"
+                onClick={onRefreshHeadphoneOutputs}
+                className={`glass-btn headphone-device-btn ${headphoneOutputReady ? 'active' : ''}`}
+                title={headphoneOutputLabel || headphoneOutputMessage || 'Load headphone output devices'}
+              >
+                HP OUT
+              </button>
+              <select
+                className="headphone-output-select"
+                value={headphoneOutputId}
+                onChange={(e) => onSelectHeadphoneOutput(e.target.value)}
+                disabled={!headphoneOutputs.length}
+                title={headphoneOutputLabel || headphoneOutputMessage || 'Headphone output line'}
+              >
+                <option value="">LINE</option>
+                {headphoneOutputs.map((output) => (
+                  <option key={output.deviceId} value={output.deviceId}>
+                    {output.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <label className="mixer-label tiny">HP VOL</label>
-            <input
-              type="range"
-              min="0" max="1" step="0.01"
-              value={headphoneVolume}
-              onChange={(e) => onHeadphoneVolumeChange(parseFloat(e.target.value))}
-              className="knob-slider-horizontal"
-              title={`Headphone Volume: ${Math.round(headphoneVolume * 100)}%`}
-            />
+            <div className="headphone-volume-row">
+              <label className="mixer-label tiny">HP</label>
+              <input
+                type="range"
+                min="0" max="1" step="0.01"
+                value={headphoneVolume}
+                onChange={(e) => onHeadphoneVolumeChange(parseFloat(e.target.value))}
+                className="knob-slider-horizontal"
+                title={`Headphone Volume: ${Math.round(headphoneVolume * 100)}%`}
+              />
+            </div>
           </div>
 
           <div className="control-group" style={{ width: '100%', marginBottom: '8px' }}>
