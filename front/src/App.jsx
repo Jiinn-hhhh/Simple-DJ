@@ -239,7 +239,7 @@ function App() {
                     type="button"
                     onClick={guard(handleRefreshHeadphoneOutputs)}
                     className={`topbar-btn topbar-hp-btn pixel-font ${headphoneOutputReady ? 'active' : ''}`}
-                    title="Load headphone output devices"
+                    title="Choose headphone output device"
                   >
                     HP OUT
                   </button>
@@ -250,7 +250,7 @@ function App() {
                     disabled={!isSystemReady || !headphoneOutputs.length}
                     title="Headphone output line"
                   >
-                    <option value="">SELECT LINE</option>
+                    <option value="">OUTPUT LINE</option>
                     {headphoneOutputs.map((output) => (
                       <option key={output.deviceId} value={output.deviceId}>
                         {output.label}

@@ -235,6 +235,14 @@ class AudioPlayer {
     );
   }
 
+  _supportsOutputDevicePicker() {
+    return (
+      typeof navigator !== 'undefined' &&
+      !!navigator.mediaDevices?.selectAudioOutput &&
+      this._supportsOutputDeviceSelection()
+    );
+  }
+
   _ensureHeadphoneAudioElement() {
     if (!this.headphoneNodes?.streamDest) return null;
 
@@ -293,6 +301,56 @@ class AudioPlayer {
         deviceId: device.deviceId || 'default',
         label: device.label || (index === 0 ? 'System Default' : `Audio Output ${index + 1}`),
       }));
+  }
+
+  _formatAudioOutputs(devices) {
+    const seen = new Set();
+    return devices
+      .filter(device => device.kind === 'audiooutput')
+      .filter(device => {
+        const id = device.deviceId || 'default';
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((device, index) => ({
+        deviceId: device.deviceId || 'default',
+        label: device.label || (index === 0 ? 'System Default' : `Audio Output ${index + 1}`),
+      }));
+  }
+
+  async chooseHeadphoneOutputDevice() {
+    await this.init();
+    this.initMasterBus();
+
+    if (!this._supportsOutputDeviceSelection()) {
+      throw new Error('This browser cannot choose a separate headphone output.');
+    }
+
+    if (this._supportsOutputDevicePicker()) {
+      const selectedDevice = await navigator.mediaDevices.selectAudioOutput();
+      const output = await this.setHeadphoneOutputDevice(
+        selectedDevice.deviceId,
+        selectedDevice.label || 'Selected headphone output',
+      );
+
+      let outputs = [output];
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        outputs = this._formatAudioOutputs(devices);
+      } catch {
+        outputs = [output];
+      }
+
+      if (!outputs.some(device => device.deviceId === output.deviceId)) {
+        outputs = [output, ...outputs];
+      }
+
+      return { output, outputs };
+    }
+
+    const outputs = await this.getHeadphoneOutputs();
+    return { output: null, outputs };
   }
 
   async setHeadphoneOutputDevice(deviceId, label = '') {
