@@ -85,6 +85,67 @@ body {
     letter-spacing: -2px;
 }
 
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.topbar-headphone-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.topbar-hp-btn {
+    width: auto;
+    min-width: 58px;
+    padding: 0 8px;
+    border: 1px solid var(--neon-blue);
+    color: var(--neon-blue);
+}
+
+.topbar-hp-btn.active {
+    background: rgba(0, 229, 255, 0.15);
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.25);
+}
+
+.topbar-hp-select {
+    width: 130px;
+    height: 26px;
+    box-sizing: border-box;
+    background: #050507;
+    color: var(--neon-blue);
+    border: 1px solid #333846;
+    border-radius: 4px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    outline: none;
+}
+
+.topbar-hp-select:disabled {
+    color: #555566;
+    opacity: 0.75;
+}
+
+.topbar-hp-status {
+    max-width: 110px;
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topbar-hp-status.ready {
+    color: var(--neon-blue);
+}
+
 .status-bar {
     font-family: 'Press Start 2P', cursive;
     font-size: 0.65rem;

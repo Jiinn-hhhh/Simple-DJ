@@ -21,16 +21,11 @@ const Mixer = ({
   effectVolume,
   headphoneOnlyA,
   headphoneOnlyB,
-  headphoneOutputReady,
-  headphoneOutputs,
-  headphoneOutputId,
-  headphoneOutputLabel,
-  headphoneOutputMessage,
+  headphoneVolume,
   onMasterVolumeChange,
   onEffectVolumeChange,
   onToggleHeadphoneOnly,
-  onRefreshHeadphoneOutputs,
-  onSelectHeadphoneOutput,
+  onHeadphoneVolumeChange,
   onMasterEffect,
   onTriggerSampler,
   quantizeEnabled,
@@ -140,28 +135,18 @@ const Mixer = ({
             >
               QUANTIZE
             </button>
-            <button
-              type="button"
-              onClick={onRefreshHeadphoneOutputs}
-              className={`glass-btn headphone-device-btn ${headphoneOutputReady ? 'active' : ''}`}
-              title={headphoneOutputLabel || headphoneOutputMessage || 'Load headphone output devices'}
-            >
-              HP OUT
-            </button>
-            <select
-              className="headphone-output-select"
-              value={headphoneOutputId}
-              onChange={(e) => onSelectHeadphoneOutput(e.target.value)}
-              disabled={!headphoneOutputs.length}
-              title={headphoneOutputLabel || headphoneOutputMessage || 'Headphone output line'}
-            >
-              <option value="">LINE</option>
-              {headphoneOutputs.map((output) => (
-                <option key={output.deviceId} value={output.deviceId}>
-                  {output.label}
-                </option>
-              ))}
-            </select>
+          </div>
+
+          <div className="headphone-panel headphone-volume-panel">
+            <label className="mixer-label tiny">HP MON</label>
+            <input
+              type="range"
+              min="0" max="1" step="0.01"
+              value={headphoneVolume}
+              onChange={(e) => onHeadphoneVolumeChange(parseFloat(e.target.value))}
+              className="knob-slider-horizontal"
+              title={`Headphone Volume: ${Math.round(headphoneVolume * 100)}%`}
+            />
           </div>
 
           <div className="control-group" style={{ width: '100%', marginBottom: '8px' }}>

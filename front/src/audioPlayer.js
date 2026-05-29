@@ -341,7 +341,7 @@ class AudioPlayer {
 
     if (headphoneSend) {
       headphoneSend.gain.cancelScheduledValues(now);
-      headphoneSend.gain.setTargetAtTime(isHeadphoneOnly ? 1 : 0, now, 0.05);
+      headphoneSend.gain.setTargetAtTime(1, now, 0.05);
     }
   }
 

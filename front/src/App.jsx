@@ -222,7 +222,7 @@ function App() {
               <a href="https://jiinn-hhhh.github.io/homepage/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                 <h1 className="pixel-font">Simple DJ</h1>
               </a>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div className="topbar-actions">
                 <RecordBar
                   isRecordingAudio={recorder.isRecordingAudio}
                   isRecordingVideo={recorder.isRecordingVideo}
@@ -234,6 +234,36 @@ function App() {
                   onStopVideo={recorder.stopVideoRecording}
                   onCancel={recorder.cancelRecordingCountdown}
                 />
+                <div className="topbar-headphone-control">
+                  <button
+                    type="button"
+                    onClick={guard(handleRefreshHeadphoneOutputs)}
+                    className={`topbar-btn topbar-hp-btn pixel-font ${headphoneOutputReady ? 'active' : ''}`}
+                    title="Load headphone output devices"
+                  >
+                    HP OUT
+                  </button>
+                  <select
+                    className="topbar-hp-select"
+                    value={headphoneOutputId}
+                    onChange={(e) => guard(handleSelectHeadphoneOutput)(e.target.value)}
+                    disabled={!isSystemReady || !headphoneOutputs.length}
+                    title="Headphone output line"
+                  >
+                    <option value="">SELECT LINE</option>
+                    {headphoneOutputs.map((output) => (
+                      <option key={output.deviceId} value={output.deviceId}>
+                        {output.label}
+                      </option>
+                    ))}
+                  </select>
+                  <span
+                    className={`topbar-hp-status ${headphoneOutputReady ? 'ready' : ''}`}
+                    title={headphoneOutputLabel || headphoneOutputMessage}
+                  >
+                    {headphoneOutputReady ? (headphoneOutputLabel || 'READY') : headphoneOutputMessage}
+                  </span>
+                </div>
                 <div className="status-bar" style={statusBarStyle}>
                   {status}
                 </div>
@@ -276,7 +306,7 @@ function App() {
                         <div>Loop Roll: hold pad for beat-synced repeat, release to continue or slip-return</div>
                         <div>Slip Mode: scratching/looping returns to original position</div>
                         <div>Key Lock: keep pitch when changing BPM</div>
-                        <div>HP Only: route a deck to the selected headphones instead of master output</div>
+                        <div>HP Only: remove a deck from master output while headphones monitor all decks</div>
                         <div>Quantize: global start timing snaps to the next master beat</div>
                         <div>EQ: adjust low/mid/high frequencies per deck</div>
                         <div>Filter: low-pass (left) / high-pass (right)</div>
@@ -374,17 +404,10 @@ function App() {
                 headphoneOnlyA={headphoneOnlyA}
                 headphoneOnlyB={headphoneOnlyB}
                 headphoneVolume={headphoneVolume}
-                headphoneOutputReady={headphoneOutputReady}
-                headphoneOutputs={headphoneOutputs}
-                headphoneOutputId={headphoneOutputId}
-                headphoneOutputLabel={headphoneOutputLabel}
-                headphoneOutputMessage={headphoneOutputMessage}
                 onMasterVolumeChange={guard(handleMasterVolumeChange)}
                 onEffectVolumeChange={guard(handleEffectVolumeChange)}
                 onToggleHeadphoneOnly={guard(handleHeadphoneOnlyToggle)}
                 onHeadphoneVolumeChange={guard(handleHeadphoneVolumeChange)}
-                onRefreshHeadphoneOutputs={guard(handleRefreshHeadphoneOutputs)}
-                onSelectHeadphoneOutput={guard(handleSelectHeadphoneOutput)}
                 onMasterEffect={guard(handleMasterEffect)}
                 onTriggerSampler={guard(triggerSampler)}
                 quantizeEnabled={isQuantizeEnabled}
