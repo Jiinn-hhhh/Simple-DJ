@@ -291,7 +291,9 @@ export default function useRecorder(audioPlayerRef) {
       }
       audioCaptureRef.current.scriptNode.disconnect();
       audioCaptureRef.current.silentSink.disconnect();
-    } catch {}
+    } catch {
+      // Recording nodes may already be disconnected.
+    }
     audioCaptureRef.current = null;
 
     // Only encode/download if we actually recorded data

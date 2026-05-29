@@ -4,6 +4,7 @@ export const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 300; // 10 minutes
+const MAX_CONSECUTIVE_POLL_ERRORS = 5;
 
 export async function initSystem() {
   const pingRes = await fetch(`${API_BASE}/ping`);
@@ -52,7 +53,9 @@ export async function startSeparation(file) {
       const data = await res.json();
       msg = data.detail || data.error || msg;
     } catch {
-      try { msg = await res.text(); } catch {}
+      try { msg = await res.text(); } catch {
+        // Keep the generic message when the body cannot be read.
+      }
     }
     throw new Error(msg);
   }
@@ -63,8 +66,10 @@ export async function startSeparation(file) {
 }
 
 export function pollJobStatus(jobId, baseUrl) {
-  const url = baseUrl ? `${baseUrl}/job/${jobId}` : `${API_BASE}/job/${jobId}`;
+  const rootUrl = (baseUrl || API_BASE).replace(/\/$/, '');
+  const url = `${rootUrl}/job/${jobId}`;
   let attempts = 0;
+  let consecutiveErrors = 0;
 
   return new Promise((resolve, reject) => {
     const poll = async () => {
@@ -82,12 +87,16 @@ export function pollJobStatus(jobId, baseUrl) {
         }
 
         const data = await res.json();
+        consecutiveErrors = 0;
         if (data.status === "completed") { resolve(data); return; }
         if (data.status === "failed") { reject(new Error(data.error || "Separation failed")); return; }
 
         setTimeout(poll, POLL_INTERVAL_MS);
       } catch (err) {
-        if (attempts < 3) setTimeout(poll, POLL_INTERVAL_MS * 2);
+        consecutiveErrors++;
+        if (consecutiveErrors < MAX_CONSECUTIVE_POLL_ERRORS) {
+          setTimeout(poll, POLL_INTERVAL_MS * 2);
+        }
         else reject(err);
       }
     };

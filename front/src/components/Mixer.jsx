@@ -45,16 +45,6 @@ const Mixer = ({
     if (val > 0.55) return 'HPF';
     return 'FLAT';
   };
-
-  // Helper for EQ visual value
-  const getEqDisplay = (val) => {
-    if (val === 0) return "KILL";
-    if (val === 100) return "FLAT";
-    if (val === 200) return "MAX";
-    if (val < 100) return "CUT";
-    return "BOOST";
-  };
-
   return (
     <div className="mixer-container">
 
@@ -308,7 +298,7 @@ const Mixer = ({
       </div>
 
       {/* 3. FOOTER: CROSSFADER */}
-      < div className="mixer-footer" >
+      <div className="mixer-footer">
         <div className="crossfader-wrapper">
           <div className="xf-labels">
             <span>A</span>
@@ -324,9 +314,9 @@ const Mixer = ({
           />
           <div className="mixer-label tiny" style={{ marginTop: '4px', textAlign: 'center' }}>CROSSFADER</div>
         </div>
-      </div >
+      </div>
 
-    </div >
+    </div>
   );
 };
 

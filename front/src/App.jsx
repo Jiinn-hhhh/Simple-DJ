@@ -61,6 +61,8 @@ function App() {
 
   // --- System init ---
   useEffect(() => {
+    const audioPlayer = audioPlayerRef.current;
+
     initSystem()
       .then(({ hfSpaceUrl: url }) => {
         setHfSpaceUrl(url);
@@ -73,7 +75,7 @@ function App() {
         setIsSystemReady(false);
       });
 
-    return () => audioPlayerRef.current?.cleanup();
+    return () => audioPlayer?.cleanup();
   }, []);
 
   useEffect(() => {
@@ -92,14 +94,15 @@ function App() {
 
   // --- Hot Cues ---
   const hotCues = useHotCues(audioPlayerRef);
+  const { loadCuesForTrack } = hotCues;
 
   // Load cues when tracks change
   useEffect(() => {
-    hotCues.loadCuesForTrack('A', decks.trackA);
-  }, [decks.trackA?.id, decks.trackA?.filename]);
+    loadCuesForTrack('A', decks.trackA);
+  }, [decks.trackA, loadCuesForTrack]);
   useEffect(() => {
-    hotCues.loadCuesForTrack('B', decks.trackB);
-  }, [decks.trackB?.id, decks.trackB?.filename]);
+    loadCuesForTrack('B', decks.trackB);
+  }, [decks.trackB, loadCuesForTrack]);
 
   // --- Keyboard shortcuts ---
   useEffect(() => {
@@ -159,6 +162,12 @@ function App() {
     if (!isSystemReady) return undefined;
     return fn(...args);
   };
+  const isProblemStatus = status === 'OFFLINE' || status.startsWith('ERROR') || status.includes('UNSUPPORTED');
+  const statusBarStyle = isProblemStatus ? {
+    color: 'var(--neon-pink)',
+    borderColor: 'var(--neon-pink)',
+    background: 'rgba(255, 0, 85, 0.12)',
+  } : undefined;
 
   // --- Render ---
   return (
@@ -225,6 +234,9 @@ function App() {
                   onStopVideo={recorder.stopVideoRecording}
                   onCancel={recorder.cancelRecordingCountdown}
                 />
+                <div className="status-bar" style={statusBarStyle}>
+                  {status}
+                </div>
                 {recorder.videoStatusMessage && (
                   <div
                     className="status-bar"
@@ -264,7 +276,7 @@ function App() {
                         <div>Loop Roll: hold pad for beat-synced repeat, release to continue or slip-return</div>
                         <div>Slip Mode: scratching/looping returns to original position</div>
                         <div>Key Lock: keep pitch when changing BPM</div>
-                        <div>HP Only: route a deck to the selected headphone output instead of master output</div>
+                        <div>HP Only: route a deck to the selected headphones instead of master output</div>
                         <div>Quantize: global start timing snaps to the next master beat</div>
                         <div>EQ: adjust low/mid/high frequencies per deck</div>
                         <div>Filter: low-pass (left) / high-pass (right)</div>
@@ -299,6 +311,7 @@ function App() {
                 effectiveKey={keyLockA ? decks.trackA?.key : getShiftedKey(decks.trackA?.key, decks.trackA?.bpm, masterBpm)}
                 onPlayPause={() => guard(decks.togglePlay)('A')}
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
+                onLoadFile={guard(decks.loadTrack)}
                 waveformData={decks.waveformDataA}
                 playbackPosition={positionA}
                 slipPlaybackPosition={slipPositionA}
@@ -313,7 +326,7 @@ function App() {
                 onScratchStart={handleScratchStart}
                 onScratchMove={handleScratchMove}
                 onScratchEnd={handleScratchEnd}
-                visualizerNode={audioPlayerRef.current.getAnalyser('A')}
+                visualizerNode={decks.analyserNodeA}
                 loadingTrack={decks.loadingFileA}
                 hotCues={hotCues.hotCuesA}
                 onSetHotCue={(idx) => guard(hotCues.setHotCue)('A', idx, decks.trackA?.bpm, decks.trackA)}
@@ -386,6 +399,7 @@ function App() {
                 effectiveKey={keyLockB ? decks.trackB?.key : getShiftedKey(decks.trackB?.key, decks.trackB?.bpm, masterBpm)}
                 onPlayPause={() => guard(decks.togglePlay)('B')}
                 onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
+                onLoadFile={guard(decks.loadTrack)}
                 waveformData={decks.waveformDataB}
                 playbackPosition={positionB}
                 slipPlaybackPosition={slipPositionB}
@@ -400,7 +414,7 @@ function App() {
                 onScratchStart={handleScratchStart}
                 onScratchMove={handleScratchMove}
                 onScratchEnd={handleScratchEnd}
-                visualizerNode={audioPlayerRef.current.getAnalyser('B')}
+                visualizerNode={decks.analyserNodeB}
                 loadingTrack={decks.loadingFileB}
                 hotCues={hotCues.hotCuesB}
                 onSetHotCue={(idx) => guard(hotCues.setHotCue)('B', idx, decks.trackB?.bpm, decks.trackB)}

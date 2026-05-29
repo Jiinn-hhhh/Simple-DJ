@@ -108,7 +108,9 @@ export default class PitchShifter {
     if (this.node) {
       try {
         this.node.disconnect();
-      } catch {}
+      } catch {
+        // Node may already be disconnected.
+      }
       this.node.onaudioprocess = null;
       this.node = null;
     }

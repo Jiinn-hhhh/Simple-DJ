@@ -24,7 +24,9 @@ export function startScratch(deckId) {
 export function _stopScratchSources(deckId) {
   if (this._scratchSources?.[deckId]) {
     Object.values(this._scratchSources[deckId]).forEach(s => {
-      try { s.stop(); } catch {}
+      try { s.stop(); } catch {
+        // Source may already be stopped.
+      }
     });
     this._scratchSources[deckId] = {};
   }
@@ -80,7 +82,9 @@ export function updateScratch(deckId, angleDelta) {
   const finalRate = absRate < 0.05 ? 0.001 : absRate;
   if (this._scratchSources?.[deckId]) {
     Object.values(this._scratchSources[deckId]).forEach(source => {
-      try { source.playbackRate.setValueAtTime(finalRate, this.audioContext.currentTime); } catch {}
+      try { source.playbackRate.setValueAtTime(finalRate, this.audioContext.currentTime); } catch {
+        // Scratch sources can be torn down between pointer events.
+      }
     });
   }
 
