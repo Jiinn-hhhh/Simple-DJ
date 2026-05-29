@@ -411,6 +411,7 @@ body {
     gap: 8px;
     justify-content: space-between;
     position: relative;
+    min-height: 0;
     /* Anchor for divider */
 }
 
@@ -427,6 +428,8 @@ body {
     border-radius: 8px;
     padding: 8px 6px;
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    min-width: 0;
+    min-height: 0;
 }
 
 .mixer-column.center-fx {
@@ -435,7 +438,8 @@ body {
     box-shadow: none;
     padding: 0;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
+    min-width: 0;
 }
 
 .mixer-quantize-btn {
@@ -450,21 +454,39 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     box-sizing: border-box;
-    padding: 6px;
-    background: #111;
-    border: 1px solid #24242c;
-    border-radius: 4px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    min-width: 0;
+}
+
+.headphone-output-row {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(58px, 0.85fr) minmax(0, 1.15fr);
+    gap: 4px;
+    min-width: 0;
+}
+
+.headphone-volume-row {
+    width: 100%;
+    height: 20px;
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
 }
 
 .headphone-device-btn,
 .headphone-only-btn {
     width: 100%;
-    min-height: 28px;
-    height: 28px;
+    min-height: 26px;
+    height: 26px;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.48rem;
+    font-size: 0.43rem;
     letter-spacing: 0;
 }
 
@@ -501,6 +523,7 @@ body {
 
 .headphone-output-select {
     width: 100%;
+    min-width: 0;
     height: 26px;
     box-sizing: border-box;
     background: #050507;
@@ -508,14 +531,28 @@ body {
     border: 1px solid #333846;
     border-radius: 3px;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 0.7rem;
+    font-size: 0.62rem;
     font-weight: 700;
     outline: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .headphone-output-select:disabled {
     color: #555566;
     opacity: 0.75;
+}
+
+.headphone-volume-row .mixer-label.tiny {
+    font-size: 0.62rem;
+    letter-spacing: 0;
+    line-height: 1;
+    text-align: center;
+}
+
+.headphone-volume-row .knob-slider-horizontal {
+    width: 100%;
+    height: 5px;
 }
 
 
