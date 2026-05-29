@@ -71,10 +71,9 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
         setHeadphoneOutputReady(true);
         setHeadphoneOutputLabel(output.label || 'HEADPHONES');
         setHeadphoneOutputMessage('HP LINE READY');
-        reportStatus('HEADPHONE OUTPUT READY');
       } else {
         setHeadphoneOutputMessage(outputs.length ? 'CHOOSE HP LINE' : 'NO OUTPUTS FOUND');
-        reportStatus(outputs.length ? 'CHOOSE HEADPHONE OUTPUT' : 'NO HEADPHONE OUTPUTS FOUND');
+        if (!outputs.length) reportStatus('NO HEADPHONE OUTPUTS FOUND');
       }
       return { output, outputs };
     } catch (err) {
@@ -110,7 +109,6 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
       setHeadphoneOutputReady(true);
       setHeadphoneOutputLabel(output.label || selected?.label || 'HEADPHONES');
       setHeadphoneOutputMessage('HP LINE READY');
-      reportStatus('HEADPHONE OUTPUT READY');
       return output;
     } catch (err) {
       console.warn('Headphone output selection failed:', err);

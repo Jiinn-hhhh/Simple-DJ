@@ -108,11 +108,6 @@ body {
     color: var(--neon-blue);
 }
 
-.topbar-hp-btn.active {
-    background: rgba(0, 229, 255, 0.15);
-    box-shadow: 0 0 8px rgba(0, 229, 255, 0.25);
-}
-
 .topbar-hp-menu {
     position: absolute;
     top: calc(100% + 5px);

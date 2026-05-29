@@ -50,7 +50,7 @@ function App() {
   const {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume,
-    headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady,
+    headphoneOnlyA, headphoneOnlyB, headphoneVolume,
     headphoneOutputs,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
     handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange,
@@ -256,7 +256,7 @@ function App() {
                   <button
                     type="button"
                     onClick={guard(handleHeadphoneSettingClick)}
-                    className={`topbar-btn topbar-hp-btn pixel-font ${headphoneOutputReady ? 'active' : ''}`}
+                    className="topbar-btn topbar-hp-btn pixel-font"
                     title="Choose headphone output device"
                   >
                     HP SETTING
