@@ -343,6 +343,62 @@ async def download_stem(job_id: str, stem_name: str):
 
 
 # === Library Upload Endpoint ===
+def verify_supabase_user(token: str, supabase_url: str, supabase_service_key: str) -> str:
+    """Verify the user JWT with Supabase Auth and return the user id."""
+    try:
+        response = requests.get(
+            f"{supabase_url.rstrip('/')}/auth/v1/user",
+            headers={
+                "apikey": supabase_service_key,
+                "Authorization": f"Bearer {token}",
+            },
+            timeout=10,
+        )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to verify Supabase session: {str(e)}")
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid or expired authorization token")
+
+    user = response.json()
+    user_id = user.get("id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid authorization token")
+
+    return user_id
+
+
+def verify_track_owner(track_id: str, user_id: str, supabase_url: str, supabase_service_key: str):
+    """Ensure the requested track exists and belongs to the authenticated user."""
+    try:
+        response = requests.get(
+            f"{supabase_url.rstrip('/')}/rest/v1/tracks",
+            headers={
+                "apikey": supabase_service_key,
+                "Authorization": f"Bearer {supabase_service_key}",
+                "Accept": "application/json",
+            },
+            params={
+                "id": f"eq.{track_id}",
+                "select": "id,user_id",
+                "limit": "1",
+            },
+            timeout=10,
+        )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"Failed to verify track ownership: {str(e)}")
+
+    if response.status_code != 200:
+        raise HTTPException(status_code=502, detail="Failed to verify track ownership")
+
+    tracks = response.json()
+    if not tracks:
+        raise HTTPException(status_code=404, detail="Track not found")
+
+    if tracks[0].get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="Track does not belong to authenticated user")
+
+
 @app.post("/library/upload")
 async def library_upload(file: UploadFile = File(...), track_id: str = Form(...), authorization: str = Header(None)):
     """
@@ -360,24 +416,15 @@ async def library_upload(file: UploadFile = File(...), track_id: str = Form(...)
     if not supabase_url or not supabase_service_key:
         raise HTTPException(status_code=503, detail="Supabase not configured on backend")
 
-    # Extract user_id from JWT (verify with Supabase)
-    # For now, we trust the JWT and decode it to get user_id
-    import json, base64
-    try:
-        if authorization and authorization.startswith("Bearer "):
-            token = authorization.split(" ")[1]
-            # Decode JWT payload (base64)
-            payload = token.split(".")[1]
-            # Add padding
-            payload += "=" * (4 - len(payload) % 4)
-            decoded = json.loads(base64.urlsafe_b64decode(payload))
-            user_id = decoded.get("sub", "")
-        else:
-            raise HTTPException(status_code=401, detail="Missing authorization")
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid authorization token")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization")
+
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authorization")
+
+    user_id = verify_supabase_user(token, supabase_url, supabase_service_key)
+    verify_track_owner(track_id, user_id, supabase_url, supabase_service_key)
 
     try:
         contents = await file.read()

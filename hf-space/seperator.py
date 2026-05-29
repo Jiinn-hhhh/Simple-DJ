@@ -4,7 +4,6 @@ import uuid
 import torch
 import torchaudio
 from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
-from torchaudio.transforms import Fade
 
 
 SEGMENT = 10.0      # chunk length in seconds
@@ -30,8 +29,8 @@ def get_model():
     return model, SAMPLE_RATE, SOURCE_NAMES
 
 
-def separate_sources(model, mix, sample_rate, segment, overlap, device):
-    """Apply HDemucs to the mixture in chunks with overlap + fade."""
+def separate_sources(model, mix, sample_rate, segment, overlap, device, should_cancel=None):
+    """Apply HDemucs in overlapping chunks and reconstruct with weighted overlap-add."""
     if device is None:
         device = mix.device
     else:
@@ -40,50 +39,73 @@ def separate_sources(model, mix, sample_rate, segment, overlap, device):
     mix = mix.to(device)
     batch, channels, length = mix.shape
 
-    chunk_len = int(sample_rate * segment * (1.0 + overlap))
-    overlap_frames = int(overlap * sample_rate)
+    chunk_len = max(1, int(sample_rate * segment))
+    overlap_frames = max(0, int(overlap * sample_rate))
+    if overlap_frames >= chunk_len:
+        overlap_frames = max(0, chunk_len // 4)
+    hop_len = max(1, chunk_len - overlap_frames)
 
     # Short file: single forward pass
     if length <= chunk_len:
+        if should_cancel:
+            should_cancel()
         with torch.no_grad():
             out = model(mix)
+        if should_cancel:
+            should_cancel()
         return out
-
-    start = 0
-    end = chunk_len
-
-    fade = Fade(
-        fade_in_len=0,
-        fade_out_len=overlap_frames,
-        fade_shape="linear",
-    )
 
     final = torch.zeros(
         batch, len(model.sources), channels, length, device=device
     )
+    weights = torch.zeros(1, 1, 1, length, device=device)
 
-    while start < length - overlap_frames:
+    for start in range(0, length, hop_len):
+        if should_cancel:
+            should_cancel()
+
+        end = min(start + chunk_len, length)
         chunk = mix[:, :, start:end]
+
+        if chunk.shape[-1] == 0:
+            continue
 
         with torch.no_grad():
             out = model(chunk)
 
-        out = fade(out)
-        final[:, :, :, start:end] += out
+        chunk_len_actual = out.shape[-1]
+        chunk_weight = torch.ones(chunk_len_actual, device=device)
+        if overlap_frames > 0:
+            fade_in_len = min(overlap_frames, chunk_len_actual)
+            fade_out_len = min(overlap_frames, chunk_len_actual)
 
-        if start == 0:
-            fade.fade_in_len = overlap_frames
-            start += chunk_len - overlap_frames
-        else:
-            start += chunk_len
+            if start > 0 and fade_in_len > 0:
+                chunk_weight[:fade_in_len] = torch.linspace(
+                    0.0, 1.0, fade_in_len, device=device
+                )
+            if end < length and fade_out_len > 0:
+                chunk_weight[-fade_out_len:] = torch.minimum(
+                    chunk_weight[-fade_out_len:],
+                    torch.linspace(1.0, 0.0, fade_out_len, device=device),
+                )
 
-        end = start + chunk_len
+        actual_end = min(start + chunk_len_actual, length)
+        actual_len = actual_end - start
+        if actual_len <= 0:
+            continue
+
+        out = out[:, :, :, :actual_len]
+        chunk_weight = chunk_weight[:actual_len].view(1, 1, 1, -1)
+        final[:, :, :, start:actual_end] += out * chunk_weight
+        weights[:, :, :, start:actual_end] += chunk_weight
 
         if end >= length:
-            fade.fade_out_len = 0
-            end = length
+            break
 
-    return final
+    if should_cancel:
+        should_cancel()
+
+    return final / weights.clamp_min(1e-8)
 
 
 def load_audio(path, target_sr, device):
@@ -112,14 +134,14 @@ def save_sources(sources, source_names, sample_rate, out_dir, base_name):
     return saved_paths
 
 
-def separate_file(input_path: str, output_root: str = "./results") -> dict:
+def separate_file(input_path: str, output_root: str = "./results", output_id: str = None, should_cancel=None) -> dict:
     """
     High-level function:
     - load audio
     - normalize
     - run separation with chunking
     - denormalize
-    - save stems under output_root / <uuid>/
+    - save stems under output_root / <output_id or uuid>/
     Returns:
         {
           "id": <uuid>,
@@ -134,7 +156,7 @@ def separate_file(input_path: str, output_root: str = "./results") -> dict:
     model_instance, sample_rate, source_names = get_model()
     
     # Unique ID for this job (folder name)
-    job_id = str(uuid.uuid4())
+    job_id = output_id or str(uuid.uuid4())
     out_dir = os.path.join(output_root, job_id)
 
     print(f"[separator] Loading audio from {input_path}")
@@ -154,12 +176,16 @@ def separate_file(input_path: str, output_root: str = "./results") -> dict:
         segment=SEGMENT,
         overlap=OVERLAP,
         device=DEVICE,
+        should_cancel=should_cancel,
     )[0]  # (num_sources, channels, length)
 
     # De-normalize
     separated = separated * ref.std() + ref.mean()
 
     base_name = os.path.splitext(os.path.basename(input_path))[0]
+
+    if should_cancel:
+        should_cancel()
 
     print("[separator] Saving results...")
     saved = save_sources(

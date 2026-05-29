@@ -113,6 +113,26 @@ class JobStore:
 job_store = JobStore()
 
 
+class ProcessingCancelled(Exception):
+    """Raised when the user deletes/cancels a library track while it is processing."""
+
+
+def ensure_library_track_active(sb, track_id, user_id):
+    """Stop background work when the track row no longer exists for this user."""
+    result = (
+        sb.table('tracks')
+        .select('id,status')
+        .eq('id', track_id)
+        .eq('user_id', user_id)
+        .limit(1)
+        .execute()
+    )
+    rows = result.data or []
+    if not rows:
+        raise ProcessingCancelled(f"Track {track_id} was cancelled")
+    return rows[0]
+
+
 # === Background Cleanup Task ===
 def cleanup_old_files():
     """Periodic cleanup of old result files."""
@@ -239,7 +259,7 @@ def process_separation(job_id: str, file_path: str, filename: str):
         job_store.update_job(job_id, progress=30)
 
         # Run separation
-        result = sep.separate_file(file_path, output_root=RESULTS_DIR)
+        result = sep.separate_file(file_path, output_root=RESULTS_DIR, output_id=job_id)
 
         job_store.update_job(job_id, progress=90)
 
@@ -413,25 +433,40 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
     from supabase import create_client
 
     sb = create_client(supabase_url, supabase_service_key)
+    uploaded_paths = []
+
+    def check_active():
+        ensure_library_track_active(sb, track_id, user_id)
 
     try:
         # 1. Analyze
+        check_active()
         sb.table('tracks').update({'status': 'analyzing'}).eq('id', track_id).execute()
-        result = analysis.analyze_audio(open(file_path, 'rb').read(), filename)
+        check_active()
+        with open(file_path, 'rb') as input_file:
+            result = analysis.analyze_audio(input_file.read(), filename)
         bpm = result.get('bpm')
         key = result.get('key')
         duration = result.get('duration')
 
         # 2. Separate
+        check_active()
         sb.table('tracks').update({'status': 'separating'}).eq('id', track_id).execute()
         sep = get_separator()
-        sep_result = sep.separate_file(file_path, output_root=RESULTS_DIR)
+        sep_result = sep.separate_file(
+            file_path,
+            output_root=RESULTS_DIR,
+            output_id=job_id,
+            should_cancel=check_active,
+        )
 
         # 3. Convert WAV -> OGG and upload
+        check_active()
         sb.table('tracks').update({'status': 'converting'}).eq('id', track_id).execute()
         stem_urls = {}
 
         for stem_name, stem_path in sep_result['sources'].items():
+            check_active()
             # Convert to OGG
             ogg_path = stem_path.replace('.wav', '.ogg')
             subprocess.run([
@@ -440,6 +475,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
                 '-y', ogg_path
             ], check=True, capture_output=True)
 
+            check_active()
             # Upload to Supabase Storage
             storage_path = f"{user_id}/{track_id}/{stem_name}.ogg"
             with open(ogg_path, 'rb') as f:
@@ -449,6 +485,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
                     file_options={"content-type": "audio/ogg"}
                 )
 
+            uploaded_paths.append(storage_path)
             stem_urls[stem_name] = storage_path
 
             # Clean up local files
@@ -457,6 +494,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
                     os.unlink(p)
 
         # 4. Update track as ready
+        check_active()
         sb.table('tracks').update({
             'bpm': bpm,
             'key': key,
@@ -467,8 +505,21 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
 
         print(f"[library] Track {track_id} processed successfully")
 
+    except ProcessingCancelled:
+        if uploaded_paths:
+            try:
+                sb.storage.from_('stems').remove(uploaded_paths)
+            except Exception:
+                pass
+        print(f"[library] Track {track_id} cancelled")
+
     except Exception as e:
         traceback.print_exc()
+        if uploaded_paths:
+            try:
+                sb.storage.from_('stems').remove(uploaded_paths)
+            except Exception:
+                pass
         try:
             sb.table('tracks').update({
                 'status': 'error',

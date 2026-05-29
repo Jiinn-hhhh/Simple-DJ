@@ -18,7 +18,12 @@ export default function useLibrary(user) {
 
   // Fetch user's tracks from Supabase
   const fetchTracks = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      setTracks([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('tracks')
       .select('*')
@@ -29,13 +34,11 @@ export default function useLibrary(user) {
 
   // --- Realtime subscription + polling fallback ---
   useEffect(() => {
+    Promise.resolve().then(fetchTracks);
+
     if (!user) {
-      setTracks([]);
-      setLoading(false);
       return;
     }
-
-    fetchTracks();
 
     // Realtime subscription (instant updates when it works)
     const channel = supabase

@@ -17,6 +17,7 @@ const Deck = ({
     effectiveKey,
     onPlayPause,
     onLoadFromLibrary,
+    onLoadFile,
     activeStems,
     onToggleStem,
     isSeparating,
@@ -63,10 +64,13 @@ const Deck = ({
     const scratchRef = useRef({ lastAngle: null });
     const releaseTimerRef = useRef(null);
 
-    // Accept library track drops (from TrackItem drag)
     const handleDragOver = (e) => {
-        e.preventDefault();
-        if (e.dataTransfer.types.includes('application/x-library-track')) {
+        const hasLibraryTrack = e.dataTransfer.types.includes('application/x-library-track');
+        const hasAudioFile = Array.from(e.dataTransfer.items || []).some(item =>
+            item.kind === 'file' && item.type.startsWith('audio/')
+        );
+        if (hasLibraryTrack || hasAudioFile) {
+            e.preventDefault();
             setIsDragOver(true);
         }
     };
@@ -79,7 +83,15 @@ const Deck = ({
             try {
                 const libraryTrack = JSON.parse(data);
                 if (onLoadFromLibrary) onLoadFromLibrary(deckId, libraryTrack);
-            } catch {}
+                return;
+            } catch {
+                // Ignore malformed drag payloads.
+            }
+        }
+
+        const audioFile = Array.from(e.dataTransfer.files || []).find(file => file.type.startsWith('audio/'));
+        if (audioFile && onLoadFile) {
+            onLoadFile(deckId, audioFile);
         }
     };
 
@@ -219,7 +231,7 @@ const Deck = ({
 
                 {!hasTrack && !loadingTrack && (
                     <div className="deck-empty-hint disc-empty-hint">
-                        <span>Drag a track from Library</span>
+                        <span>Drag a track from Library or file</span>
                     </div>
                 )}
 

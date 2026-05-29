@@ -30,8 +30,6 @@ export function analyzeWaveform(audioBuffer, resolution = 1024) {
     let count = 0;
 
     // Simple 3-band energy estimation
-    // We use a block-based approach: low = RMS of low-passed signal approximation
-    const blockSize = Math.min(64, end - start);
     let prevSample = 0;
     let smoothed = 0;
     const smoothAlpha = 0.05; // Low-pass smoothing factor

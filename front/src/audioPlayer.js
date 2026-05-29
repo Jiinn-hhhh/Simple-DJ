@@ -26,6 +26,8 @@ class AudioPlayer {
     this.headphoneOutputDevice = null;
     this.headphoneAudioElement = null;
     this.desiredTrackVolumes = {};
+    this.desiredTrackFilters = {};
+    this.desiredTrackEqValues = {};
     // Structure: { trackId: BiquadFilterNode }
     this.trackFilterNodes = {};
     // Structure: { trackId: { low: Gain, ... } }
@@ -112,9 +114,6 @@ class AudioPlayer {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-
-      const contentType = response.headers.get('content-type');
-      // Validate content type
 
       const arrayBuffer = await response.arrayBuffer();
       // Decode audio data
@@ -387,6 +386,7 @@ class AudioPlayer {
    * @param {string} trackId 
    */
   setupTrackGraph(trackId) {
+    if (!this.audioContext || this.audioContext.state === 'closed') return;
     this.initMasterBus(); // Ensure master bus exists
 
     if (!this.trackGainNodes[trackId]) {
@@ -429,10 +429,10 @@ class AudioPlayer {
       this.trackEqNodes[trackId].highFilter.frequency.value = HIGH_CROSSOVER;
       this.trackEqNodes[trackId].highFilter.Q.value = 0.707;
 
-      // Initialize Gains (1.0 = Flat)
-      this.trackEqNodes[trackId].lowGain.gain.value = 1.0;
-      this.trackEqNodes[trackId].midGain.gain.value = 1.0;
-      this.trackEqNodes[trackId].highGain.gain.value = 1.0;
+      const desiredEq = this.desiredTrackEqValues[trackId] || {};
+      this.trackEqNodes[trackId].lowGain.gain.value = desiredEq.low ?? 1.0;
+      this.trackEqNodes[trackId].midGain.gain.value = desiredEq.mid ?? 1.0;
+      this.trackEqNodes[trackId].highGain.gain.value = desiredEq.high ?? 1.0;
 
       // Filter for Track (Existing Master Filter)
       const filter = this.audioContext.createBiquadFilter();
@@ -479,6 +479,7 @@ class AudioPlayer {
 
       this.trackGainNodes[trackId] = trackGain;
       this.trackFilterNodes[trackId] = filter;
+      this._applyFilterValue(trackId, this.desiredTrackFilters[trackId] ?? 0.5);
       this._applyTrackRouting(trackId);
     }
   }
@@ -612,7 +613,11 @@ class AudioPlayer {
   stop(trackId) {
     this.clearScheduledAction(trackId);
     if (this.sourceNodes[trackId]) {
-      this._forEachSource(trackId, node => { try { node.stop(); } catch (e) { } });
+      this._forEachSource(trackId, node => {
+        try { node.stop(); } catch {
+          // Source may already have ended.
+        }
+      });
       this.sourceNodes[trackId] = {};
       this.stemGainNodes[trackId] = {};
     }
@@ -678,8 +683,17 @@ class AudioPlayer {
    * @param {number} value Frequency value (0-1 normalized, mapped to log scale)
    */
   setFilter(trackId, value) {
+    const nextValue = Math.max(0, Math.min(1, value));
+    this.desiredTrackFilters[trackId] = nextValue;
+    if (!this.audioContext) return;
+
     this.setupTrackGraph(trackId);
+    this._applyFilterValue(trackId, nextValue);
+  }
+
+  _applyFilterValue(trackId, value) {
     const filter = this.trackFilterNodes[trackId];
+    if (!filter || !this.audioContext) return;
 
     // Value: 0 (Low) -> 0.5 (Neutral) -> 1.0 (High)
     // We'll implement a simple DJ filter:
@@ -721,6 +735,10 @@ class AudioPlayer {
    * @param {number} value Linear Gain (0.0 to 2.0+)
    */
   setEq(trackId, band, value) {
+    if (!this.desiredTrackEqValues[trackId]) this.desiredTrackEqValues[trackId] = {};
+    this.desiredTrackEqValues[trackId][band] = value;
+    if (!this.audioContext) return;
+
     this.setupTrackGraph(trackId);
     // band: 'low', 'mid', 'high' -> map to lowGain, midGain, highGain
     const gainNodeName = `${band}Gain`;

@@ -26,6 +26,8 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
   const [slipModeB, setSlipModeB] = useState(false);
   const [waveformDataA, setWaveformDataA] = useState(null);
   const [waveformDataB, setWaveformDataB] = useState(null);
+  const [analyserNodeA, setAnalyserNodeA] = useState(null);
+  const [analyserNodeB, setAnalyserNodeB] = useState(null);
 
   // --- helpers to pick A/B setters ---
   const deckState = useCallback((deckId) => ({
@@ -41,7 +43,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     setLoadingFile: deckId === 'A' ? setLoadingFileA : setLoadingFileB,
   }), [trackA, trackB, isPlayingA, isPlayingB, stemsA, stemsB]);
 
-  // --- Initialize master BPM only when the console starts empty ---
+  // --- Apply BPM when a track is loaded ---
   const applyLoadBpm = useCallback((deckId, trackBpm) => {
     if (!trackBpm) return masterBpm;
 
@@ -66,6 +68,103 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     ap.startTimes[deckId] = null;
     ds.setPlaying(false);
   }, [audioPlayerRef, deckState]);
+
+  // --- Waveform / analyser refresh ---
+  const analyzeWaveformForDeck = useCallback((deckId) => {
+    const ap = audioPlayerRef.current;
+    const buffers = ap.audioBuffers[deckId];
+    if (!buffers) return;
+
+    const buffer = buffers.full || Object.values(buffers)[0];
+    if (!buffer) return;
+
+    ap.setupTrackGraph(deckId);
+    const data = analyzeWaveform(buffer);
+    const analyserNode = ap.getAnalyser(deckId);
+
+    if (deckId === 'A') {
+      setWaveformDataA(data);
+      setAnalyserNodeA(analyserNode);
+    } else {
+      setWaveformDataB(data);
+      setAnalyserNodeB(analyserNode);
+    }
+  }, [audioPlayerRef]);
+
+  // --- Separate track into stems ---
+  const separateTrack = useCallback(async (deckId, file, trackData, bpmToUse) => {
+    const ds = deckState(deckId);
+    let stoppedDuringStemSwap = false;
+    ds.setIsSeparating(true);
+    ds.setSeparationProgress(0);
+
+    try {
+      const data = await startSeparation(file);
+      const jobId = data.job_id;
+      const pollUrl = data.hf_space_url || hfSpaceUrl || null;
+
+      setStatus(`SEPARATING... (Job: ${jobId.slice(0, 8)})`);
+      ds.setSeparationProgress(10);
+
+      const progressInterval = setInterval(() => {
+        ds.setSeparationProgress(prev => Math.min(prev + 5, 90));
+      }, 3000);
+
+      let jobResult;
+      try {
+        jobResult = await pollJobStatus(jobId, pollUrl);
+      } finally {
+        clearInterval(progressInterval);
+      }
+
+      ds.setSeparationProgress(95);
+
+      const ap = audioPlayerRef.current;
+      const wasPlaying = ap.getIsPlaying(deckId);
+      const resumeOffset = wasPlaying ? ap.getCurrentPosition(deckId) : (ap.pauseOffsets[deckId] || 0);
+      if (wasPlaying) {
+        ap.stop(deckId);
+        stoppedDuringStemSwap = true;
+      }
+      ap.audioBuffers[deckId] = {};
+      ap.reversedBuffers[deckId] = {};
+
+      const stemNames = Object.keys(jobResult.stems || {});
+      if (stemNames.length === 0) {
+        throw new Error('No stems returned from separation job');
+      }
+      await Promise.all(stemNames.map(async (stemName) => {
+        let url = jobResult.stems[stemName].download_url;
+        if (url.startsWith('/')) {
+          url = `${pollUrl || hfSpaceUrl || jobResult.hf_space_url}${url}`;
+        }
+        await ap.loadAudio(deckId, stemName, url);
+        if (trackData.bpm) ap.setPlaybackRate(deckId, bpmToUse / trackData.bpm);
+      }));
+
+      analyzeWaveformForDeck(deckId);
+      ds.setSeparationProgress(100);
+      ds.setStems(STEMS_ON);
+      stemNames.forEach(s => ap.muteStem(deckId, s, false));
+      ds.setTrack(prev => ({ ...prev, separated: true, jobId }));
+      if (wasPlaying) {
+        await ap.play(deckId, resumeOffset);
+        ds.setPlaying(true);
+      } else {
+        ap.pauseOffsets[deckId] = resumeOffset;
+      }
+      setStatus('READY');
+    } catch (err) {
+      if (stoppedDuringStemSwap) {
+        ds.setPlaying(false);
+      }
+      setStatus('ERROR: ' + err.message);
+      console.error('Separation error:', err);
+    } finally {
+      ds.setIsSeparating(false);
+      ds.setSeparationProgress(0);
+    }
+  }, [deckState, audioPlayerRef, hfSpaceUrl, setStatus, analyzeWaveformForDeck]);
 
   // --- Load track from file (analyze → play → separate) ---
   const loadTrack = useCallback(async (deckId, file) => {
@@ -92,7 +191,11 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
 
       const objectUrl = URL.createObjectURL(file);
       audioPlayerRef.current.setTrackBpm(deckId, trackData.bpm);
-      await audioPlayerRef.current.loadAudio(deckId, 'full', objectUrl);
+      try {
+        await audioPlayerRef.current.loadAudio(deckId, 'full', objectUrl);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
       analyzeWaveformForDeck(deckId);
 
       const bpmToUse = applyLoadBpm(deckId, trackData.bpm);
@@ -105,62 +208,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     } finally {
       ds.setLoadingFile(null);
     }
-  }, [deckState, audioPlayerRef, applyLoadBpm, setStatus, resetDeckPlaybackState]);
-
-  // --- Separate track into stems ---
-  const separateTrack = useCallback(async (deckId, file, trackData, bpmToUse) => {
-    const ds = deckState(deckId);
-    ds.setIsSeparating(true);
-    ds.setSeparationProgress(0);
-
-    try {
-      const data = await startSeparation(file);
-      const jobId = data.job_id;
-      const pollUrl = data.hf_space_url || hfSpaceUrl || null;
-
-      setStatus(`SEPARATING... (Job: ${jobId.slice(0, 8)})`);
-      ds.setSeparationProgress(10);
-
-      const progressInterval = setInterval(() => {
-        ds.setSeparationProgress(prev => Math.min(prev + 5, 90));
-      }, 3000);
-
-      let jobResult;
-      try {
-        jobResult = await pollJobStatus(jobId, pollUrl);
-      } finally {
-        clearInterval(progressInterval);
-      }
-
-      ds.setSeparationProgress(95);
-
-      // Load stems
-      const ap = audioPlayerRef.current;
-      ap.audioBuffers[deckId] = {};
-
-      const stemNames = Object.keys(jobResult.stems || {});
-      await Promise.all(stemNames.map(async (stemName) => {
-        let url = jobResult.stems[stemName].download_url;
-        if (url.startsWith('/')) {
-          url = `${pollUrl || hfSpaceUrl || jobResult.hf_space_url}${url}`;
-        }
-        await ap.loadAudio(deckId, stemName, url);
-        if (trackData.bpm) ap.setPlaybackRate(deckId, bpmToUse / trackData.bpm);
-      }));
-
-      ds.setSeparationProgress(100);
-      ds.setStems(STEMS_OFF);
-      stemNames.forEach(s => ap.muteStem(deckId, s, true));
-      ds.setTrack(prev => ({ ...prev, separated: true, jobId }));
-      setStatus('READY');
-    } catch (err) {
-      setStatus('ERROR: ' + err.message);
-      console.error('Separation error:', err);
-    } finally {
-      ds.setIsSeparating(false);
-      ds.setSeparationProgress(0);
-    }
-  }, [deckState, audioPlayerRef, hfSpaceUrl, setStatus]);
+  }, [deckState, audioPlayerRef, applyLoadBpm, setStatus, resetDeckPlaybackState, analyzeWaveformForDeck, separateTrack]);
 
   // --- Load from library (pre-processed stems) ---
   const loadTrackFromLibrary = useCallback(async (deckId, libraryTrack) => {
@@ -170,7 +218,8 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
 
     const ds = deckState(deckId);
     const loadingLabel = libraryTrack.original_filename || libraryTrack.title || 'TRACK';
-    setStatus(`LOADING ${libraryTrack.title.toUpperCase()}...`);
+    const statusTitle = libraryTrack.title || libraryTrack.original_filename || 'TRACK';
+    setStatus(`LOADING ${statusTitle.toUpperCase()}...`);
     ds.setLoadingFile(loadingLabel);
     resetDeckPlaybackState(deckId);
     try {
@@ -189,6 +238,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       const ap = audioPlayerRef.current;
       ap.setTrackBpm(deckId, libraryTrack.bpm || 128);
       ap.audioBuffers[deckId] = {};
+      ap.reversedBuffers[deckId] = {};
       const stemNames = Object.keys(stemUrls);
       await Promise.all(stemNames.map(s => ap.loadAudio(deckId, s, stemUrls[s])));
       analyzeWaveformForDeck(deckId);
@@ -204,7 +254,7 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     } finally {
       ds.setLoadingFile(null);
     }
-  }, [deckState, audioPlayerRef, applyLoadBpm, getStemUrls, setStatus, resetDeckPlaybackState]);
+  }, [deckState, audioPlayerRef, applyLoadBpm, getStemUrls, setStatus, resetDeckPlaybackState, analyzeWaveformForDeck, trackA, trackB]);
 
   // --- Playback ---
   const togglePlay = useCallback(async (deckId) => {
@@ -270,19 +320,6 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     await audioPlayerRef.current.beatJump(deckId, direction * size, t.bpm, quantizeEnabled ? masterBpm : null);
   }, [audioPlayerRef, trackA, trackB, beatJumpSizeA, beatJumpSizeB, masterBpm, quantizeEnabled]);
 
-  // --- Waveform Analysis ---
-  const analyzeWaveformForDeck = useCallback((deckId) => {
-    const ap = audioPlayerRef.current;
-    const buffers = ap.audioBuffers[deckId];
-    if (!buffers) return;
-    // Use 'full' buffer or first stem
-    const buffer = buffers['full'] || Object.values(buffers)[0];
-    if (!buffer) return;
-    const data = analyzeWaveform(buffer);
-    if (deckId === 'A') setWaveformDataA(data);
-    else setWaveformDataB(data);
-  }, [audioPlayerRef]);
-
   // --- Slip Mode ---
   const toggleSlipMode = useCallback((deckId) => {
     const ap = audioPlayerRef.current;
@@ -311,5 +348,6 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     beatJumpSizeA, beatJumpSizeB, setBeatJumpSize, handleBeatJump,
     slipModeA, slipModeB, toggleSlipMode,
     waveformDataA, waveformDataB,
+    analyserNodeA, analyserNodeB,
   };
 }
