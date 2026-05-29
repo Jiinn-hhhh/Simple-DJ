@@ -237,9 +237,14 @@ function App() {
             )}
 
             <div className="top-bar">
-              <a href="https://jiinn-hhhh.github.io/homepage/" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                <h1 className="pixel-font">Simple DJ</h1>
-              </a>
+              <div className="topbar-brand">
+                <a href="https://jiinn-hhhh.github.io/homepage/" target="_blank" rel="noopener noreferrer">
+                  <h1 className="pixel-font">Simple DJ</h1>
+                </a>
+                <div className="status-bar" style={statusBarStyle}>
+                  {status}
+                </div>
+              </div>
               <div className="topbar-actions">
                 <RecordBar
                   isRecordingAudio={recorder.isRecordingAudio}
@@ -275,9 +280,6 @@ function App() {
                       ))}
                     </div>
                   )}
-                </div>
-                <div className="status-bar" style={statusBarStyle}>
-                  {status}
                 </div>
                 {recorder.videoStatusMessage && (
                   <div

@@ -37,6 +37,7 @@
     --deck-pad-row: 46px;
     --deck-beat-row: 52px;
     --deck-stem-row: 52px;
+    --topbar-control-height: 28px;
 }
 
 body {
@@ -73,9 +74,25 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     margin-bottom: 4px;
     padding: 0 10px 4px 10px;
     border-bottom: 2px solid var(--panel-border);
+}
+
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.topbar-brand a {
+    display: flex;
+    align-items: center;
+    height: var(--topbar-control-height);
+    flex-shrink: 0;
+    text-decoration: none;
 }
 
 .top-bar h1 {
@@ -154,11 +171,20 @@ body {
     padding: 3px 8px;
     border: 1px solid var(--neon-green);
     border-radius: 4px;
+    height: var(--topbar-control-height);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
 }
 
 /* --- TOP BAR BUTTONS --- */
 .topbar-btn {
-    height: 26px;
+    height: var(--topbar-control-height);
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: transparent;
     cursor: pointer;
     font-size: 0.5rem;
@@ -167,7 +193,7 @@ body {
 }
 
 .help-topbar-btn {
-    width: 26px;
+    width: var(--topbar-control-height);
     border-radius: 50%;
     border: 1px solid var(--neon-green);
     color: var(--neon-green);
