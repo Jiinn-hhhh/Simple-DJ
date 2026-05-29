@@ -14,6 +14,7 @@ import tempfile
 import shutil
 import subprocess
 import threading
+import queue
 import time
 import traceback
 from datetime import datetime, timedelta
@@ -47,6 +48,14 @@ class JobStatus(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class LibraryJobStatus(str, Enum):
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 # === In-Memory Job Store ===
@@ -110,7 +119,85 @@ class JobStore:
         return len(to_delete)
 
 
+class LibraryJobStore:
+    def __init__(self):
+        self._jobs: Dict[str, dict] = {}
+        self._lock = threading.Lock()
+
+    def create_job(self, job_id: str, track_id: str, user_id: str, filename: str) -> dict:
+        job = {
+            "id": job_id,
+            "track_id": track_id,
+            "user_id": user_id,
+            "filename": filename,
+            "status": LibraryJobStatus.QUEUED.value,
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "started_at": None,
+            "finished_at": None,
+            "worker": None,
+            "error": None,
+        }
+        with self._lock:
+            self._jobs[job_id] = job
+        return job
+
+    def update_job(self, job_id: str, **kwargs):
+        with self._lock:
+            if job_id in self._jobs:
+                self._jobs[job_id].update(kwargs)
+                self._jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
+
+    def get_all_jobs(self) -> Dict[str, dict]:
+        with self._lock:
+            return {k: v.copy() for k, v in self._jobs.items()}
+
+    def summary(self) -> dict:
+        counts = {status.value: 0 for status in LibraryJobStatus}
+        with self._lock:
+            for job in self._jobs.values():
+                status = job.get("status")
+                if status in counts:
+                    counts[status] += 1
+            total = len(self._jobs)
+        return {"total": total, **counts}
+
+    def trim_finished(self, max_jobs: int = 100):
+        with self._lock:
+            if len(self._jobs) <= max_jobs:
+                return
+
+            finished = [
+                (job_id, job)
+                for job_id, job in self._jobs.items()
+                if job.get("status") in {
+                    LibraryJobStatus.COMPLETED.value,
+                    LibraryJobStatus.FAILED.value,
+                    LibraryJobStatus.CANCELLED.value,
+                }
+            ]
+            finished.sort(key=lambda item: item[1].get("finished_at") or item[1].get("updated_at") or "")
+            overflow = len(self._jobs) - max_jobs
+            for job_id, _ in finished[:overflow]:
+                self._jobs.pop(job_id, None)
+
+
 job_store = JobStore()
+library_job_store = LibraryJobStore()
+library_queue = queue.Queue()
+
+try:
+    LIBRARY_WORKER_COUNT = max(1, int(os.getenv("LIBRARY_WORKER_COUNT", "1")))
+except ValueError:
+    LIBRARY_WORKER_COUNT = 1
+
+
+def library_queue_status():
+    status = library_job_store.summary()
+    status["queue_depth"] = library_queue.qsize()
+    status["workers"] = LIBRARY_WORKER_COUNT
+    return status
+
 
 
 class ProcessingCancelled(Exception):
@@ -203,6 +290,7 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "jobs_count": len(job_store.get_all_jobs()),
+        "library_queue": library_queue_status(),
     }
 
 
@@ -504,6 +592,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
         }).eq('id', track_id).execute()
 
         print(f"[library] Track {track_id} processed successfully")
+        return LibraryJobStatus.COMPLETED.value
 
     except ProcessingCancelled:
         if uploaded_paths:
@@ -512,6 +601,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
             except Exception:
                 pass
         print(f"[library] Track {track_id} cancelled")
+        return LibraryJobStatus.CANCELLED.value
 
     except Exception as e:
         traceback.print_exc()
@@ -528,6 +618,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
         except:
             pass
         print(f"[library] Track {track_id} failed: {e}")
+        return LibraryJobStatus.FAILED.value
 
     finally:
         # Clean up input file and job directory
@@ -539,6 +630,45 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
         job_dir = os.path.join(RESULTS_DIR, job_id)
         if os.path.exists(job_dir):
             shutil.rmtree(job_dir, ignore_errors=True)
+
+
+def library_worker_loop(worker_id: int):
+    print(f"[library-queue] Worker {worker_id} started")
+    while True:
+        payload = library_queue.get()
+        job_id = payload["job_id"]
+        try:
+            library_job_store.update_job(
+                job_id,
+                status=LibraryJobStatus.PROCESSING.value,
+                started_at=datetime.utcnow().isoformat(),
+                worker=worker_id,
+            )
+            result_status = process_library_track(**payload)
+            library_job_store.update_job(
+                job_id,
+                status=result_status or LibraryJobStatus.FAILED.value,
+                finished_at=datetime.utcnow().isoformat(),
+            )
+        except Exception as e:
+            traceback.print_exc()
+            library_job_store.update_job(
+                job_id,
+                status=LibraryJobStatus.FAILED.value,
+                error=str(e)[:500],
+                finished_at=datetime.utcnow().isoformat(),
+            )
+        finally:
+            library_job_store.trim_finished()
+            library_queue.task_done()
+
+
+for worker_index in range(LIBRARY_WORKER_COUNT):
+    threading.Thread(
+        target=library_worker_loop,
+        args=(worker_index + 1,),
+        daemon=True,
+    ).start()
 
 
 @app.post("/process-library-track")
@@ -566,15 +696,23 @@ async def process_library_track_endpoint(
         with open(temp_file, "wb") as f:
             f.write(contents)
 
-        # Start background processing
-        thread = threading.Thread(
-            target=process_library_track,
-            args=(job_id, temp_file, filename, track_id, user_id, supabase_url, supabase_service_key),
-            daemon=True
-        )
-        thread.start()
+        library_job_store.create_job(job_id, track_id, user_id, filename)
+        library_queue.put({
+            "job_id": job_id,
+            "file_path": temp_file,
+            "filename": filename,
+            "track_id": track_id,
+            "user_id": user_id,
+            "supabase_url": supabase_url,
+            "supabase_service_key": supabase_service_key,
+        })
 
-        return {"success": True, "message": "Processing started"}
+        return {
+            "success": True,
+            "message": "Processing queued",
+            "job_id": job_id,
+            "queue_depth": library_queue.qsize(),
+        }
 
     except HTTPException:
         raise
@@ -588,6 +726,7 @@ async def process_library_track_endpoint(
 async def list_jobs():
     """List all active jobs (for debugging)."""
     jobs = job_store.get_all_jobs()
+    library_jobs = library_job_store.get_all_jobs()
     return {
         "count": len(jobs),
         "jobs": [
@@ -598,7 +737,45 @@ async def list_jobs():
                 "created_at": j["created_at"],
             }
             for j in jobs.values()
-        ]
+        ],
+        "library_queue": library_queue_status(),
+        "library_jobs": [
+            {
+                "job_id": j["id"],
+                "track_id": j["track_id"],
+                "status": j["status"],
+                "filename": j["filename"],
+                "created_at": j["created_at"],
+                "updated_at": j["updated_at"],
+                "started_at": j.get("started_at"),
+                "finished_at": j.get("finished_at"),
+                "worker": j.get("worker"),
+            }
+            for j in library_jobs.values()
+        ],
+    }
+
+
+@app.get("/library/jobs")
+async def list_library_jobs():
+    """List queued and running library processing jobs."""
+    jobs = library_job_store.get_all_jobs()
+    return {
+        "queue": library_queue_status(),
+        "jobs": [
+            {
+                "job_id": j["id"],
+                "track_id": j["track_id"],
+                "status": j["status"],
+                "filename": j["filename"],
+                "created_at": j["created_at"],
+                "updated_at": j["updated_at"],
+                "started_at": j.get("started_at"),
+                "finished_at": j.get("finished_at"),
+                "worker": j.get("worker"),
+            }
+            for j in jobs.values()
+        ],
     }
 
 
