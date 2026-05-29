@@ -49,9 +49,11 @@ function App() {
   const {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume,
-    headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady, headphoneOutputLabel,
+    headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady,
+    headphoneOutputs, headphoneOutputId, headphoneOutputLabel, headphoneOutputMessage,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
-    handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange, handleSelectHeadphoneOutput,
+    handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange,
+    handleRefreshHeadphoneOutputs, handleSelectHeadphoneOutput,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,
@@ -360,11 +362,15 @@ function App() {
                 headphoneOnlyB={headphoneOnlyB}
                 headphoneVolume={headphoneVolume}
                 headphoneOutputReady={headphoneOutputReady}
+                headphoneOutputs={headphoneOutputs}
+                headphoneOutputId={headphoneOutputId}
                 headphoneOutputLabel={headphoneOutputLabel}
+                headphoneOutputMessage={headphoneOutputMessage}
                 onMasterVolumeChange={guard(handleMasterVolumeChange)}
                 onEffectVolumeChange={guard(handleEffectVolumeChange)}
                 onToggleHeadphoneOnly={guard(handleHeadphoneOnlyToggle)}
                 onHeadphoneVolumeChange={guard(handleHeadphoneVolumeChange)}
+                onRefreshHeadphoneOutputs={guard(handleRefreshHeadphoneOutputs)}
                 onSelectHeadphoneOutput={guard(handleSelectHeadphoneOutput)}
                 onMasterEffect={guard(handleMasterEffect)}
                 onTriggerSampler={guard(triggerSampler)}

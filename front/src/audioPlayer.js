@@ -260,7 +260,43 @@ class AudioPlayer {
     if (audio.paused) await audio.play();
   }
 
-  async selectHeadphoneOutput() {
+  async getHeadphoneOutputs() {
+    await this.init();
+    this.initMasterBus();
+
+    if (!navigator.mediaDevices?.enumerateDevices || !this._supportsOutputDeviceSelection()) {
+      throw new Error('This browser cannot choose a separate headphone output.');
+    }
+
+    let devices = await navigator.mediaDevices.enumerateDevices();
+    let outputs = devices.filter(device => device.kind === 'audiooutput');
+
+    if (!outputs.length || outputs.every(device => !device.label)) {
+      let permissionStream = null;
+      try {
+        permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        devices = await navigator.mediaDevices.enumerateDevices();
+        outputs = devices.filter(device => device.kind === 'audiooutput');
+      } finally {
+        permissionStream?.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    const seen = new Set();
+    return outputs
+      .filter(device => {
+        const id = device.deviceId || 'default';
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((device, index) => ({
+        deviceId: device.deviceId || 'default',
+        label: device.label || (index === 0 ? 'System Default' : `Audio Output ${index + 1}`),
+      }));
+  }
+
+  async setHeadphoneOutputDevice(deviceId, label = '') {
     await this.init();
     this.initMasterBus();
 
@@ -269,17 +305,13 @@ class AudioPlayer {
       throw new Error('This browser cannot choose a separate headphone output.');
     }
 
-    if (!navigator.mediaDevices?.selectAudioOutput) {
-      throw new Error('Headphone output picker is not available in this browser.');
-    }
-
-    const device = await navigator.mediaDevices.selectAudioOutput();
-    await audio.setSinkId(device.deviceId);
+    const sinkId = deviceId || 'default';
+    await audio.setSinkId(sinkId);
     await this.startHeadphoneOutput();
 
     this.headphoneOutputDevice = {
-      deviceId: device.deviceId,
-      label: device.label || 'Selected headphone output',
+      deviceId: sinkId,
+      label: label || 'Selected headphone output',
     };
 
     return this.headphoneOutputDevice;

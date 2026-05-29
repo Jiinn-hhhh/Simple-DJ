@@ -19,7 +19,10 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
   const [headphoneOnlyB, setHeadphoneOnlyB] = useState(false);
   const [headphoneVolume, setHeadphoneVolume] = useState(0.85);
   const [headphoneOutputReady, setHeadphoneOutputReady] = useState(false);
+  const [headphoneOutputs, setHeadphoneOutputs] = useState([]);
+  const [headphoneOutputId, setHeadphoneOutputId] = useState('');
   const [headphoneOutputLabel, setHeadphoneOutputLabel] = useState('');
+  const [headphoneOutputMessage, setHeadphoneOutputMessage] = useState('SELECT HP OUT');
 
   const masterBpm = externalMasterBpm ?? internalMasterBpm;
   const setMasterBpm = externalSetMasterBpm ?? setInternalMasterBpm;
@@ -58,20 +61,45 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
     audioPlayerRef.current.setSamplerVolume?.(next);
   }, [audioPlayerRef]);
 
-  const handleSelectHeadphoneOutput = useCallback(async () => {
+  const handleRefreshHeadphoneOutputs = useCallback(async () => {
     try {
-      const output = await audioPlayerRef.current.selectHeadphoneOutput();
+      setHeadphoneOutputMessage('LOADING OUTPUTS...');
+      const outputs = await audioPlayerRef.current.getHeadphoneOutputs();
+      setHeadphoneOutputs(outputs);
+      setHeadphoneOutputMessage(outputs.length ? 'CHOOSE HP LINE' : 'NO OUTPUTS FOUND');
+      reportStatus(outputs.length ? 'CHOOSE HEADPHONE OUTPUT' : 'NO HEADPHONE OUTPUTS FOUND');
+      return outputs;
+    } catch (err) {
+      console.warn('Headphone output selection failed:', err);
+      setHeadphoneOutputs([]);
+      setHeadphoneOutputMessage('OUTPUT PICKER UNSUPPORTED');
+      reportStatus('HEADPHONE OUTPUT UNSUPPORTED');
+      return [];
+    }
+  }, [audioPlayerRef, reportStatus]);
+
+  const handleSelectHeadphoneOutput = useCallback(async (deviceId) => {
+    const selected = headphoneOutputs.find(output => output.deviceId === deviceId);
+
+    try {
+      const output = await audioPlayerRef.current.setHeadphoneOutputDevice(
+        deviceId,
+        selected?.label || 'HEADPHONES',
+      );
+      setHeadphoneOutputId(output.deviceId);
       setHeadphoneOutputReady(true);
-      setHeadphoneOutputLabel(output?.label || 'HEADPHONES');
+      setHeadphoneOutputLabel(output.label || selected?.label || 'HEADPHONES');
+      setHeadphoneOutputMessage('HP LINE READY');
       reportStatus('HEADPHONE OUTPUT READY');
       return output;
     } catch (err) {
       console.warn('Headphone output selection failed:', err);
-      const cancelled = err?.name === 'NotAllowedError' || err?.name === 'AbortError';
-      reportStatus(cancelled ? 'HEADPHONE DEVICE NOT SELECTED' : 'HEADPHONE OUTPUT UNSUPPORTED');
+      setHeadphoneOutputReady(false);
+      setHeadphoneOutputMessage('HP LINE FAILED');
+      reportStatus('HEADPHONE OUTPUT FAILED');
       return null;
     }
-  }, [audioPlayerRef, reportStatus]);
+  }, [audioPlayerRef, headphoneOutputs, reportStatus]);
 
   const handleHeadphoneVolumeChange = useCallback((val) => {
     const next = Math.max(0, Math.min(1, val));
@@ -83,12 +111,20 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
     const isCurrentlyOn = deckId === 'A' ? headphoneOnlyA : headphoneOnlyB;
     const next = !isCurrentlyOn;
 
-    if (next) {
-      const output = headphoneOutputReady
-        ? await audioPlayerRef.current.startHeadphoneOutput().then(() => ({ ready: true })).catch(() => null)
-        : await handleSelectHeadphoneOutput();
+    if (next && !headphoneOutputReady) {
+      setHeadphoneOutputMessage('SELECT HP LINE FIRST');
+      reportStatus('SELECT HEADPHONE OUTPUT FIRST');
+      if (!headphoneOutputs.length) await handleRefreshHeadphoneOutputs();
+      return;
+    }
 
-      if (!output) return;
+    if (next) {
+      const started = await audioPlayerRef.current.startHeadphoneOutput().then(() => true).catch(() => false);
+      if (!started) {
+        setHeadphoneOutputMessage('HP LINE FAILED');
+        reportStatus('HEADPHONE OUTPUT FAILED');
+        return;
+      }
     }
 
     if (deckId === 'A') setHeadphoneOnlyA(next);
@@ -96,7 +132,7 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
 
     audioPlayerRef.current.setHeadphoneOnly(deckId, next);
     reportStatus(`${deckId} HEADPHONE ONLY ${next ? 'ON' : 'OFF'}`);
-  }, [audioPlayerRef, headphoneOnlyA, headphoneOnlyB, headphoneOutputReady, handleSelectHeadphoneOutput, reportStatus]);
+  }, [audioPlayerRef, headphoneOnlyA, headphoneOnlyB, headphoneOutputReady, headphoneOutputs.length, handleRefreshHeadphoneOutputs, reportStatus]);
 
   // --- EQ ---
   const handleEqChange = useCallback((deckId, band, val) => {
@@ -156,10 +192,12 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
   return {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume, masterBpm, setMasterBpm,
-    headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady, headphoneOutputLabel,
+    headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady,
+    headphoneOutputs, headphoneOutputId, headphoneOutputLabel, headphoneOutputMessage,
     setCrossfader,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
-    handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange, handleSelectHeadphoneOutput,
+    handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange,
+    handleRefreshHeadphoneOutputs, handleSelectHeadphoneOutput,
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,

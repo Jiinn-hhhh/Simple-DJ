@@ -23,11 +23,15 @@ const Mixer = ({
   headphoneOnlyB,
   headphoneVolume,
   headphoneOutputReady,
+  headphoneOutputs,
+  headphoneOutputId,
   headphoneOutputLabel,
+  headphoneOutputMessage,
   onMasterVolumeChange,
   onEffectVolumeChange,
   onToggleHeadphoneOnly,
   onHeadphoneVolumeChange,
+  onRefreshHeadphoneOutputs,
   onSelectHeadphoneOutput,
   onMasterEffect,
   onTriggerSampler,
@@ -151,14 +155,28 @@ const Mixer = ({
           <div className="headphone-panel">
             <button
               type="button"
-              onClick={onSelectHeadphoneOutput}
+              onClick={onRefreshHeadphoneOutputs}
               className={`glass-btn headphone-device-btn ${headphoneOutputReady ? 'active' : ''}`}
-              title="Choose headphone output device"
+              title="Load headphone output devices"
             >
               HP OUT
             </button>
-            <div className="headphone-device-label" title={headphoneOutputLabel || 'No headphone output selected'}>
-              {headphoneOutputReady ? (headphoneOutputLabel || 'SELECTED') : 'NO DEVICE'}
+            <select
+              className="headphone-output-select"
+              value={headphoneOutputId}
+              onChange={(e) => onSelectHeadphoneOutput(e.target.value)}
+              disabled={!headphoneOutputs.length}
+              title="Headphone output line"
+            >
+              <option value="">SELECT LINE</option>
+              {headphoneOutputs.map((output) => (
+                <option key={output.deviceId} value={output.deviceId}>
+                  {output.label}
+                </option>
+              ))}
+            </select>
+            <div className="headphone-device-label" title={headphoneOutputLabel || headphoneOutputMessage}>
+              {headphoneOutputReady ? (headphoneOutputLabel || 'HP READY') : headphoneOutputMessage}
             </div>
             <label className="mixer-label tiny">HP VOL</label>
             <input
