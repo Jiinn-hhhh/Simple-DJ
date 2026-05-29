@@ -97,6 +97,7 @@ body {
     align-items: center;
     gap: 5px;
     min-width: 0;
+    position: relative;
 }
 
 .topbar-hp-btn {
@@ -112,37 +113,41 @@ body {
     box-shadow: 0 0 8px rgba(0, 229, 255, 0.25);
 }
 
-.topbar-hp-select {
-    width: 130px;
-    height: 26px;
-    box-sizing: border-box;
+.topbar-hp-menu {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    z-index: 50;
+    min-width: 190px;
+    max-width: min(260px, 80vw);
+    padding: 4px;
     background: #050507;
-    color: var(--neon-blue);
-    border: 1px solid #333846;
+    border: 1px solid var(--neon-blue);
     border-radius: 4px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55), 0 0 12px rgba(0, 229, 255, 0.16);
+}
+
+.topbar-hp-option {
+    width: 100%;
+    height: 26px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 0.72rem;
-    font-weight: 700;
-    outline: none;
-}
-
-.topbar-hp-select:disabled {
-    color: #555566;
-    opacity: 0.75;
-}
-
-.topbar-hp-status {
-    max-width: 110px;
-    color: var(--text-dim);
-    font-size: 0.65rem;
+    font-size: 0.74rem;
     font-weight: 700;
     line-height: 1;
+    text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.topbar-hp-status.ready {
+.topbar-hp-option:hover {
+    background: rgba(0, 229, 255, 0.14);
     color: var(--neon-blue);
 }
 

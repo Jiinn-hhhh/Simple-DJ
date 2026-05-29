@@ -31,6 +31,7 @@ function App() {
   const [hfSpaceUrl, setHfSpaceUrl] = useState("");
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isQuantizeEnabled, setIsQuantizeEnabled] = useState(false);
+  const [isHeadphoneMenuOpen, setIsHeadphoneMenuOpen] = useState(false);
   const [masterBpm, setMasterBpm] = useState(128);
 
   const audioPlayerRef = useRef(new AudioPlayer());
@@ -50,7 +51,7 @@ function App() {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume,
     headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady,
-    headphoneOutputs, headphoneOutputMessage,
+    headphoneOutputs,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
     handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange,
     handleRefreshHeadphoneOutputs, handleSelectHeadphoneOutput,
@@ -162,6 +163,23 @@ function App() {
     if (!isSystemReady) return undefined;
     return fn(...args);
   };
+
+  const handleHeadphoneSettingClick = async () => {
+    if (isHeadphoneMenuOpen) {
+      setIsHeadphoneMenuOpen(false);
+      return;
+    }
+
+    const result = await handleRefreshHeadphoneOutputs();
+    const outputs = Array.isArray(result) ? result : (result?.outputs || []);
+    setIsHeadphoneMenuOpen(!result?.output && outputs.length > 0);
+  };
+
+  const handleHeadphoneMenuSelect = async (deviceId) => {
+    setIsHeadphoneMenuOpen(false);
+    await handleSelectHeadphoneOutput(deviceId);
+  };
+
   const isProblemStatus = status === 'OFFLINE' || status.startsWith('ERROR') || status.includes('UNSUPPORTED');
   const statusBarStyle = isProblemStatus ? {
     color: 'var(--neon-pink)',
@@ -237,32 +255,26 @@ function App() {
                 <div className="topbar-headphone-control">
                   <button
                     type="button"
-                    onClick={guard(handleRefreshHeadphoneOutputs)}
+                    onClick={guard(handleHeadphoneSettingClick)}
                     className={`topbar-btn topbar-hp-btn pixel-font ${headphoneOutputReady ? 'active' : ''}`}
                     title="Choose headphone output device"
                   >
                     HP SETTING
                   </button>
-                  <select
-                    className="topbar-hp-select"
-                    value=""
-                    onChange={(e) => guard(handleSelectHeadphoneOutput)(e.target.value)}
-                    disabled={!isSystemReady || !headphoneOutputs.length}
-                    title="Headphone output line"
-                  >
-                    <option value="">OUTPUT LINE</option>
-                    {headphoneOutputs.map((output) => (
-                      <option key={output.deviceId} value={output.deviceId}>
-                        {output.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span
-                    className={`topbar-hp-status ${headphoneOutputReady ? 'ready' : ''}`}
-                    title={headphoneOutputReady ? 'Headphone output ready' : headphoneOutputMessage}
-                  >
-                    {headphoneOutputReady ? 'READY' : headphoneOutputMessage}
-                  </span>
+                  {isHeadphoneMenuOpen && (
+                    <div className="topbar-hp-menu">
+                      {headphoneOutputs.map((output) => (
+                        <button
+                          key={output.deviceId}
+                          type="button"
+                          className="topbar-hp-option"
+                          onClick={() => guard(handleHeadphoneMenuSelect)(output.deviceId)}
+                        >
+                          {output.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="status-bar" style={statusBarStyle}>
                   {status}

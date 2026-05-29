@@ -76,7 +76,7 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
         setHeadphoneOutputMessage(outputs.length ? 'CHOOSE HP LINE' : 'NO OUTPUTS FOUND');
         reportStatus(outputs.length ? 'CHOOSE HEADPHONE OUTPUT' : 'NO HEADPHONE OUTPUTS FOUND');
       }
-      return outputs;
+      return { output, outputs };
     } catch (err) {
       console.warn('Headphone output selection failed:', err);
       if (err?.name !== 'NotAllowedError') {
@@ -94,7 +94,7 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
         setHeadphoneOutputMessage('OUTPUT PICKER UNSUPPORTED');
         reportStatus('HEADPHONE OUTPUT UNSUPPORTED');
       }
-      return [];
+      return { output: null, outputs: [] };
     }
   }, [audioPlayerRef, reportStatus]);
 
