@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 
-export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterBpm = null, externalSetMasterBpm = null, setStatus = null) {
+export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterBpm = null, externalSetMasterBpm = null, setStatus = null, deckBeatBpms = {}) {
   const [volumeA, setVolumeA] = useState(1.0);
   const [volumeB, setVolumeB] = useState(1.0);
   const [crossfader, setCrossfader] = useState(0);
@@ -164,9 +164,11 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
   // --- Master BPM ---
   const handleMasterBpmChange = useCallback((val) => {
     setMasterBpm(val);
-    if (trackA?.bpm) audioPlayerRef.current.setPlaybackRate('A', val / trackA.bpm);
-    if (trackB?.bpm) audioPlayerRef.current.setPlaybackRate('B', val / trackB.bpm);
-  }, [audioPlayerRef, trackA, trackB, setMasterBpm]);
+    const beatBpmA = deckBeatBpms.A || trackA?.bpm;
+    const beatBpmB = deckBeatBpms.B || trackB?.bpm;
+    if (beatBpmA) audioPlayerRef.current.setPlaybackRate('A', val / beatBpmA);
+    if (beatBpmB) audioPlayerRef.current.setPlaybackRate('B', val / beatBpmB);
+  }, [audioPlayerRef, trackA, trackB, setMasterBpm, deckBeatBpms]);
 
   // --- Key Lock ---
   const toggleKeyLock = useCallback((deckId) => {

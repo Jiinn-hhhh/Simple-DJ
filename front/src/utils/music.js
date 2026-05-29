@@ -30,7 +30,7 @@ function parseKeyName(keyName) {
   };
 }
 
-export function getShiftedKey(originalKey, originalBpm, masterBpm) {
+export function getShiftedKey(originalKey, originalBpm, masterBpm, halfTime = false) {
   if (!originalKey || !originalBpm || !masterBpm) return null;
 
   const { root, mode } = parseKeyName(originalKey);
@@ -38,7 +38,8 @@ export function getShiftedKey(originalKey, originalBpm, masterBpm) {
   const rootIndex = NOTE_NAMES.indexOf(root);
   if (rootIndex === -1) return originalKey;
 
-  const rate = masterBpm / originalBpm;
+  const beatBpm = halfTime ? originalBpm / 2 : originalBpm;
+  const rate = masterBpm / beatBpm;
   const shiftInt = Math.round(12 * Math.log2(rate));
 
   let newIndex = (rootIndex + shiftInt) % 12;
@@ -50,7 +51,8 @@ export function getShiftedKey(originalKey, originalBpm, masterBpm) {
   return `${newRoot}${suffix} (${shiftInt > 0 ? '+' : ''}${shiftInt})`;
 }
 
-export function getPlaybackRate(track, masterBpm) {
+export function getPlaybackRate(track, masterBpm, halfTime = false) {
   if (!track?.bpm) return 0;
-  return masterBpm / track.bpm;
+  const beatBpm = halfTime ? track.bpm / 2 : track.bpm;
+  return masterBpm / beatBpm;
 }

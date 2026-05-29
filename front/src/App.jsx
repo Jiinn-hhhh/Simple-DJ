@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import AudioPlayer from "./audioPlayer";
 import Deck from "./components/Deck";
 import Mixer from "./components/Mixer";
@@ -32,9 +32,13 @@ function App() {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isQuantizeEnabled, setIsQuantizeEnabled] = useState(false);
   const [isHeadphoneMenuOpen, setIsHeadphoneMenuOpen] = useState(false);
+  const [halfTimeByDeck, setHalfTimeByDeck] = useState({ A: false, B: false });
+  const [isAutoTransitioning, setIsAutoTransitioning] = useState(false);
   const [masterBpm, setMasterBpm] = useState(128);
 
   const audioPlayerRef = useRef(new AudioPlayer());
+  const autoTransitionTimersRef = useRef([]);
+  const isAutoTransitioningRef = useRef(false);
 
   // --- Decks hook ---
   const decks = useDecks(
@@ -45,7 +49,13 @@ function App() {
     setStatus,
     getStemUrls,
     isQuantizeEnabled,
+    halfTimeByDeck,
   );
+
+  const deckBeatBpms = {
+    A: decks.getDeckBeatBpm?.('A', decks.trackA?.bpm) || decks.trackA?.bpm || 0,
+    B: decks.getDeckBeatBpm?.('B', decks.trackB?.bpm) || decks.trackB?.bpm || 0,
+  };
 
   const {
     volumeA, volumeB, crossfader, filterA, filterB,
@@ -58,7 +68,21 @@ function App() {
     handleEqChange, handleFilterChange, handleMasterBpmChange,
     handleMasterEffect, triggerSampler,
     keyLockA, keyLockB, toggleKeyLock,
-  } = useMixer(audioPlayerRef, decks.trackA, decks.trackB, masterBpm, setMasterBpm, setStatus);
+  } = useMixer(audioPlayerRef, decks.trackA, decks.trackB, masterBpm, setMasterBpm, setStatus, deckBeatBpms);
+
+  const setAutoTransitionActive = useCallback((active) => {
+    isAutoTransitioningRef.current = active;
+    setIsAutoTransitioning(active);
+  }, []);
+
+  const handleSafeMasterBpmChange = useCallback((nextBpm) => {
+    if (isAutoTransitioningRef.current) {
+      setStatus('BPM LOCKED DURING AUTO TRANSITION');
+      return;
+    }
+
+    handleMasterBpmChange(nextBpm);
+  }, [handleMasterBpmChange]);
 
   // --- System init ---
   useEffect(() => {
@@ -92,6 +116,14 @@ function App() {
     audioPlayerRef.current.setQuantize('B', isQuantizeEnabled);
   }, [isQuantizeEnabled]);
 
+  useEffect(() => () => {
+    autoTransitionTimersRef.current.forEach(({ id, type }) => {
+      if (type === 'interval') window.clearInterval(id);
+      else window.clearTimeout(id);
+    });
+    autoTransitionTimersRef.current = [];
+  }, []);
+
 
   // --- Hot Cues ---
   const hotCues = useHotCues(audioPlayerRef);
@@ -120,8 +152,8 @@ function App() {
       if (lower === 'q') { setIsQuantizeEnabled(prev => !prev); return; }
       if (lower === 'w') { decks.toggleSlipMode('A'); return; }
       if (lower === 'e') { toggleKeyLock('A'); return; }
-      if (key === '-' || key === '_') { handleMasterBpmChange(Math.max(60, masterBpm - 1)); return; }
-      if (key === '=' || key === '+') { handleMasterBpmChange(Math.min(180, masterBpm + 1)); return; }
+      if (key === '-' || key === '_') { handleSafeMasterBpmChange(Math.max(60, masterBpm - 1)); return; }
+      if (key === '=' || key === '+') { handleSafeMasterBpmChange(Math.min(180, masterBpm + 1)); return; }
       const num = parseInt(key);
       if (num >= 1 && num <= 8) {
         const deck = e.shiftKey ? 'B' : 'A';
@@ -135,7 +167,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleMasterBpmChange, handleCrossfaderChange, crossfader]);
+  }, [isSystemReady, decks, hotCues, masterBpm, toggleKeyLock, handleSafeMasterBpmChange, handleCrossfaderChange, crossfader]);
 
   // --- Loop Roll ---
   const loopRoll = useLoopRoll(audioPlayerRef);
@@ -158,9 +190,150 @@ function App() {
   const handleScratchMove = (deckId, angleDelta) => audioPlayerRef.current.updateScratch(deckId, angleDelta);
   const handleScratchEnd = (deckId, bpm) => audioPlayerRef.current.endScratch(deckId, bpm);
 
+  const clearAutoTransitionTimers = () => {
+    autoTransitionTimersRef.current.forEach(({ id, type }) => {
+      if (type === 'interval') window.clearInterval(id);
+      else window.clearTimeout(id);
+    });
+    autoTransitionTimersRef.current = [];
+  };
+
+  const scheduleAutoTimeout = (callback, delayMs) => {
+    const id = window.setTimeout(callback, Math.max(0, delayMs));
+    autoTransitionTimersRef.current.push({ id, type: 'timeout' });
+    return id;
+  };
+
+  const rampDeckControl = (deckId, kind, from, to, durationMs) => {
+    const setter = kind === 'filter' ? handleFilterChange : handleVolumeChange;
+    const safeDuration = Math.max(1, durationMs);
+    let elapsedMs = 0;
+    setter(deckId, from);
+
+    const id = window.setInterval(() => {
+      elapsedMs += 33;
+      const progress = Math.min(1, elapsedMs / safeDuration);
+      const eased = progress * progress * (3 - 2 * progress);
+      const next = from + ((to - from) * eased);
+      setter(deckId, Math.max(0, Math.min(1, next)));
+
+      if (progress >= 1) {
+        window.clearInterval(id);
+        autoTransitionTimersRef.current = autoTransitionTimersRef.current.filter(timer => timer.id !== id);
+      }
+    }, 33);
+
+    autoTransitionTimersRef.current.push({ id, type: 'interval' });
+  };
+
+  const handleToggleHalfTime = (deckId) => {
+    if (isAutoTransitioningRef.current) {
+      setStatus('HALFTIME LOCKED DURING AUTO TRANSITION');
+      return;
+    }
+
+    const track = deckId === 'A' ? decks.trackA : decks.trackB;
+    setHalfTimeByDeck(prev => {
+      const nextEnabled = !prev[deckId];
+      const next = { ...prev, [deckId]: nextEnabled };
+      const beatBpm = track?.bpm ? track.bpm / (nextEnabled ? 2 : 1) : 0;
+      const normalBpm = track?.bpm || 0;
+      const halfBpm = normalBpm / 2;
+      const shouldFollowHalfTime = normalBpm && nextEnabled && Math.abs(masterBpm - normalBpm) <= 2;
+      const shouldRestoreNormalTime = normalBpm && !nextEnabled && Math.abs(masterBpm - halfBpm) <= 2;
+      const nextMasterBpm = shouldFollowHalfTime ? halfBpm : (shouldRestoreNormalTime ? normalBpm : masterBpm);
+      if (nextMasterBpm !== masterBpm) setMasterBpm(nextMasterBpm);
+      if (beatBpm) audioPlayerRef.current.setPlaybackRate(deckId, nextMasterBpm / beatBpm);
+      setStatus(`DECK ${deckId} HALF TIME ${nextEnabled ? 'ON' : 'OFF'}`);
+      return next;
+    });
+  };
+
+  const handleAutoTransition = async (targetDeckId, bars) => {
+    if (isAutoTransitioningRef.current) {
+      setStatus('AUTO TRANSITION ALREADY RUNNING');
+      return;
+    }
+
+    const sourceDeckId = targetDeckId === 'A' ? 'B' : 'A';
+    const targetTrack = targetDeckId === 'A' ? decks.trackA : decks.trackB;
+    const sourceTrack = sourceDeckId === 'A' ? decks.trackA : decks.trackB;
+    const sourcePlaying = sourceDeckId === 'A' ? decks.isPlayingA : decks.isPlayingB;
+
+    if (!targetTrack || !sourceTrack) {
+      setStatus('LOAD BOTH DECKS FOR AUTO TRANSITION');
+      return;
+    }
+
+    if (!sourcePlaying) {
+      setStatus(`START DECK ${sourceDeckId} FIRST`);
+      return;
+    }
+
+    const sourceBeatBpm = deckBeatBpms[sourceDeckId] || sourceTrack.bpm || masterBpm;
+    const targetBeatBpm = deckBeatBpms[targetDeckId] || targetTrack.bpm || masterBpm;
+    const transitionMasterBpm = masterBpm || sourceBeatBpm || targetBeatBpm || 128;
+    const transitionBpm = Math.max(1, transitionMasterBpm);
+    const barMs = (60 / transitionBpm) * 4 * 1000;
+    const totalBars = bars === 2 ? 2 : 4;
+    const filterStartBar = totalBars === 4 ? 2 : 0;
+    const volumeStartBar = totalBars === 4 ? 3 : 1;
+    const sourceVolume = sourceDeckId === 'A' ? volumeA : volumeB;
+    const sourceFilter = sourceDeckId === 'A' ? filterA : filterB;
+
+    clearAutoTransitionTimers();
+    setAutoTransitionActive(true);
+
+    try {
+      if (sourceBeatBpm) audioPlayerRef.current.setPlaybackRate(sourceDeckId, transitionMasterBpm / sourceBeatBpm);
+      if (targetBeatBpm) audioPlayerRef.current.setPlaybackRate(targetDeckId, transitionMasterBpm / targetBeatBpm);
+
+      handleFilterChange(targetDeckId, 0.5);
+      handleVolumeChange(targetDeckId, 0.8);
+      const started = await decks.startDeck(targetDeckId, 0, { restart: true, quantized: false });
+
+      if (!started) {
+        throw new Error(`Deck ${targetDeckId} could not start`);
+      }
+
+      scheduleAutoTimeout(() => {
+        rampDeckControl(sourceDeckId, 'filter', sourceFilter, 1, barMs);
+      }, filterStartBar * barMs);
+
+      scheduleAutoTimeout(() => {
+        rampDeckControl(sourceDeckId, 'volume', sourceVolume, 0.5, barMs);
+      }, volumeStartBar * barMs);
+
+      scheduleAutoTimeout(() => {
+        clearAutoTransitionTimers();
+        handleVolumeChange(sourceDeckId, 0);
+        handleFilterChange(sourceDeckId, 0.5);
+        decks.stopDeck(sourceDeckId);
+        setAutoTransitionActive(false);
+        setStatus(`AUTO ${totalBars} BAR TRANSITION COMPLETE`);
+      }, totalBars * barMs);
+
+      setStatus(`AUTO ${totalBars} BAR ${sourceDeckId} -> ${targetDeckId}`);
+    } catch (err) {
+      clearAutoTransitionTimers();
+      setAutoTransitionActive(false);
+      setStatus('AUTO TRANSITION FAILED');
+      console.error('Auto transition failed:', err);
+    }
+  };
+
   // --- Guard wrapper for deck/mixer actions ---
   const guard = (fn) => (...args) => {
     if (!isSystemReady) return undefined;
+    return fn(...args);
+  };
+
+  const guardLoad = (fn) => (...args) => {
+    if (!isSystemReady) return undefined;
+    if (isAutoTransitioningRef.current) {
+      setStatus('LOAD LOCKED DURING AUTO TRANSITION');
+      return undefined;
+    }
     return fn(...args);
   };
 
@@ -207,7 +380,7 @@ function App() {
             loading={libraryLoading}
             onUpload={uploadTrack}
             onDelete={deleteTrack}
-            onLoadToDeck={guard(decks.loadTrackFromLibrary)}
+            onLoadToDeck={guardLoad(decks.loadTrackFromLibrary)}
             uploadQueueInfo={uploadQueueInfo}
             onCancelProcessing={cancelProcessingTrack}
             onClearQueue={clearQueue}
@@ -351,11 +524,11 @@ function App() {
                 deckId="A"
                 track={decks.trackA}
                 isPlaying={decks.isPlayingA}
-                playbackRate={getPlaybackRate(decks.trackA, masterBpm)}
-                effectiveKey={keyLockA ? decks.trackA?.key : getShiftedKey(decks.trackA?.key, decks.trackA?.bpm, masterBpm)}
+                playbackRate={getPlaybackRate(decks.trackA, masterBpm, halfTimeByDeck.A)}
+                effectiveKey={keyLockA ? decks.trackA?.key : getShiftedKey(decks.trackA?.key, decks.trackA?.bpm, masterBpm, halfTimeByDeck.A)}
                 onPlayPause={() => guard(decks.togglePlay)('A')}
-                onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
-                onLoadFile={guard(decks.loadTrack)}
+                onLoadFromLibrary={guardLoad(decks.loadTrackFromLibrary)}
+                onLoadFile={guardLoad(decks.loadTrack)}
                 waveformData={decks.waveformDataA}
                 playbackPosition={positionA}
                 slipPlaybackPosition={slipPositionA}
@@ -373,7 +546,7 @@ function App() {
                 visualizerNode={decks.analyserNodeA}
                 loadingTrack={decks.loadingFileA}
                 hotCues={hotCues.hotCuesA}
-                onSetHotCue={(idx) => guard(hotCues.setHotCue)('A', idx, decks.trackA?.bpm, decks.trackA)}
+                onSetHotCue={(idx) => guard(hotCues.setHotCue)('A', idx, deckBeatBpms.A, decks.trackA)}
                 onJumpHotCue={async (idx) => {
                   if (!isSystemReady) return;
                   await hotCues.jumpToHotCue('A', idx, isQuantizeEnabled ? masterBpm : null);
@@ -392,9 +565,18 @@ function App() {
                 slipModeEnabled={decks.slipModeA}
                 onToggleSlipMode={() => guard(decks.toggleSlipMode)('A')}
                 activeLoopRoll={loopRoll.activeRollA}
-                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('A', beats, decks.trackA?.bpm, masterBpm)}
+                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('A', beats, deckBeatBpms.A, masterBpm)}
                 onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('A')}
-                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('A', beats, decks.trackA?.bpm, masterBpm)}
+                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('A', beats, deckBeatBpms.A, masterBpm)}
+                halfTimeEnabled={halfTimeByDeck.A}
+                onToggleHalfTime={(deckId) => {
+                  if (!isSystemReady) return;
+                  handleToggleHalfTime(deckId);
+                }}
+                onAutoTransition={(deckId, bars) => {
+                  if (!isSystemReady) return;
+                  handleAutoTransition(deckId, bars);
+                }}
               />
 
               <Mixer
@@ -412,7 +594,8 @@ function App() {
                 eqB={eqB}
                 onEqChange={guard(handleEqChange)}
                 masterBpm={masterBpm}
-                onBpmChange={guard(handleMasterBpmChange)}
+                onBpmChange={guard(handleSafeMasterBpmChange)}
+                bpmLocked={isAutoTransitioning}
                 masterVolume={masterVolume}
                 effectVolume={effectVolume}
                 headphoneOnlyA={headphoneOnlyA}
@@ -432,11 +615,11 @@ function App() {
                 deckId="B"
                 track={decks.trackB}
                 isPlaying={decks.isPlayingB}
-                playbackRate={getPlaybackRate(decks.trackB, masterBpm)}
-                effectiveKey={keyLockB ? decks.trackB?.key : getShiftedKey(decks.trackB?.key, decks.trackB?.bpm, masterBpm)}
+                playbackRate={getPlaybackRate(decks.trackB, masterBpm, halfTimeByDeck.B)}
+                effectiveKey={keyLockB ? decks.trackB?.key : getShiftedKey(decks.trackB?.key, decks.trackB?.bpm, masterBpm, halfTimeByDeck.B)}
                 onPlayPause={() => guard(decks.togglePlay)('B')}
-                onLoadFromLibrary={guard(decks.loadTrackFromLibrary)}
-                onLoadFile={guard(decks.loadTrack)}
+                onLoadFromLibrary={guardLoad(decks.loadTrackFromLibrary)}
+                onLoadFile={guardLoad(decks.loadTrack)}
                 waveformData={decks.waveformDataB}
                 playbackPosition={positionB}
                 slipPlaybackPosition={slipPositionB}
@@ -454,7 +637,7 @@ function App() {
                 visualizerNode={decks.analyserNodeB}
                 loadingTrack={decks.loadingFileB}
                 hotCues={hotCues.hotCuesB}
-                onSetHotCue={(idx) => guard(hotCues.setHotCue)('B', idx, decks.trackB?.bpm, decks.trackB)}
+                onSetHotCue={(idx) => guard(hotCues.setHotCue)('B', idx, deckBeatBpms.B, decks.trackB)}
                 onJumpHotCue={async (idx) => {
                   if (!isSystemReady) return;
                   await hotCues.jumpToHotCue('B', idx, isQuantizeEnabled ? masterBpm : null);
@@ -473,9 +656,18 @@ function App() {
                 slipModeEnabled={decks.slipModeB}
                 onToggleSlipMode={() => guard(decks.toggleSlipMode)('B')}
                 activeLoopRoll={loopRoll.activeRollB}
-                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('B', beats, decks.trackB?.bpm, masterBpm)}
+                onStartLoopRoll={(beats) => guard(loopRoll.startLoopRoll)('B', beats, deckBeatBpms.B, masterBpm)}
                 onEndLoopRoll={() => guard(loopRoll.endLoopRoll)('B')}
-                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('B', beats, decks.trackB?.bpm, masterBpm)}
+                onChangeLoopRollSize={(beats) => guard(loopRoll.changeLoopRollSize)('B', beats, deckBeatBpms.B, masterBpm)}
+                halfTimeEnabled={halfTimeByDeck.B}
+                onToggleHalfTime={(deckId) => {
+                  if (!isSystemReady) return;
+                  handleToggleHalfTime(deckId);
+                }}
+                onAutoTransition={(deckId, bars) => {
+                  if (!isSystemReady) return;
+                  handleAutoTransition(deckId, bars);
+                }}
               />
             </div>
           </div>

@@ -53,6 +53,9 @@ const Deck = ({
     onStartLoopRoll,
     onEndLoopRoll,
     onChangeLoopRollSize,
+    halfTimeEnabled,
+    onToggleHalfTime,
+    onAutoTransition,
 }) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [loopState, setLoopState] = useState('inactive');
@@ -99,6 +102,10 @@ const Deck = ({
         if (loopState === 'inactive') { setLoopState('in'); onLoopIn(); }
         else if (loopState === 'in') { setLoopState('active'); onLoopOut(); }
         else { setLoopState('inactive'); onExitLoop(); }
+    };
+
+    const handleSwitchTransition = (bars) => {
+        if (hasTrack && onAutoTransition) onAutoTransition(deckId, bars);
     };
 
     // --- Vinyl scratch handlers ---
@@ -197,7 +204,12 @@ const Deck = ({
                         <>
                             <div className="track-title">{track.filename}</div>
                             <div className="track-meta">
-                                <span>{track.bpm ? Math.round(track.bpm) : '--'} BPM</span>
+                                <span>
+                                    {track.bpm ? Math.round(track.bpm) : '--'} BPM
+                                    {halfTimeEnabled && track.bpm && (
+                                        <span className="half-time-meta">HALFTIME {Math.round(track.bpm / 2)}</span>
+                                    )}
+                                </span>
                                 <span title={`Original: ${track.key}`}>{effectiveKey || track.key || '--'}</span>
                             </div>
                         </>
@@ -220,6 +232,22 @@ const Deck = ({
             </div>
 
             <div className="disc-container" style={{ position: 'relative' }}>
+                <button
+                    type="button"
+                    className={`deck-side-btn deck-half-btn ${halfTimeEnabled ? 'active' : ''}`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (hasTrack && onToggleHalfTime) onToggleHalfTime(deckId);
+                    }}
+                    disabled={!hasTrack}
+                    title="Count this deck at half-time BPM"
+                >
+                    <span className="stacked-label">
+                        <span>Half</span>
+                        <span>Time</span>
+                    </span>
+                </button>
+
                 <div
                     ref={vinylRef}
                     className={vinylClass}
@@ -232,6 +260,36 @@ const Deck = ({
                 >
                     <div className="disc-label">
                         {deckId === 'A' ? 'LEFT' : 'RIGHT'}
+                    </div>
+                </div>
+
+                <div className="deck-switch-control">
+                    <div className="deck-switch-title">SWICH</div>
+                    <div className="deck-switch-actions">
+                        <button
+                            type="button"
+                            className="deck-switch-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleSwitchTransition(2);
+                            }}
+                            disabled={!hasTrack}
+                            title={`Switch from Deck ${deckId === 'A' ? 'B' : 'A'} to Deck ${deckId} over 2 bars`}
+                        >
+                            2 BAR
+                        </button>
+                        <button
+                            type="button"
+                            className="deck-switch-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleSwitchTransition(4);
+                            }}
+                            disabled={!hasTrack}
+                            title={`Switch from Deck ${deckId === 'A' ? 'B' : 'A'} to Deck ${deckId} over 4 bars`}
+                        >
+                            4 BAR
+                        </button>
                     </div>
                 </div>
 

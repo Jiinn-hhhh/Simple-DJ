@@ -30,6 +30,7 @@ const Mixer = ({
   onTriggerSampler,
   quantizeEnabled,
   onToggleQuantize,
+  bpmLocked = false,
 }) => {
 
   // Helper to visualize filter value
@@ -43,13 +44,15 @@ const Mixer = ({
 
       {/* 1. HEADER: MASTER BPM & VOLUME */}
       <div className="mixer-header-column">
-        <div className="bpm-display-large">
+        <div className={`bpm-display-large ${bpmLocked ? 'locked' : ''}`}>
           <span className="bpm-label-top">MASTER BPM</span>
           <input
             type="number"
             value={Math.round(masterBpm)}
             onChange={(e) => onBpmChange(parseInt(e.target.value) || 128)}
             className="bpm-input-large pixel-font"
+            disabled={bpmLocked}
+            title={bpmLocked ? 'BPM locked during auto transition' : 'Master BPM'}
           />
           <input
             type="range"
@@ -57,7 +60,8 @@ const Mixer = ({
             value={Math.round(masterBpm)}
             onChange={(e) => onBpmChange(parseInt(e.target.value))}
             className="bpm-slider"
-            title={`BPM: ${Math.round(masterBpm)}`}
+            disabled={bpmLocked}
+            title={bpmLocked ? 'BPM locked during auto transition' : `BPM: ${Math.round(masterBpm)}`}
           />
         </div>
 

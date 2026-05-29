@@ -425,6 +425,11 @@ body {
     gap: 3px;
 }
 
+.bpm-display-large.locked {
+    border-color: var(--neon-yellow);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8), 0 0 12px rgba(255, 221, 0, 0.24);
+}
+
 .bpm-slider {
     width: 90%;
     height: 6px;
@@ -433,6 +438,11 @@ body {
     background: #333;
     border-radius: 3px;
     margin-top: 5px;
+}
+
+.bpm-slider:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .bpm-slider::-webkit-slider-thumb {
@@ -507,6 +517,11 @@ body {
     outline: none;
     -moz-appearance: textfield;
     /* Firefox */
+}
+
+.bpm-input-large:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 /* Hide Spin Buttons */
@@ -957,6 +972,14 @@ body {
     gap: 10px;
 }
 
+.half-time-meta {
+    display: inline-flex;
+    margin-left: 6px;
+    color: var(--neon-yellow);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
 /* --- VINYL --- */
 .disc-container {
     display: flex;
@@ -966,6 +989,112 @@ body {
     min-height: 0;
     overflow: hidden;
     container-type: size;
+}
+
+.deck-side-btn {
+    position: absolute;
+    top: 50%;
+    z-index: 24;
+    width: 76px;
+    height: 58px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    background: #09090d;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.48rem;
+    line-height: 1.15;
+    letter-spacing: 0;
+    text-align: center;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.45);
+}
+
+.stacked-label {
+    display: grid;
+    gap: 3px;
+    justify-items: center;
+}
+
+.deck-side-btn:hover:not(:disabled) {
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+    background: rgba(0, 229, 255, 0.1);
+}
+
+.deck-side-btn:disabled {
+    opacity: 0.42;
+    cursor: default;
+}
+
+.deck-half-btn {
+    left: 6px;
+}
+
+.deck-half-btn.active {
+    border-color: var(--neon-yellow);
+    color: #000;
+    background: var(--neon-yellow);
+}
+
+.deck-switch-control {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    z-index: 25;
+    transform: translateY(-50%);
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    width: 76px;
+}
+
+.deck-switch-title {
+    width: 100%;
+    color: var(--text-dim);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.5rem;
+    line-height: 1;
+    text-align: center;
+}
+
+.deck-switch-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 3px;
+    width: 76px;
+    height: 58px;
+}
+
+.deck-switch-btn {
+    height: 100%;
+    padding: 0 3px;
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    background: #09090d;
+    color: var(--text-main);
+    cursor: pointer;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.4rem;
+    line-height: 1.15;
+    letter-spacing: 0;
+    text-align: center;
+}
+
+.deck-switch-btn:hover:not(:disabled) {
+    border-color: var(--neon-blue);
+    background: rgba(0, 229, 255, 0.14);
+    color: var(--neon-blue);
+}
+
+.deck-switch-btn:disabled {
+    opacity: 0.42;
+    cursor: default;
 }
 
 .vinyl-disc {
