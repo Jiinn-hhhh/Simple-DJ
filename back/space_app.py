@@ -570,7 +570,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
                 sb.storage.from_('stems').upload(
                     storage_path,
                     f.read(),
-                    file_options={"content-type": "audio/ogg"}
+                    file_options={"content-type": "audio/ogg", "upsert": "true"}
                 )
 
             uploaded_paths.append(storage_path)
