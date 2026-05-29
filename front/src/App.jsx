@@ -50,7 +50,7 @@ function App() {
     volumeA, volumeB, crossfader, filterA, filterB,
     eqA, eqB, masterVolume, effectVolume,
     headphoneOnlyA, headphoneOnlyB, headphoneVolume, headphoneOutputReady,
-    headphoneOutputs, headphoneOutputId, headphoneOutputLabel, headphoneOutputMessage,
+    headphoneOutputs, headphoneOutputMessage,
     handleVolumeChange, handleCrossfaderChange, handleMasterVolumeChange,
     handleEffectVolumeChange, handleHeadphoneOnlyToggle, handleHeadphoneVolumeChange,
     handleRefreshHeadphoneOutputs, handleSelectHeadphoneOutput,
@@ -241,11 +241,11 @@ function App() {
                     className={`topbar-btn topbar-hp-btn pixel-font ${headphoneOutputReady ? 'active' : ''}`}
                     title="Choose headphone output device"
                   >
-                    HP OUT
+                    HP SETTING
                   </button>
                   <select
                     className="topbar-hp-select"
-                    value={headphoneOutputId}
+                    value=""
                     onChange={(e) => guard(handleSelectHeadphoneOutput)(e.target.value)}
                     disabled={!isSystemReady || !headphoneOutputs.length}
                     title="Headphone output line"
@@ -259,9 +259,9 @@ function App() {
                   </select>
                   <span
                     className={`topbar-hp-status ${headphoneOutputReady ? 'ready' : ''}`}
-                    title={headphoneOutputLabel || headphoneOutputMessage}
+                    title={headphoneOutputReady ? 'Headphone output ready' : headphoneOutputMessage}
                   >
-                    {headphoneOutputReady ? (headphoneOutputLabel || 'READY') : headphoneOutputMessage}
+                    {headphoneOutputReady ? 'READY' : headphoneOutputMessage}
                   </span>
                 </div>
                 <div className="status-bar" style={statusBarStyle}>
