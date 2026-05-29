@@ -243,6 +243,13 @@ class AudioPlayer {
     );
   }
 
+  _createOutputError(message, code, name = 'Error') {
+    const error = new Error(message);
+    error.name = name;
+    error.code = code;
+    return error;
+  }
+
   _ensureHeadphoneAudioElement() {
     if (!this.headphoneNodes?.streamDest) return null;
 
@@ -272,7 +279,10 @@ class AudioPlayer {
     this.initMasterBus();
 
     if (!navigator.mediaDevices?.enumerateDevices || !this._supportsOutputDeviceSelection()) {
-      throw new Error('This browser cannot choose a separate headphone output.');
+      throw this._createOutputError(
+        'This browser cannot choose a separate headphone output.',
+        'OUTPUT_SELECTION_UNSUPPORTED',
+      );
     }
 
     let devices = await navigator.mediaDevices.enumerateDevices();
@@ -284,6 +294,15 @@ class AudioPlayer {
         permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         devices = await navigator.mediaDevices.enumerateDevices();
         outputs = devices.filter(device => device.kind === 'audiooutput');
+      } catch (err) {
+        if (err?.name === 'NotAllowedError') {
+          throw this._createOutputError(
+            'Microphone permission is required to list audio outputs in this browser.',
+            'OUTPUT_LIST_REQUIRES_MIC',
+            'NotAllowedError',
+          );
+        }
+        throw err;
       } finally {
         permissionStream?.getTracks().forEach(track => track.stop());
       }
@@ -324,7 +343,10 @@ class AudioPlayer {
     this.initMasterBus();
 
     if (!this._supportsOutputDeviceSelection()) {
-      throw new Error('This browser cannot choose a separate headphone output.');
+      throw this._createOutputError(
+        'This browser cannot choose a separate headphone output.',
+        'OUTPUT_SELECTION_UNSUPPORTED',
+      );
     }
 
     if (this._supportsOutputDevicePicker()) {
@@ -359,7 +381,10 @@ class AudioPlayer {
 
     const audio = this._ensureHeadphoneAudioElement();
     if (!audio || !this._supportsOutputDeviceSelection()) {
-      throw new Error('This browser cannot choose a separate headphone output.');
+      throw this._createOutputError(
+        'This browser cannot choose a separate headphone output.',
+        'OUTPUT_SELECTION_UNSUPPORTED',
+      );
     }
 
     const sinkId = deviceId || 'default';

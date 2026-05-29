@@ -83,8 +83,17 @@ export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterB
         setHeadphoneOutputs([]);
         setHeadphoneOutputReady(false);
       }
-      setHeadphoneOutputMessage(err?.name === 'NotAllowedError' ? 'OUTPUT PICKER CANCELED' : 'OUTPUT PICKER UNSUPPORTED');
-      reportStatus(err?.name === 'NotAllowedError' ? 'HEADPHONE OUTPUT CANCELED' : 'HEADPHONE OUTPUT UNSUPPORTED');
+
+      if (err?.code === 'OUTPUT_LIST_REQUIRES_MIC') {
+        setHeadphoneOutputMessage('ALLOW MIC');
+        reportStatus('ALLOW MICROPHONE TO LIST OUTPUTS');
+      } else if (err?.name === 'NotAllowedError') {
+        setHeadphoneOutputMessage('OUTPUT PICKER CANCELED');
+        reportStatus('HEADPHONE OUTPUT CANCELED');
+      } else {
+        setHeadphoneOutputMessage('OUTPUT PICKER UNSUPPORTED');
+        reportStatus('HEADPHONE OUTPUT UNSUPPORTED');
+      }
       return [];
     }
   }, [audioPlayerRef, reportStatus]);
