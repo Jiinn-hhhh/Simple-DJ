@@ -995,8 +995,8 @@ body {
     position: absolute;
     top: 50%;
     z-index: 24;
-    width: 76px;
-    height: 58px;
+    width: 64px;
+    height: 48px;
     transform: translateY(-50%);
     display: flex;
     align-items: center;
@@ -1008,7 +1008,7 @@ body {
     color: var(--text-dim);
     cursor: pointer;
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.48rem;
+    font-size: 0.4rem;
     line-height: 1.15;
     letter-spacing: 0;
     text-align: center;
@@ -1097,6 +1097,39 @@ body {
     cursor: default;
 }
 
+.main-layout.library-open .deck-side-btn {
+    width: 54px;
+    height: 40px;
+    font-size: 0.34rem;
+}
+
+.main-layout.library-open .deck-half-btn {
+    left: 4px;
+}
+
+.main-layout.library-open .deck-switch-control {
+    right: 4px;
+    width: 64px;
+    gap: 4px;
+}
+
+.main-layout.library-open .deck-switch-title {
+    font-size: 0.4rem;
+}
+
+.main-layout.library-open .deck-switch-actions {
+    width: 64px;
+    height: 48px;
+}
+
+.main-layout.library-open .deck-switch-btn {
+    font-size: 0.34rem;
+}
+
+.main-layout.library-open .stacked-label {
+    gap: 2px;
+}
+
 .vinyl-disc {
     --vinyl-max: 270px;
     width: min(var(--vinyl-max), 88%);
@@ -1153,6 +1186,43 @@ body {
 @media (min-width: 1800px) {
     .vinyl-disc {
         --vinyl-max: 320px;
+    }
+}
+
+@container (max-width: 320px) {
+    .deck-side-btn {
+        width: 50px;
+        height: 38px;
+        font-size: 0.32rem;
+    }
+
+    .deck-half-btn {
+        left: 3px;
+    }
+
+    .deck-switch-control {
+        right: 3px;
+        width: 58px;
+        gap: 3px;
+    }
+
+    .deck-switch-title {
+        font-size: 0.34rem;
+    }
+
+    .deck-switch-actions {
+        width: 58px;
+        height: 42px;
+    }
+
+    .deck-switch-btn {
+        font-size: 0.3rem;
+        padding: 0 2px;
+    }
+
+    .vinyl-disc {
+        --vinyl-max: 190px;
+        width: min(var(--vinyl-max), 72cqw, calc(100cqh - 8px));
     }
 }
 
