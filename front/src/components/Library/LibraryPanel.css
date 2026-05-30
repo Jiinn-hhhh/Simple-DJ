@@ -80,6 +80,65 @@
   border-color: var(--neon-pink, #ff0055);
 }
 
+.library-search {
+  position: relative;
+  flex-shrink: 0;
+  margin: 10px 10px 0;
+}
+
+.library-search-input {
+  width: 100%;
+  height: 34px;
+  padding: 0 34px 0 10px;
+  border: 1px solid #33333f;
+  border-radius: 4px;
+  background: #0d0d12;
+  color: var(--neon-green, #00ff9d);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.library-search-input::placeholder {
+  color: #555566;
+  text-transform: uppercase;
+}
+
+.library-search-input:focus {
+  border-color: var(--neon-green, #00ff9d);
+  background: rgba(0, 255, 157, 0.04);
+}
+
+.library-search-input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.library-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #888899;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.library-search-clear:hover {
+  color: var(--neon-pink, #ff0055);
+  border-color: var(--neon-pink, #ff0055);
+}
+
 .library-tracks {
   flex: 1;
   overflow-y: auto;

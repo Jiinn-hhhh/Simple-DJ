@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import TrackItem from './TrackItem';
 import UploadArea from './UploadArea';
 import ProcessingQueue from './ProcessingQueue';
@@ -11,10 +11,31 @@ export default function LibraryPanel({
 }) {
   const [panelDragging, setPanelDragging] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // { type, id, title }
+  const [searchQuery, setSearchQuery] = useState('');
 
   const readyTracks = tracks.filter(t => t.status === 'ready');
   const processingTracks = tracks.filter(t => ['uploading', 'analyzing', 'separating', 'converting'].includes(t.status));
   const errorTracks = tracks.filter(t => t.status === 'error');
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const visibleReadyTracks = useMemo(() => {
+    if (!normalizedSearch) return readyTracks;
+
+    return readyTracks.filter((track) => {
+      const searchable = [
+        track.title,
+        track.original_filename,
+        track.artist,
+        track.key,
+        track.bpm ? `${Math.round(track.bpm)} bpm` : '',
+        track.duration ? `${Math.floor(track.duration / 60)}:${Math.floor(track.duration % 60).toString().padStart(2, '0')}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchable.includes(normalizedSearch);
+    });
+  }, [readyTracks, normalizedSearch]);
 
   const queuePending = uploadQueueInfo?.pending || 0;
   const lastError = uploadQueueInfo?.lastError;
@@ -75,6 +96,28 @@ export default function LibraryPanel({
         <button className="library-close" onClick={onClose}>&times;</button>
       </div>
 
+      <div className="library-search">
+        <input
+          className="library-search-input"
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="SEARCH TRACKS"
+          aria-label="Search tracks"
+          autoComplete="off"
+        />
+        {searchQuery && (
+          <button
+            className="library-search-clear"
+            type="button"
+            onClick={() => setSearchQuery('')}
+            aria-label="Clear search"
+          >
+            &times;
+          </button>
+        )}
+      </div>
+
       <UploadArea onUpload={onUpload} />
 
       {queuePending > 1 && (
@@ -109,8 +152,10 @@ export default function LibraryPanel({
           <div className="library-empty pixel-font">LOADING...</div>
         ) : readyTracks.length === 0 ? (
           <div className="library-empty">No tracks yet. Upload some music!</div>
+        ) : visibleReadyTracks.length === 0 ? (
+          <div className="library-empty">No matching tracks.</div>
         ) : (
-          readyTracks.map(track => (
+          visibleReadyTracks.map(track => (
             <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} />
           ))
         )}
