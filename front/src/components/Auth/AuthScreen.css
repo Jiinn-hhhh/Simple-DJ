@@ -105,9 +105,11 @@
   border: 1px solid rgba(0, 229, 255, 0.22);
   border-radius: 8px;
   background: rgba(0, 229, 255, 0.06);
-  font-family: 'Rajdhani', sans-serif;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   font-size: 1rem;
   font-weight: 800;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
 }
 
 .auth-notice-email span {
@@ -361,6 +363,10 @@
 .auth-contact a {
   color: var(--neon-blue, #00e5ff);
   text-decoration: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.84rem;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
 }
 
 .auth-contact a:hover {
