@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { parseTrackNameFromFilename } from '../utils/trackName';
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -91,18 +92,32 @@ export default function useLibrary(user) {
   const uploadSingle = useCallback(async (file, signal) => {
     if (!user) return;
 
-    const title = file.name.replace(/\.[^.]+$/, '');
+    const parsedTrackName = parseTrackNameFromFilename(file.name);
+    const insertPayload = {
+      user_id: user.id,
+      artist: parsedTrackName.artist,
+      title: parsedTrackName.title,
+      original_filename: file.name,
+      status: 'uploading'
+    };
 
-    const { data: track, error: insertError } = await supabase
+    let { data: track, error: insertError } = await supabase
       .from('tracks')
-      .insert({
-        user_id: user.id,
-        title: title,
-        original_filename: file.name,
-        status: 'uploading'
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    if (insertError && insertError.message?.toLowerCase().includes('artist')) {
+      const fallbackPayload = { ...insertPayload };
+      delete fallbackPayload.artist;
+      const fallback = await supabase
+        .from('tracks')
+        .insert(fallbackPayload)
+        .select()
+        .single();
+      track = fallback.data;
+      insertError = fallback.error;
+    }
 
     if (insertError) throw new Error(insertError.message || 'Failed to create track record');
 

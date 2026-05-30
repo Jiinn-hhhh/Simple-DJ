@@ -13,7 +13,10 @@ export default function ProcessingQueue({ tracks, onCancel }) {
           <span className={`processing-status ${track.status}`}>
             <span className="processing-spinner">&#9654;</span> {statusLabels[track.status] || track.status}...
           </span>
-          <span className="processing-title">{track.title}</span>
+          <span className="processing-title">
+            {track.title}
+            {track.artist && <span className="processing-artist">{track.artist}</span>}
+          </span>
           {onCancel && (
             <button
               className="processing-cancel-btn"

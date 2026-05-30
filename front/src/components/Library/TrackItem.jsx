@@ -1,9 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import { getTrackDisplayName } from '../../utils/trackName';
 
 export default function TrackItem({ track, onDelete, onLoadToDeck }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(track.title);
+  const [editArtist, setEditArtist] = useState(track.artist || '');
+
+  useEffect(() => {
+    setEditTitle(track.title || '');
+    setEditArtist(track.artist || '');
+  }, [track.title, track.artist]);
 
   const formatDuration = (seconds) => {
     if (!seconds) return '--:--';
@@ -13,16 +20,35 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
   };
 
   const handleTitleSave = async () => {
-    const trimmed = editTitle.trim();
-    if (trimmed && trimmed !== track.title) {
-      await supabase.from('tracks').update({ title: trimmed }).eq('id', track.id);
+    const trimmedTitle = editTitle.trim();
+    const trimmedArtist = editArtist.trim();
+    const nextArtist = trimmedArtist || null;
+    const titleChanged = trimmedTitle && trimmedTitle !== track.title;
+    const artistChanged = nextArtist !== (track.artist || null);
+
+    if (titleChanged || artistChanged) {
+      await supabase
+        .from('tracks')
+        .update({
+          ...(titleChanged ? { title: trimmedTitle } : {}),
+          ...(artistChanged ? { artist: nextArtist } : {}),
+        })
+        .eq('id', track.id);
     }
     setIsEditing(false);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleTitleSave();
-    if (e.key === 'Escape') { setEditTitle(track.title); setIsEditing(false); }
+    if (e.key === 'Escape') {
+      setEditTitle(track.title || '');
+      setEditArtist(track.artist || '');
+      setIsEditing(false);
+    }
+  };
+
+  const handleEditBlur = (e) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) handleTitleSave();
   };
 
   const handleDragStart = (e) => {
@@ -30,6 +56,8 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
     e.dataTransfer.setData('application/x-library-track', JSON.stringify(track));
     e.dataTransfer.effectAllowed = 'copy';
   };
+
+  const displayName = getTrackDisplayName(track);
 
   return (
     <div
@@ -40,20 +68,30 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
       <div className="track-info">
         <div className="track-item-row">
           {isEditing ? (
-            <input
-              className="track-item-title-input"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              onBlur={handleTitleSave}
-              onKeyDown={handleKeyDown}
-              autoFocus
-            />
+            <div className="track-edit-fields" onBlur={handleEditBlur}>
+              <input
+                className="track-item-title-input"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Title"
+                autoFocus
+              />
+              <input
+                className="track-item-artist-input"
+                value={editArtist}
+                onChange={(e) => setEditArtist(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Artist"
+              />
+            </div>
           ) : (
-            <div className="track-item-title" onDoubleClick={() => setIsEditing(true)}>
-              {track.title}
+            <div className="track-title-stack" onDoubleClick={() => setIsEditing(true)}>
+              <div className="track-item-title">{track.title}</div>
+              {track.artist && <div className="track-item-artist">{track.artist}</div>}
             </div>
           )}
-          <button className="track-x-btn" onClick={() => onDelete(track.id, track.title)} title="Delete">&times;</button>
+          <button className="track-x-btn" onClick={() => onDelete(track.id, displayName)} title="Delete">&times;</button>
         </div>
         <div className="track-item-meta">
           {track.bpm && <span>{Math.round(track.bpm)} BPM</span>}

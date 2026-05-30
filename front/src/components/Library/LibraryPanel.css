@@ -202,11 +202,13 @@
   align-items: stretch;
   padding: 0;
   border-bottom: 1px solid #22222a;
-  transition: background 0.15s;
+  background: linear-gradient(90deg, rgba(255,255,255,0.025), transparent 58%);
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .track-item:hover {
-  background: rgba(255,255,255,0.02);
+  background: linear-gradient(90deg, rgba(0, 255, 157, 0.065), rgba(255,255,255,0.018) 58%);
+  border-bottom-color: #303040;
 }
 
 .track-info {
@@ -217,20 +219,45 @@
 
 .track-item-row {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.track-title-stack {
+  flex: 1;
+  min-width: 0;
+  cursor: text;
 }
 
 .track-item-title {
   font-family: 'Rajdhani', sans-serif;
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: #e0e0e0;
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: #f0f0f6;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.05;
+}
+
+.track-item-artist {
+  margin-top: 2px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--neon-green, #00ff9d);
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.82;
+}
+
+.track-edit-fields {
   flex: 1;
   min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 
 .track-item-meta {
@@ -306,7 +333,7 @@
 .track-item-title-input {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #e0e0e0;
   background: #111116;
   border: 1px solid var(--neon-green, #00ff9d);
@@ -315,6 +342,24 @@
   width: 100%;
   box-sizing: border-box;
   outline: none;
+}
+
+.track-item-artist-input {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--neon-green, #00ff9d);
+  background: #0d0d12;
+  border: 1px solid #33333f;
+  border-radius: 3px;
+  padding: 2px 6px;
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.track-item-artist-input:focus {
+  border-color: var(--neon-green, #00ff9d);
 }
 
 /* Track Item Error */
@@ -360,7 +405,7 @@
 
 .processing-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 6px 0;
 }
@@ -382,7 +427,18 @@
   font-size: 0.8rem;
   color: #888899;
   flex: 1;
+  min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.processing-artist {
+  display: block;
+  color: var(--neon-green, #00ff9d);
+  font-size: 0.66rem;
+  font-weight: 700;
+  opacity: 0.78;
   overflow: hidden;
   text-overflow: ellipsis;
 }

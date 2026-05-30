@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS public.tracks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  artist text,
   title text NOT NULL,
   original_filename text NOT NULL,
   bpm real,

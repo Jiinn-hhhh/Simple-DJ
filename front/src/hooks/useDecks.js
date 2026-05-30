@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { analyzeTrack, startSeparation, pollJobStatus } from '../lib/api';
 import { analyzeWaveform } from '../lib/waveformAnalyzer';
+import { getTrackDisplayName } from '../utils/trackName';
 
 const STEMS_OFF = { drums: false, bass: false, vocals: false, other: false };
 const STEMS_ON = { drums: true, bass: true, vocals: true, other: true };
@@ -224,8 +225,9 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
     if (otherTrack?.id && otherTrack.id === libraryTrack.id) return;
 
     const ds = deckState(deckId);
-    const loadingLabel = libraryTrack.original_filename || libraryTrack.title || 'TRACK';
-    const statusTitle = libraryTrack.title || libraryTrack.original_filename || 'TRACK';
+    const displayName = getTrackDisplayName(libraryTrack);
+    const loadingLabel = displayName;
+    const statusTitle = displayName;
     setStatus(`LOADING ${statusTitle.toUpperCase()}...`);
     ds.setLoadingFile(loadingLabel);
     resetDeckPlaybackState(deckId);
@@ -235,7 +237,10 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
 
       ds.setTrack({
         id: libraryTrack.id,
-        filename: libraryTrack.original_filename,
+        filename: displayName,
+        artist: libraryTrack.artist || null,
+        title: libraryTrack.title,
+        originalFilename: libraryTrack.original_filename,
         bpm: libraryTrack.bpm || 128,
         key: libraryTrack.key || 'C major',
         duration: libraryTrack.duration || 0,
