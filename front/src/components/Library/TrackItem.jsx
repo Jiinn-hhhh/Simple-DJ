@@ -1,16 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getTrackDisplayName } from '../../utils/trackName';
 
 export default function TrackItem({ track, onDelete, onLoadToDeck }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(track.title);
-  const [editArtist, setEditArtist] = useState(track.artist || '');
-
-  useEffect(() => {
-    setEditTitle(track.title || '');
-    setEditArtist(track.artist || '');
-  }, [track.title, track.artist]);
+  const [draft, setDraft] = useState(null);
+  const isEditing = draft !== null;
+  const editTitle = draft?.title ?? track.title ?? '';
+  const editArtist = draft?.artist ?? track.artist ?? '';
 
   const formatDuration = (seconds) => {
     if (!seconds) return '--:--';
@@ -35,16 +31,29 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
         })
         .eq('id', track.id);
     }
-    setIsEditing(false);
+    setDraft(null);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleTitleSave();
     if (e.key === 'Escape') {
-      setEditTitle(track.title || '');
-      setEditArtist(track.artist || '');
-      setIsEditing(false);
+      setDraft(null);
     }
+  };
+
+  const handleStartEditing = () => {
+    setDraft({
+      title: track.title || '',
+      artist: track.artist || '',
+    });
+  };
+
+  const updateDraft = (field, value) => {
+    setDraft(prev => ({
+      title: prev?.title ?? track.title ?? '',
+      artist: prev?.artist ?? track.artist ?? '',
+      [field]: value,
+    }));
   };
 
   const handleEditBlur = (e) => {
@@ -72,7 +81,7 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
               <input
                 className="track-item-title-input"
                 value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
+                onChange={(e) => updateDraft('title', e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Title"
                 autoFocus
@@ -80,13 +89,13 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
               <input
                 className="track-item-artist-input"
                 value={editArtist}
-                onChange={(e) => setEditArtist(e.target.value)}
+                onChange={(e) => updateDraft('artist', e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Artist"
               />
             </div>
           ) : (
-            <div className="track-title-stack" onDoubleClick={() => setIsEditing(true)}>
+            <div className="track-title-stack" onDoubleClick={handleStartEditing}>
               <div className="track-item-title">{track.title}</div>
               {track.artist && <div className="track-item-artist">{track.artist}</div>}
             </div>
