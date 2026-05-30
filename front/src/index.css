@@ -107,6 +107,7 @@ body {
     align-items: center;
     gap: 10px;
     min-width: 0;
+    flex-wrap: nowrap;
 }
 
 .topbar-headphone-control {
@@ -201,6 +202,18 @@ body {
 
 .help-topbar-btn:hover {
     background: rgba(0, 255, 157, 0.15);
+}
+
+.fullscreen-btn {
+    min-width: 54px;
+    padding: 0 8px;
+    border: 1px solid var(--neon-blue);
+    color: var(--neon-blue);
+}
+
+.fullscreen-btn:hover,
+.fullscreen-btn.active {
+    background: rgba(0, 229, 255, 0.15);
 }
 
 .logout-btn {
@@ -351,6 +364,14 @@ body {
     gap: 8px;
     padding: 0 10px 4px 10px;
     min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.main-layout.library-open .console-layout {
+    grid-template-columns: minmax(230px, 1fr) minmax(300px, 0.86fr) minmax(230px, 1fr);
+    gap: 6px;
+    padding: 0 4px 4px;
 }
 
 /* --- DECK & MIXER CONTAINERS --- */
@@ -363,6 +384,7 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     position: relative;
     min-height: 0;
+    min-width: 0;
 }
 
 /* Deck */
@@ -1128,6 +1150,17 @@ body {
 
 .main-layout.library-open .stacked-label {
     gap: 2px;
+}
+
+.main-layout.library-open .stem-btn {
+    font-size: 0.82rem;
+}
+
+.main-layout.library-open .glass-btn,
+.main-layout.library-open .looproll-pad,
+.main-layout.library-open .hotcue-pad,
+.main-layout.library-open .beat-jump-btn {
+    font-size: 0.68rem;
 }
 
 .vinyl-disc {

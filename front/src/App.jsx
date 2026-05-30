@@ -34,6 +34,7 @@ function App() {
   const [isHeadphoneMenuOpen, setIsHeadphoneMenuOpen] = useState(false);
   const [halfTimeByDeck, setHalfTimeByDeck] = useState({ A: false, B: false });
   const [isAutoTransitioning, setIsAutoTransitioning] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [masterBpm, setMasterBpm] = useState(128);
 
   const audioPlayerRef = useRef(new AudioPlayer());
@@ -122,6 +123,15 @@ function App() {
       else window.clearTimeout(id);
     });
     autoTransitionTimersRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
 
@@ -353,6 +363,24 @@ function App() {
     await handleSelectHeadphoneOutput(deviceId);
   };
 
+  const handleFullscreenToggle = async () => {
+    if (!document.fullscreenEnabled) {
+      setStatus('FULLSCREEN UNSUPPORTED');
+      return;
+    }
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
+      setStatus('FULLSCREEN ERROR');
+    }
+  };
+
   const isProblemStatus = status === 'OFFLINE' || status.startsWith('ERROR') || status.includes('UNSUPPORTED');
   const statusBarStyle = isProblemStatus ? {
     color: 'var(--neon-pink)',
@@ -466,6 +494,13 @@ function App() {
                     {recorder.videoStatusMessage}
                   </div>
                 )}
+                <button
+                  onClick={handleFullscreenToggle}
+                  className={`topbar-btn fullscreen-btn pixel-font ${isFullscreen ? 'active' : ''}`}
+                  title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                >
+                  {isFullscreen ? 'EXIT' : 'FULL'}
+                </button>
                 <button onClick={() => setShowHelp(true)} className="topbar-btn help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
                 <button onClick={signOut} className="topbar-btn logout-btn pixel-font">LOGOUT</button>
               </div>
