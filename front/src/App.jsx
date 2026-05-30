@@ -77,7 +77,7 @@ function App() {
 
   const handleSafeMasterBpmChange = useCallback((nextBpm) => {
     if (isAutoTransitioningRef.current) {
-      setStatus('BPM LOCKED DURING AUTO TRANSITION');
+      setStatus('BPM LOCKED DURING SWICH');
       return;
     }
 
@@ -228,7 +228,7 @@ function App() {
 
   const handleToggleHalfTime = (deckId) => {
     if (isAutoTransitioningRef.current) {
-      setStatus('HALFTIME LOCKED DURING AUTO TRANSITION');
+      setStatus('HALFTIME LOCKED DURING SWICH');
       return;
     }
 
@@ -251,7 +251,7 @@ function App() {
 
   const handleAutoTransition = async (targetDeckId, bars) => {
     if (isAutoTransitioningRef.current) {
-      setStatus('AUTO TRANSITION ALREADY RUNNING');
+      setStatus('SWICH ALREADY RUNNING');
       return;
     }
 
@@ -261,7 +261,7 @@ function App() {
     const sourcePlaying = sourceDeckId === 'A' ? decks.isPlayingA : decks.isPlayingB;
 
     if (!targetTrack || !sourceTrack) {
-      setStatus('LOAD BOTH DECKS FOR AUTO TRANSITION');
+      setStatus('LOAD BOTH DECKS FOR SWICH');
       return;
     }
 
@@ -310,14 +310,14 @@ function App() {
         handleFilterChange(sourceDeckId, 0.5);
         decks.stopDeck(sourceDeckId);
         setAutoTransitionActive(false);
-        setStatus(`AUTO ${totalBars} BAR TRANSITION COMPLETE`);
+        setStatus(`SWICH ${totalBars} BAR COMPLETE`);
       }, totalBars * barMs);
 
-      setStatus(`AUTO ${totalBars} BAR ${sourceDeckId} -> ${targetDeckId}`);
+      setStatus(`SWICH ${totalBars} BAR ${sourceDeckId} -> ${targetDeckId}`);
     } catch (err) {
       clearAutoTransitionTimers();
       setAutoTransitionActive(false);
-      setStatus('AUTO TRANSITION FAILED');
+      setStatus('SWICH FAILED');
       console.error('Auto transition failed:', err);
     }
   };
@@ -331,7 +331,7 @@ function App() {
   const guardLoad = (fn) => (...args) => {
     if (!isSystemReady) return undefined;
     if (isAutoTransitioningRef.current) {
-      setStatus('LOAD LOCKED DURING AUTO TRANSITION');
+      setStatus('LOAD LOCKED DURING SWICH');
       return undefined;
     }
     return fn(...args);

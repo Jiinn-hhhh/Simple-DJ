@@ -52,7 +52,7 @@ const Mixer = ({
             onChange={(e) => onBpmChange(parseInt(e.target.value) || 128)}
             className="bpm-input-large pixel-font"
             disabled={bpmLocked}
-            title={bpmLocked ? 'BPM locked during auto transition' : 'Master BPM'}
+            title={bpmLocked ? 'BPM locked during swich' : 'Master BPM'}
           />
           <input
             type="range"
@@ -61,7 +61,7 @@ const Mixer = ({
             onChange={(e) => onBpmChange(parseInt(e.target.value))}
             className="bpm-slider"
             disabled={bpmLocked}
-            title={bpmLocked ? 'BPM locked during auto transition' : `BPM: ${Math.round(masterBpm)}`}
+            title={bpmLocked ? 'BPM locked during swich' : `BPM: ${Math.round(masterBpm)}`}
           />
         </div>
 
