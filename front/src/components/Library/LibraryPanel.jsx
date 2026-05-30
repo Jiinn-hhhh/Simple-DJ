@@ -12,6 +12,7 @@ export default function LibraryPanel({
   const [panelDragging, setPanelDragging] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // { type, id, title }
   const [searchQuery, setSearchQuery] = useState('');
+  const [processingCollapsed, setProcessingCollapsed] = useState(true);
 
   const readyTracks = tracks.filter(t => t.status === 'ready');
   const processingTracks = tracks.filter(t => ['uploading', 'analyzing', 'separating', 'converting'].includes(t.status));
@@ -135,7 +136,12 @@ export default function LibraryPanel({
       )}
 
       {processingTracks.length > 0 && (
-        <ProcessingQueue tracks={processingTracks} onCancel={handleCancelRequest} />
+        <ProcessingQueue
+          tracks={processingTracks}
+          collapsed={processingCollapsed}
+          onToggle={() => setProcessingCollapsed(prev => !prev)}
+          onCancel={handleCancelRequest}
+        />
       )}
 
       {errorTracks.length > 0 && (
