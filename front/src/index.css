@@ -69,6 +69,36 @@ body {
     background: radial-gradient(circle at center, #1a1a20 0%, #0d0d10 100%);
 }
 
+.auto-switch-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 8500;
+    pointer-events: none;
+    opacity: 0;
+    background:
+        radial-gradient(circle at 50% 45%, rgba(0, 229, 255, 0.22), transparent 34%),
+        linear-gradient(90deg, rgba(0, 255, 157, 0.12), transparent 34%, transparent 66%, rgba(255, 0, 85, 0.12));
+    mix-blend-mode: screen;
+}
+
+.auto-switch-glow.active {
+    animation: auto-switch-glow-pulse 760ms ease-out forwards;
+}
+
+@keyframes auto-switch-glow-pulse {
+    0% {
+        opacity: 0;
+    }
+
+    18% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
 /* --- TOP BAR --- */
 .top-bar {
     display: flex;

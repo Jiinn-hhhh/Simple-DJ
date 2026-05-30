@@ -35,10 +35,12 @@ function App() {
   const [halfTimeByDeck, setHalfTimeByDeck] = useState({ A: false, B: false });
   const [isAutoTransitioning, setIsAutoTransitioning] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [autoSwitchGlow, setAutoSwitchGlow] = useState(false);
   const [masterBpm, setMasterBpm] = useState(128);
 
   const audioPlayerRef = useRef(new AudioPlayer());
   const autoTransitionTimersRef = useRef([]);
+  const autoSwitchGlowTimerRef = useRef(null);
   const isAutoTransitioningRef = useRef(false);
 
   // --- Decks hook ---
@@ -123,6 +125,7 @@ function App() {
       else window.clearTimeout(id);
     });
     autoTransitionTimersRef.current = [];
+    if (autoSwitchGlowTimerRef.current) window.clearTimeout(autoSwitchGlowTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -236,6 +239,40 @@ function App() {
     autoTransitionTimersRef.current.push({ id, type: 'interval' });
   };
 
+  const rampCrossfaderToCenter = (from, durationMs = 450) => {
+    const safeDuration = Math.max(1, durationMs);
+    const start = Number.isFinite(from) ? from : 0.5;
+    let elapsedMs = 0;
+    handleCrossfaderChange(start);
+
+    const id = window.setInterval(() => {
+      elapsedMs += 16;
+      const progress = Math.min(1, elapsedMs / safeDuration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const next = start + ((0.5 - start) * eased);
+      handleCrossfaderChange(Math.max(0, Math.min(1, next)));
+
+      if (progress >= 1) {
+        window.clearInterval(id);
+        autoTransitionTimersRef.current = autoTransitionTimersRef.current.filter(timer => timer.id !== id);
+      }
+    }, 16);
+
+    autoTransitionTimersRef.current.push({ id, type: 'interval' });
+  };
+
+  const triggerAutoSwitchGlow = () => {
+    if (autoSwitchGlowTimerRef.current) window.clearTimeout(autoSwitchGlowTimerRef.current);
+    setAutoSwitchGlow(false);
+    window.requestAnimationFrame(() => {
+      setAutoSwitchGlow(true);
+      autoSwitchGlowTimerRef.current = window.setTimeout(() => {
+        setAutoSwitchGlow(false);
+        autoSwitchGlowTimerRef.current = null;
+      }, 760);
+    });
+  };
+
   const handleToggleHalfTime = (deckId) => {
     if (isAutoTransitioningRef.current) {
       setStatus('HALFTIME LOCKED DURING SWICH');
@@ -300,11 +337,14 @@ function App() {
 
       handleFilterChange(targetDeckId, 0.5);
       handleVolumeChange(targetDeckId, 0.8);
-      const started = await decks.startDeck(targetDeckId, 0, { restart: true, quantized: false });
+      const started = await decks.startDeck(targetDeckId, 0, { restart: false, quantized: false });
 
       if (!started) {
         throw new Error(`Deck ${targetDeckId} could not start`);
       }
+
+      rampCrossfaderToCenter(crossfader, 450);
+      triggerAutoSwitchGlow();
 
       scheduleAutoTimeout(() => {
         rampDeckControl(sourceDeckId, 'filter', sourceFilter, 1, barMs);
@@ -391,6 +431,7 @@ function App() {
   // --- Render ---
   return (
     <div className="app-container">
+      <div className={`auto-switch-glow ${autoSwitchGlow ? 'active' : ''}`} aria-hidden="true" />
       {authLoading ? (
         <div className="loading-overlay">
           <div className="pixel-font" style={{ fontSize: '1.5rem', color: 'var(--neon-green)', textAlign: 'center' }}>

@@ -5,7 +5,7 @@ import { useState, useCallback, useEffect } from 'react';
 export default function useMixer(audioPlayerRef, trackA, trackB, externalMasterBpm = null, externalSetMasterBpm = null, setStatus = null, deckBeatBpms = {}) {
   const [volumeA, setVolumeA] = useState(1.0);
   const [volumeB, setVolumeB] = useState(1.0);
-  const [crossfader, setCrossfader] = useState(0);
+  const [crossfader, setCrossfader] = useState(0.5);
   const [filterA, setFilterA] = useState(0.5);
   const [filterB, setFilterB] = useState(0.5);
   const [eqA, setEqA] = useState({ high: 100, mid: 100, low: 100 });
