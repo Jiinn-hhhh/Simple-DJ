@@ -13,15 +13,15 @@ export default function LibraryPanel({
   const [confirmAction, setConfirmAction] = useState(null); // { type, id, title }
   const [searchQuery, setSearchQuery] = useState('');
   const [processingCollapsed, setProcessingCollapsed] = useState(true);
+  const [sortKey, setSortKey] = useState('artist');
+  const [sortDirection, setSortDirection] = useState('asc');
 
   const readyTracks = tracks.filter(t => t.status === 'ready');
   const processingTracks = tracks.filter(t => ['uploading', 'analyzing', 'separating', 'converting'].includes(t.status));
   const errorTracks = tracks.filter(t => t.status === 'error');
   const normalizedSearch = searchQuery.trim().toLowerCase();
-  const visibleReadyTracks = useMemo(() => {
-    if (!normalizedSearch) return readyTracks;
-
-    return readyTracks.filter((track) => {
+  const sortedReadyTracks = useMemo(() => {
+    const filteredTracks = normalizedSearch ? readyTracks.filter((track) => {
       const searchable = [
         track.title,
         track.original_filename,
@@ -35,8 +35,53 @@ export default function LibraryPanel({
         .toLowerCase();
 
       return searchable.includes(normalizedSearch);
+    }) : readyTracks;
+
+    const direction = sortDirection === 'asc' ? 1 : -1;
+
+    return [...filteredTracks].sort((a, b) => {
+      if (sortKey === 'bpm') {
+        const bpmA = a.bpm !== null && a.bpm !== undefined && Number.isFinite(Number(a.bpm)) ? Number(a.bpm) : null;
+        const bpmB = b.bpm !== null && b.bpm !== undefined && Number.isFinite(Number(b.bpm)) ? Number(b.bpm) : null;
+
+        if (bpmA === null && bpmB !== null) return 1;
+        if (bpmA !== null && bpmB === null) return -1;
+        if (bpmA !== null && bpmB !== null && bpmA !== bpmB) {
+          return (bpmA - bpmB) * direction;
+        }
+      } else {
+        const valueA = (sortKey === 'artist' ? a.artist : a.title) || '';
+        const valueB = (sortKey === 'artist' ? b.artist : b.title) || '';
+        const compared = valueA.localeCompare(valueB, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        });
+        if (compared !== 0) return compared * direction;
+      }
+
+      const artistCompared = (a.artist || '').localeCompare(b.artist || '', undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+      if (artistCompared !== 0) return artistCompared;
+
+      return (a.title || a.original_filename || '').localeCompare(
+        b.title || b.original_filename || '',
+        undefined,
+        { numeric: true, sensitivity: 'base' }
+      );
     });
-  }, [readyTracks, normalizedSearch]);
+  }, [readyTracks, normalizedSearch, sortKey, sortDirection]);
+
+  const handleSortClick = (key) => {
+    if (sortKey === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+
+    setSortKey(key);
+    setSortDirection('asc');
+  };
 
   const queuePending = uploadQueueInfo?.pending || 0;
   const lastError = uploadQueueInfo?.lastError;
@@ -119,6 +164,29 @@ export default function LibraryPanel({
         )}
       </div>
 
+      <div className="library-sort" role="group" aria-label="Sort tracks">
+        {[
+          ['artist', 'ARTIST'],
+          ['title', 'TITLE'],
+          ['bpm', 'BPM'],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            className={`library-sort-btn ${sortKey === key ? 'active' : ''}`}
+            type="button"
+            onClick={() => handleSortClick(key)}
+            aria-pressed={sortKey === key}
+          >
+            <span>{label}</span>
+            {sortKey === key && (
+              <span className="library-sort-direction">
+                {sortDirection === 'asc' ? 'UP' : 'DN'}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <UploadArea onUpload={onUpload} />
 
       {queuePending > 1 && (
@@ -158,10 +226,10 @@ export default function LibraryPanel({
           <div className="library-empty pixel-font">LOADING...</div>
         ) : readyTracks.length === 0 ? (
           <div className="library-empty">No tracks yet. Upload some music!</div>
-        ) : visibleReadyTracks.length === 0 ? (
+        ) : sortedReadyTracks.length === 0 ? (
           <div className="library-empty">No matching tracks.</div>
         ) : (
-          visibleReadyTracks.map(track => (
+          sortedReadyTracks.map(track => (
             <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} />
           ))
         )}

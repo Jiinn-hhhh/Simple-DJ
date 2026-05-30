@@ -139,6 +139,52 @@
   border-color: var(--neon-pink, #ff0055);
 }
 
+.library-sort {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 8px 10px 0;
+  flex-shrink: 0;
+}
+
+.library-sort-btn {
+  height: 30px;
+  min-width: 0;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #33333f;
+  border-radius: 4px;
+  background: #101015;
+  color: #777788;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.library-sort-btn:hover {
+  color: var(--neon-green, #00ff9d);
+  border-color: rgba(0, 255, 157, 0.45);
+}
+
+.library-sort-btn.active {
+  color: var(--neon-green, #00ff9d);
+  border-color: rgba(0, 255, 157, 0.7);
+  background: rgba(0, 255, 157, 0.06);
+}
+
+.library-sort-direction {
+  color: var(--neon-yellow, #f0ff00);
+  font-size: 0.58rem;
+  line-height: 1;
+}
+
 .library-tracks {
   flex: 1;
   overflow-y: auto;
