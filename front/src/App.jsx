@@ -130,11 +130,18 @@ function App() {
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('visibilitychange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('visibilitychange', handleFullscreenChange);
+    };
   }, []);
 
 
@@ -404,16 +411,28 @@ function App() {
   };
 
   const handleFullscreenToggle = async () => {
-    if (!document.fullscreenEnabled) {
+    const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+    const fullscreenEnabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+
+    if (!fullscreenEnabled) {
       setStatus('FULLSCREEN UNSUPPORTED');
       return;
     }
 
     try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
+      if (isFullscreen || fullscreenElement) {
+        if (fullscreenElement) {
+          const exitFullscreen = document.exitFullscreen || document.webkitExitFullscreen;
+          await exitFullscreen.call(document);
+        }
+
+        setIsFullscreen(false);
+        setIsHeadphoneMenuOpen(false);
       } else {
-        await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+        setIsHeadphoneMenuOpen(false);
+        const requestFullscreen = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+        await requestFullscreen.call(document.documentElement, { navigationUI: 'hide' });
+        setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
       }
     } catch (err) {
       console.error('Fullscreen toggle failed:', err);
