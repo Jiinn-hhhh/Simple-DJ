@@ -15,11 +15,10 @@ audioread==3.0.1
 numpy<2.0
 
 # ML / Stem Separation
-torch==2.2.2
-torchaudio==2.2.2
-
-# Note: On HF Spaces with GPU, torch will use CUDA automatically
-# For CPU-only spaces, these versions work without modification
+# CPU wheels avoid pulling large CUDA dependency stacks on HF cpu-basic.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2+cpu
+torchaudio==2.2.2+cpu
 
 # Supabase Client (for library track processing)
 supabase>=2.0.0
