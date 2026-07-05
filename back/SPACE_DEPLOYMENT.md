@@ -99,7 +99,25 @@ API: https://jiinn-hhhh-seperator.hf.space
 3. 변수 설정:
    - **Key**: `HUGGINGFACE_SPACE_URL`
    - **Value**: `https://jiinn-hhhh-seperator.hf.space` (실제 URL로 변경)
+   - **Key**: `SUPABASE_URL`
+   - **Value**: Supabase project URL
+   - **Key**: `SUPABASE_SERVICE_ROLE_KEY`
+   - **Value**: Supabase service role key
 4. **Save Changes** → 서비스 자동 재시작
+
+### 무료 티어 최적화 변수 (HF Space)
+
+Space Settings → Variables에서 필요 시 조정:
+
+| Key | Default | 설명 |
+|-----|---------|------|
+| `LIBRARY_STEM_BITRATE` | `80k` | 저장/전송량 절감용 OGG bitrate |
+| `DEMUCS_SEGMENT_SECONDS` | `8.0` | 낮을수록 peak memory 감소, 처리 시간은 늘 수 있음 |
+| `DEMUCS_OVERLAP_SECONDS` | `0.5` | 낮을수록 처리량/파일 경계 품질 trade-off |
+| `TORCH_CPU_THREADS` | `2` | HF CPU Basic의 2 vCPU에 맞춘 PyTorch thread 수 |
+| `ANALYSIS_SAMPLE_RATE` | `22050` | BPM/key 분석용 샘플레이트 |
+| `ANALYSIS_MAX_SECONDS` | `180` | 분석에 사용할 앞부분 길이. `0`이면 전체 |
+| `ANALYSIS_USE_HPSS` | `false` | key 분석 품질을 조금 올리되 CPU를 더 쓰고 싶으면 `true` |
 
 ## 6. Vercel 환경 변수 설정
 
@@ -137,6 +155,22 @@ curl https://jiinn-hhhh-seperator.hf.space/job/{job_id}
 3. **진행률 표시**: 프론트엔드에서 진행 상황 확인 가능
 4. **에러 복구**: 네트워크 오류 시 자동 재시도
 5. **Health check**: 서비스 상태 모니터링
+6. **파일 해시 캐시**: 같은 사용자의 동일 파일 재업로드 시 기존 stem 재사용
+
+### Supabase migration
+
+캐시 재사용을 위해 Supabase SQL Editor에서 최신 migration을 적용하세요:
+
+```sql
+-- supabase/migrations/004_track_file_cache_columns.sql
+ALTER TABLE public.tracks
+  ADD COLUMN IF NOT EXISTS file_hash text,
+  ADD COLUMN IF NOT EXISTS original_size_bytes bigint;
+
+CREATE INDEX IF NOT EXISTS idx_tracks_user_file_hash
+  ON public.tracks(user_id, file_hash)
+  WHERE file_hash IS NOT NULL;
+```
 
 ## 문제 해결
 

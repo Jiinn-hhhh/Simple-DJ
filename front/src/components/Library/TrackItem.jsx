@@ -1,12 +1,16 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { getTrackDisplayName } from '../../utils/trackName';
 
-export default function TrackItem({ track, onDelete, onLoadToDeck }) {
-  const [draft, setDraft] = useState(null);
-  const isEditing = draft !== null;
-  const editTitle = draft?.title ?? track.title ?? '';
-  const editArtist = draft?.artist ?? track.artist ?? '';
+export default function TrackItem({ track, onDelete, onLoadToDeck, onUpdate }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(track.title || '');
+  const [editArtist, setEditArtist] = useState(track.artist || '');
+
+  const beginEditing = () => {
+    setEditTitle(track.title || '');
+    setEditArtist(track.artist || '');
+    setIsEditing(true);
+  };
 
   const formatDuration = (seconds) => {
     if (!seconds) return '--:--';
@@ -23,37 +27,21 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
     const artistChanged = nextArtist !== (track.artist || null);
 
     if (titleChanged || artistChanged) {
-      await supabase
-        .from('tracks')
-        .update({
-          ...(titleChanged ? { title: trimmedTitle } : {}),
-          ...(artistChanged ? { artist: nextArtist } : {}),
-        })
-        .eq('id', track.id);
+      await onUpdate?.(track.id, {
+        ...(titleChanged ? { title: trimmedTitle } : {}),
+        ...(artistChanged ? { artist: nextArtist } : {}),
+      });
     }
-    setDraft(null);
+    setIsEditing(false);
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleTitleSave();
     if (e.key === 'Escape') {
-      setDraft(null);
+      setEditTitle(track.title || '');
+      setEditArtist(track.artist || '');
+      setIsEditing(false);
     }
-  };
-
-  const handleStartEditing = () => {
-    setDraft({
-      title: track.title || '',
-      artist: track.artist || '',
-    });
-  };
-
-  const updateDraft = (field, value) => {
-    setDraft(prev => ({
-      title: prev?.title ?? track.title ?? '',
-      artist: prev?.artist ?? track.artist ?? '',
-      [field]: value,
-    }));
   };
 
   const handleEditBlur = (e) => {
@@ -81,7 +69,7 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
               <input
                 className="track-item-title-input"
                 value={editTitle}
-                onChange={(e) => updateDraft('title', e.target.value)}
+                onChange={(e) => setEditTitle(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Title"
                 autoFocus
@@ -89,13 +77,13 @@ export default function TrackItem({ track, onDelete, onLoadToDeck }) {
               <input
                 className="track-item-artist-input"
                 value={editArtist}
-                onChange={(e) => updateDraft('artist', e.target.value)}
+                onChange={(e) => setEditArtist(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Artist"
               />
             </div>
           ) : (
-            <div className="track-title-stack" onDoubleClick={handleStartEditing}>
+            <div className="track-title-stack" onDoubleClick={beginEditing}>
               <div className="track-item-title">{track.title}</div>
               {track.artist && <div className="track-item-artist">{track.artist}</div>}
             </div>

@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS public.tracks (
   artist text,
   title text NOT NULL,
   original_filename text NOT NULL,
+  file_hash text,
+  original_size_bytes bigint,
   bpm real,
   key text,
   duration real,
@@ -22,6 +24,8 @@ CREATE TABLE IF NOT EXISTS public.tracks (
 -- Index for user queries
 CREATE INDEX IF NOT EXISTS idx_tracks_user_id ON public.tracks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tracks_status ON public.tracks(status);
+CREATE INDEX IF NOT EXISTS idx_tracks_user_file_hash ON public.tracks(user_id, file_hash)
+  WHERE file_hash IS NOT NULL;
 
 -- Auto-update updated_at
 CREATE OR REPLACE FUNCTION public.update_updated_at()

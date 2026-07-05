@@ -1,167 +1,299 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { analyzeTrack, startSeparation, pollJobStatus } from '../lib/api';
+import {
+  createLocalTrackId,
+  deleteStemBlobs,
+  deleteTrackRecord,
+  findReadyTrackByHash,
+  getAllTracks,
+  getStemBlob,
+  patchTrack,
+  putTrack,
+} from '../lib/localLibraryDb';
+import {
+  deleteStemFile,
+  getStoredStemFolderStatus,
+  getWritableStemDirectory,
+  readStemFile,
+  requestStemFolder,
+  writeStemFile,
+} from '../lib/localStemFolder';
+import { sha256File } from '../utils/fileHash';
 import { parseTrackNameFromFilename } from '../utils/trackName';
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const POLL_INTERVAL_MS = 5000; // 5 seconds polling fallback
+const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+const PROCESSING_STATUSES = ['uploading', 'analyzing', 'separating', 'converting'];
 
-export default function useLibrary(user) {
+function sortTracks(tracks) {
+  return [...tracks].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+}
+
+function isProcessing(track) {
+  return PROCESSING_STATUSES.includes(track.status);
+}
+
+function buildStemRelativePath(trackId, stemName) {
+  return `${trackId}/${stemName}.wav`;
+}
+
+function resolveDownloadUrl(stemInfo, baseUrl) {
+  let url = stemInfo.download_url;
+  if (url?.startsWith('/')) {
+    url = `${baseUrl || ''}${url}`;
+  }
+  return url;
+}
+
+async function fetchStemBlob(url, signal) {
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`Stem download failed: ${response.status}`);
+  }
+  return response.blob();
+}
+
+export default function useLibrary() {
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stemFolderInfo, setStemFolderInfo] = useState({
+    supported: false,
+    configured: false,
+    name: '',
+    permission: 'missing',
+  });
 
-  // --- Upload queue state ---
   const queueRef = useRef([]);
   const processingRef = useRef(false);
   const abortRef = useRef(null);
   const currentTrackIdRef = useRef(null);
   const [uploadQueueInfo, setUploadQueueInfo] = useState({ pending: 0, currentFile: null, lastError: null });
 
-  // Fetch user's tracks from Supabase
+  const upsertTrackState = useCallback((track) => {
+    setTracks(prev => {
+      const exists = prev.some(t => t.id === track.id);
+      const next = exists
+        ? prev.map(t => t.id === track.id ? track : t)
+        : [track, ...prev];
+      return sortTracks(next);
+    });
+  }, []);
+
+  const refreshStemFolderInfo = useCallback(async () => {
+    const nextInfo = await getStoredStemFolderStatus();
+    setStemFolderInfo(nextInfo);
+    return nextInfo;
+  }, []);
+
+  const patchLocalTrack = useCallback(async (trackId, patch) => {
+    const updated = await patchTrack(trackId, patch);
+    if (updated) upsertTrackState(updated);
+    return updated;
+  }, [upsertTrackState]);
+
   const fetchTracks = useCallback(async () => {
-    if (!user) {
-      setTracks([]);
-      setLoading(false);
-      return;
+    setLoading(true);
+    const storedTracks = await getAllTracks();
+    const normalizedTracks = [];
+
+    for (const track of storedTracks) {
+      if (isProcessing(track)) {
+        const updated = await patchTrack(track.id, {
+          status: 'error',
+          error_message: 'Processing was interrupted. Please import this track again.',
+        });
+        normalizedTracks.push(updated || track);
+      } else {
+        normalizedTracks.push(track);
+      }
     }
 
-    const { data, error } = await supabase
-      .from('tracks')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error) setTracks(data || []);
+    setTracks(sortTracks(normalizedTracks));
     setLoading(false);
-  }, [user]);
+  }, []);
 
-  // --- Realtime subscription + polling fallback ---
   useEffect(() => {
-    Promise.resolve().then(fetchTracks);
+    fetchTracks().catch((err) => {
+      console.error('Local library load failed:', err);
+      setLoading(false);
+    });
+  }, [fetchTracks]);
 
-    if (!user) {
-      return;
-    }
-
-    // Realtime subscription (instant updates when it works)
-    const channel = supabase
-      .channel('tracks-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'tracks',
-        filter: `user_id=eq.${user.id}`
-      }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setTracks(prev => {
-            if (prev.some(t => t.id === payload.new.id)) return prev;
-            return [payload.new, ...prev];
-          });
-        } else if (payload.eventType === 'UPDATE') {
-          setTracks(prev => prev.map(t => t.id === payload.new.id ? payload.new : t));
-        } else if (payload.eventType === 'DELETE') {
-          setTracks(prev => prev.filter(t => t.id !== payload.old.id));
-        }
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.warn('Supabase realtime subscription error — polling fallback active');
-        }
-      });
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user, fetchTracks]);
-
-  // Polling fallback: refetch when processing tracks exist or queue is active
   useEffect(() => {
-    if (!user) return;
+    refreshStemFolderInfo().catch((err) => {
+      console.warn('Stem folder status check failed:', err);
+    });
+  }, [refreshStemFolderInfo]);
 
-    const hasProcessing = tracks.some(t =>
-      ['uploading', 'analyzing', 'separating', 'converting'].includes(t.status)
-    );
-    const queueActive = processingRef.current;
+  const chooseStemFolder = useCallback(async () => {
+    const folder = await requestStemFolder();
+    const nextInfo = {
+      supported: true,
+      configured: true,
+      name: folder.name,
+      permission: folder.permission,
+    };
+    setStemFolderInfo(nextInfo);
+    return nextInfo;
+  }, []);
 
-    if (!hasProcessing && !queueActive) return;
-
-    const interval = setInterval(() => {
-      fetchTracks();
-    }, POLL_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [user, tracks, fetchTracks]);
-
-  // Upload a single track (internal) — with AbortController + timeout
-  const uploadSingle = useCallback(async (file, signal) => {
-    if (!user) return;
-
+  const createReadyTrackFromCache = useCallback(async (file, fileHash, cachedTrack) => {
     const parsedTrackName = parseTrackNameFromFilename(file.name);
-    const insertPayload = {
-      user_id: user.id,
+    const now = new Date().toISOString();
+    const track = {
+      id: createLocalTrackId(),
       artist: parsedTrackName.artist,
       title: parsedTrackName.title,
       original_filename: file.name,
-      status: 'uploading'
+      file_hash: fileHash,
+      original_size_bytes: file.size,
+      bpm: cachedTrack.bpm,
+      key: cachedTrack.key,
+      duration: cachedTrack.duration,
+      stem_files: cachedTrack.stem_files || null,
+      stem_keys: cachedTrack.stem_keys || null,
+      status: 'ready',
+      created_at: now,
+      updated_at: now,
+      local_cached_from: cachedTrack.id,
     };
 
-    let { data: track, error: insertError } = await supabase
-      .from('tracks')
-      .insert(insertPayload)
-      .select()
-      .single();
+    await putTrack(track);
+    upsertTrackState(track);
+    return track;
+  }, [upsertTrackState]);
 
-    if (insertError && insertError.message?.toLowerCase().includes('artist')) {
-      const fallbackPayload = { ...insertPayload };
-      delete fallbackPayload.artist;
-      const fallback = await supabase
-        .from('tracks')
-        .insert(fallbackPayload)
-        .select()
-        .single();
-      track = fallback.data;
-      insertError = fallback.error;
-    }
-
-    if (insertError) throw new Error(insertError.message || 'Failed to create track record');
-
-    // Immediately add to local state (don't wait for realtime)
-    setTracks(prev => {
-      if (prev.some(t => t.id === track.id)) return prev;
-      return [track, ...prev];
-    });
-
-    currentTrackIdRef.current = track.id;
+  const uploadSingle = useCallback(async (file, signal) => {
+    const parsedTrackName = parseTrackNameFromFilename(file.name);
+    const fileHash = await sha256File(file);
+    const cachedTrack = await findReadyTrackByHash(fileHash);
+    const stemDirectory = await getWritableStemDirectory();
+    await refreshStemFolderInfo();
 
     if (signal?.aborted) {
       throw new DOMException('Upload cancelled', 'AbortError');
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      await supabase.from('tracks').update({ status: 'error' }).eq('id', track.id);
-      setTracks(prev => prev.map(t => t.id === track.id ? { ...t, status: 'error' } : t));
-      throw new Error('Not authenticated');
+    if (cachedTrack) {
+      return createReadyTrackFromCache(file, fileHash, cachedTrack);
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('track_id', track.id);
+    const now = new Date().toISOString();
+    const track = {
+      id: createLocalTrackId(),
+      artist: parsedTrackName.artist,
+      title: parsedTrackName.title,
+      original_filename: file.name,
+      file_hash: fileHash,
+      original_size_bytes: file.size,
+      status: 'uploading',
+      created_at: now,
+      updated_at: now,
+      stem_files: null,
+      stem_keys: null,
+    };
 
-    const res = await fetch(`${API_BASE}/library/upload`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
-      body: formData,
-      signal
+    await putTrack(track);
+    upsertTrackState(track);
+    currentTrackIdRef.current = track.id;
+
+    try {
+      await patchLocalTrack(track.id, { status: 'analyzing', error_message: null });
+      const analysis = await analyzeTrack(file);
+
+      if (signal?.aborted) {
+        throw new DOMException('Upload cancelled', 'AbortError');
+      }
+
+      await patchLocalTrack(track.id, {
+        bpm: analysis.bpm || 128,
+        key: analysis.key || 'C major',
+        duration: analysis.duration || 0,
+        status: 'separating',
+      });
+
+      const separation = await startSeparation(file);
+      const jobId = separation.job_id;
+      const pollUrl = separation.hf_space_url || null;
+      const jobResult = await pollJobStatus(jobId, pollUrl);
+      const stemEntries = Object.entries(jobResult.stems || {});
+
+      if (stemEntries.length === 0) {
+        throw new Error('No stems returned from separation job');
+      }
+
+      await patchLocalTrack(track.id, { status: 'converting' });
+
+      const stemKeys = {};
+      for (const [stemName, stemInfo] of stemEntries) {
+        if (signal?.aborted) {
+          throw new DOMException('Upload cancelled', 'AbortError');
+        }
+
+        const url = resolveDownloadUrl(stemInfo, pollUrl || separation.hf_space_url);
+        if (!url) throw new Error(`Missing download URL for ${stemName}`);
+
+        const blob = await fetchStemBlob(url, signal);
+        const stemPath = buildStemRelativePath(track.id, stemName);
+        await writeStemFile(stemDirectory, stemPath, blob);
+        stemKeys[stemName] = stemPath;
+      }
+
+      return patchLocalTrack(track.id, {
+        status: 'ready',
+        error_message: null,
+        separated: true,
+        job_id: jobId,
+        stem_files: stemKeys,
+        stem_keys: null,
+      });
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        await patchLocalTrack(track.id, {
+          status: 'error',
+          error_message: err?.message || String(err),
+        });
+      }
+      throw err;
+    }
+  }, [createReadyTrackFromCache, patchLocalTrack, refreshStemFolderInfo, upsertTrackState]);
+
+  const deleteTrack = useCallback(async (trackId) => {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return;
+
+    const sharedStemFiles = new Set();
+    const sharedStemKeys = new Set();
+    tracks.forEach((otherTrack) => {
+      if (otherTrack.id === trackId) return;
+      Object.values(otherTrack.stem_files || {}).forEach((path) => {
+        if (path) sharedStemFiles.add(path);
+      });
+      Object.values(otherTrack.stem_keys || {}).forEach((key) => {
+        if (key) sharedStemKeys.add(key);
+      });
     });
 
-    if (!res.ok) {
-      await supabase.from('tracks').update({ status: 'error' }).eq('id', track.id);
-      setTracks(prev => prev.map(t => t.id === track.id ? { ...t, status: 'error' } : t));
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Upload failed');
+    const filePathsToDelete = Object.values(track.stem_files || {})
+      .filter(Boolean)
+      .filter(path => !sharedStemFiles.has(path));
+
+    if (filePathsToDelete.length > 0) {
+      try {
+        const stemDirectory = await getWritableStemDirectory();
+        await Promise.all(filePathsToDelete.map(path => deleteStemFile(stemDirectory, path).catch(() => {})));
+      } catch (err) {
+        console.warn('Could not delete stem files from folder:', err);
+      }
     }
 
-    return track;
-  }, [user]);
+    const keysToDelete = Object.values(track.stem_keys || {})
+      .filter(Boolean)
+      .filter(key => !sharedStemKeys.has(key));
+    await deleteStemBlobs(keysToDelete);
+    await deleteTrackRecord(trackId);
+    setTracks(prev => prev.filter(t => t.id !== trackId));
+  }, [tracks]);
 
-  // Process upload queue sequentially
   const processQueue = useCallback(async () => {
     if (processingRef.current) return;
     processingRef.current = true;
@@ -173,7 +305,6 @@ export default function useLibrary(user) {
       const controller = new AbortController();
       abortRef.current = controller;
       currentTrackIdRef.current = null;
-
       const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
 
       try {
@@ -182,13 +313,12 @@ export default function useLibrary(user) {
       } catch (err) {
         const errMsg = err?.message || String(err);
         if (err.name === 'AbortError') {
-          console.warn(`Upload cancelled or timed out: "${file.name}"`);
+          console.warn(`Local import cancelled or timed out: "${file.name}"`);
           if (currentTrackIdRef.current) {
-            await supabase.from('tracks').delete().eq('id', currentTrackIdRef.current).catch(() => {});
-            setTracks(prev => prev.filter(t => t.id !== currentTrackIdRef.current));
+            await deleteTrack(currentTrackIdRef.current);
           }
         } else {
-          console.error(`Upload failed, skipping: "${file.name}" —`, errMsg);
+          console.error(`Local import failed, skipping: "${file.name}"`, errMsg);
           setUploadQueueInfo(prev => ({ ...prev, lastError: `${file.name}: ${errMsg}` }));
         }
       }
@@ -201,73 +331,69 @@ export default function useLibrary(user) {
 
     setUploadQueueInfo(prev => ({ ...prev, pending: 0, currentFile: null }));
     processingRef.current = false;
-
-    // Final refresh after queue completes
     fetchTracks();
-  }, [uploadSingle, fetchTracks]);
+  }, [deleteTrack, fetchTracks, uploadSingle]);
 
-  // Public: enqueue a file for upload
   const uploadTrack = useCallback((file) => {
     queueRef.current.push(file);
     setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length }));
     processQueue();
   }, [processQueue]);
 
-  // Cancel a specific processing track
   const cancelProcessingTrack = useCallback(async (trackId) => {
     if (currentTrackIdRef.current === trackId && abortRef.current) {
       abortRef.current.abort();
       return;
     }
-    const { error } = await supabase.from('tracks').delete().eq('id', trackId);
-    if (error) {
-      console.error('Cancel failed:', error.message);
-    }
-    setTracks(prev => prev.filter(t => t.id !== trackId));
-  }, []);
+    await deleteTrack(trackId);
+  }, [deleteTrack]);
 
-  // Clear all pending items from the queue
   const clearQueue = useCallback(() => {
     const startIdx = processingRef.current ? 1 : 0;
     queueRef.current.splice(startIdx);
     setUploadQueueInfo(prev => ({ ...prev, pending: queueRef.current.length }));
   }, []);
 
-  // Delete a track (DB + Storage)
-  const deleteTrack = useCallback(async (trackId) => {
-    if (!user) return;
+  const updateTrackMetadata = useCallback(async (trackId, patch) => {
+    return patchLocalTrack(trackId, patch);
+  }, [patchLocalTrack]);
 
-    const track = tracks.find(t => t.id === trackId);
-
-    if (track?.stem_urls) {
-      const paths = Object.values(track.stem_urls).map(p => p);
-      if (paths.length > 0) {
-        await supabase.storage.from('stems').remove(paths);
-      }
-    }
-
-    await supabase.from('tracks').delete().eq('id', trackId);
-  }, [user, tracks]);
-
-  // Get signed URLs for a track's stems
   const getStemUrls = useCallback(async (track) => {
-    if (!track?.stem_urls) return null;
+    if (!track?.stem_files && !track?.stem_keys) return null;
 
     const urls = {};
-    for (const [stemName, path] of Object.entries(track.stem_urls)) {
-      const { data } = await supabase.storage
-        .from('stems')
-        .createSignedUrl(path, 3600);
-      if (data?.signedUrl) {
-        urls[stemName] = data.signedUrl;
+    if (track.stem_files) {
+      const stemDirectory = await getWritableStemDirectory();
+      for (const [stemName, stemPath] of Object.entries(track.stem_files)) {
+        const file = await readStemFile(stemDirectory, stemPath);
+        urls[stemName] = URL.createObjectURL(file);
       }
     }
-    return urls;
+
+    for (const [stemName, stemKey] of Object.entries(track.stem_keys || {})) {
+      if (urls[stemName]) continue;
+      const blob = await getStemBlob(stemKey);
+      if (blob) {
+        urls[stemName] = URL.createObjectURL(blob);
+      }
+    }
+
+    return Object.keys(urls).length > 0 ? urls : null;
   }, []);
 
   return {
-    tracks, loading, uploadTrack, deleteTrack, getStemUrls,
-    refreshTracks: fetchTracks, uploadQueueInfo,
-    cancelProcessingTrack, clearQueue
+    tracks,
+    loading,
+    uploadTrack,
+    deleteTrack,
+    getStemUrls,
+    refreshTracks: fetchTracks,
+    uploadQueueInfo,
+    cancelProcessingTrack,
+    clearQueue,
+    updateTrackMetadata,
+    stemFolderInfo,
+    chooseStemFolder,
+    refreshStemFolderInfo,
   };
 }

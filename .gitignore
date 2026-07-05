@@ -8,6 +8,7 @@ venv/
 # Build outputs
 front/dist/
 *.egg-info/
+outputs/
 
 # Environment files
 .env

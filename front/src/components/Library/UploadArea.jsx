@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 
-export default function UploadArea({ onUpload }) {
+export default function UploadArea({ onUpload, disabled = false, message = 'Drop or click to upload' }) {
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -10,26 +10,30 @@ export default function UploadArea({ onUpload }) {
   const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
+    if (disabled) return;
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
     files.forEach(f => onUpload(f));
   };
 
-  const handleClick = () => fileInputRef.current?.click();
+  const handleClick = () => {
+    if (!disabled) fileInputRef.current?.click();
+  };
 
   const handleFileChange = (e) => {
+    if (disabled) return;
     Array.from(e.target.files).forEach(f => onUpload(f));
     e.target.value = ''; // reset
   };
 
   return (
     <div
-      className={`upload-area ${dragging ? 'dragging' : ''}`}
+      className={`upload-area ${dragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={handleClick}
     >
-      <div className="upload-area-text">Drop or click to upload</div>
+      <div className="upload-area-text">{message}</div>
       <input
         ref={fileInputRef}
         type="file"

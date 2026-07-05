@@ -78,6 +78,14 @@ This architecture prevents timeout issues with long-running separation tasks.
 - Files are automatically cleaned up after 30 minutes
 - GPU recommended for faster separation (T4 or better)
 - CPU fallback available but slower
+- Free-tier defaults are tuned for lower CPU/storage usage:
+  - `LIBRARY_STEM_BITRATE=80k`
+  - `DEMUCS_SEGMENT_SECONDS=8.0`
+  - `DEMUCS_OVERLAP_SECONDS=0.5`
+  - `TORCH_CPU_THREADS=2`
+  - `ANALYSIS_SAMPLE_RATE=22050`
+  - `ANALYSIS_MAX_SECONDS=180`
+  - `ANALYSIS_USE_HPSS=false`
 
 ## Related
 

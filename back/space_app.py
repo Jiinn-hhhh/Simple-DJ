@@ -17,6 +17,7 @@ import threading
 import queue
 import time
 import traceback
+import hashlib
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
@@ -38,6 +39,7 @@ RESULTS_DIR = "/tmp/dj_results"
 MAX_FILE_SIZE_MB = 50
 FILE_TTL_MINUTES = 30  # Files deleted after 30 minutes
 CLEANUP_INTERVAL_SECONDS = 300  # Run cleanup every 5 minutes
+LIBRARY_STEM_BITRATE = os.getenv("LIBRARY_STEM_BITRATE", "80k")
 
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -516,7 +518,7 @@ async def download_stem(job_id: str, stem_name: str):
 
 
 # === Library Track Processing ===
-def process_library_track(job_id, file_path, filename, track_id, user_id, supabase_url, supabase_service_key):
+def process_library_track(job_id, file_path, filename, track_id, user_id, supabase_url, supabase_service_key, file_hash=None, original_size_bytes=None):
     """Background task to process a library track: analyze -> separate -> convert -> upload."""
     from supabase import create_client
 
@@ -559,7 +561,7 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
             ogg_path = stem_path.replace('.wav', '.ogg')
             subprocess.run([
                 'ffmpeg', '-i', stem_path,
-                '-c:a', 'libvorbis', '-b:a', '256k',
+                '-c:a', 'libvorbis', '-b:a', LIBRARY_STEM_BITRATE,
                 '-y', ogg_path
             ], check=True, capture_output=True)
 
@@ -583,13 +585,27 @@ def process_library_track(job_id, file_path, filename, track_id, user_id, supaba
 
         # 4. Update track as ready
         check_active()
-        sb.table('tracks').update({
+        update_payload = {
             'bpm': bpm,
             'key': key,
             'duration': duration,
             'stem_urls': stem_urls,
             'status': 'ready'
-        }).eq('id', track_id).execute()
+        }
+        if file_hash:
+            update_payload['file_hash'] = file_hash
+        if original_size_bytes is not None:
+            update_payload['original_size_bytes'] = original_size_bytes
+
+        try:
+            sb.table('tracks').update(update_payload).eq('id', track_id).execute()
+        except Exception:
+            if 'file_hash' in update_payload or 'original_size_bytes' in update_payload:
+                update_payload.pop('file_hash', None)
+                update_payload.pop('original_size_bytes', None)
+                sb.table('tracks').update(update_payload).eq('id', track_id).execute()
+            else:
+                raise
 
         print(f"[library] Track {track_id} processed successfully")
         return LibraryJobStatus.COMPLETED.value
@@ -678,6 +694,8 @@ async def process_library_track_endpoint(
     user_id: str = Form(...),
     supabase_url: str = Form(...),
     supabase_service_key: str = Form(...),
+    file_hash: Optional[str] = Form(None),
+    original_size_bytes: Optional[int] = Form(None),
 ):
     """Process a library track: analyze, separate, convert to OGG, upload to Supabase Storage."""
     try:
@@ -685,6 +703,9 @@ async def process_library_track_endpoint(
         file_size_mb = len(contents) / (1024 * 1024)
         if file_size_mb > MAX_FILE_SIZE_MB:
             raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB")
+
+        file_hash = file_hash or hashlib.sha256(contents).hexdigest()
+        original_size_bytes = original_size_bytes if original_size_bytes is not None else len(contents)
 
         filename = file.filename or "unknown.mp3"
         job_id = str(uuid.uuid4())
@@ -705,6 +726,8 @@ async def process_library_track_endpoint(
             "user_id": user_id,
             "supabase_url": supabase_url,
             "supabase_service_key": supabase_service_key,
+            "file_hash": file_hash,
+            "original_size_bytes": original_size_bytes,
         })
 
         return {

@@ -6,9 +6,13 @@ import torchaudio
 from torchaudio.pipelines import HDEMUCS_HIGH_MUSDB_PLUS
 
 
-SEGMENT = 10.0      # chunk length in seconds
-OVERLAP = 1.0       # overlap length in seconds
+SEGMENT = float(os.getenv("DEMUCS_SEGMENT_SECONDS", "8.0"))
+OVERLAP = float(os.getenv("DEMUCS_OVERLAP_SECONDS", "0.5"))
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+CPU_THREADS = int(os.getenv("TORCH_CPU_THREADS", "2"))
+
+if DEVICE == "cpu" and CPU_THREADS > 0:
+    torch.set_num_threads(CPU_THREADS)
 
 # Lazy loading: 모델을 필요할 때만 로드
 model = None
@@ -49,7 +53,7 @@ def separate_sources(model, mix, sample_rate, segment, overlap, device, should_c
     if length <= chunk_len:
         if should_cancel:
             should_cancel()
-        with torch.no_grad():
+        with torch.inference_mode():
             out = model(mix)
         if should_cancel:
             should_cancel()
@@ -70,7 +74,7 @@ def separate_sources(model, mix, sample_rate, segment, overlap, device, should_c
         if chunk.shape[-1] == 0:
             continue
 
-        with torch.no_grad():
+        with torch.inference_mode():
             out = model(chunk)
 
         chunk_len_actual = out.shape[-1]
@@ -164,7 +168,9 @@ def separate_file(input_path: str, output_root: str = "./results", output_id: st
 
     # Reference for normalization
     ref = waveform.mean(0)
-    waveform_norm = (waveform - ref.mean()) / ref.std()
+    ref_mean = ref.mean()
+    ref_std = ref.std().clamp_min(1e-8)
+    waveform_norm = (waveform - ref_mean) / ref_std
 
     mix = waveform_norm.unsqueeze(0)
 
@@ -180,7 +186,7 @@ def separate_file(input_path: str, output_root: str = "./results", output_id: st
     )[0]  # (num_sources, channels, length)
 
     # De-normalize
-    separated = separated * ref.std() + ref.mean()
+    separated = separated * ref_std + ref_mean
 
     base_name = os.path.splitext(os.path.basename(input_path))[0]
 

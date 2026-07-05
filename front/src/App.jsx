@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import AudioPlayer from "./audioPlayer";
 import Deck from "./components/Deck";
 import Mixer from "./components/Mixer";
-import useAuth from "./hooks/useAuth";
 import useLibrary from "./hooks/useLibrary";
 import useDecks from "./hooks/useDecks";
 import useMixer from "./hooks/useMixer";
@@ -12,17 +11,16 @@ import useRecorder from "./hooks/useRecorder";
 import useHotCues from "./hooks/useHotCues";
 import useLoopRoll from "./hooks/useLoopRoll";
 import usePlaybackPosition from "./hooks/usePlaybackPosition";
-import AuthScreen from "./components/Auth/AuthScreen";
 import LibraryPanel from "./components/Library/LibraryPanel";
 import RecordBar from "./components/RecordBar";
 import "./App.css";
 
 function App() {
-  const { user, loading: authLoading, signUp, signIn, signInWithGoogle, signOut } = useAuth();
   const {
     tracks: libraryTracks, loading: libraryLoading, uploadTrack, deleteTrack, getStemUrls,
-    uploadQueueInfo, cancelProcessingTrack, clearQueue
-  } = useLibrary(user);
+    uploadQueueInfo, cancelProcessingTrack, clearQueue, updateTrackMetadata,
+    stemFolderInfo, chooseStemFolder
+  } = useLibrary();
 
   const [status, setStatus] = useState("SYSTEM LOADING...");
   const [isSystemReady, setIsSystemReady] = useState(false);
@@ -107,12 +105,12 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!user || !isSystemReady) return;
+    if (!isSystemReady) return;
 
     audioPlayerRef.current.preloadSamplerSamples?.().catch((err) => {
       console.error('Sampler preload failed:', err);
     });
-  }, [user, isSystemReady]);
+  }, [isSystemReady]);
 
   useEffect(() => {
     audioPlayerRef.current.setQuantize('A', isQuantizeEnabled);
@@ -451,15 +449,6 @@ function App() {
   return (
     <div className="app-container">
       <div className={`auto-switch-glow ${autoSwitchGlow ? 'active' : ''}`} aria-hidden="true" />
-      {authLoading ? (
-        <div className="loading-overlay">
-          <div className="pixel-font" style={{ fontSize: '1.5rem', color: 'var(--neon-green)', textAlign: 'center' }}>
-            SYSTEM LOADING...
-          </div>
-        </div>
-      ) : !user ? (
-        <AuthScreen onSignIn={signIn} onSignUp={signUp} onSignInWithGoogle={signInWithGoogle} />
-      ) : (
         <div className={`main-layout ${isLibraryOpen ? 'library-open' : ''}`}>
           <LibraryPanel
             isOpen={isLibraryOpen}
@@ -472,6 +461,9 @@ function App() {
             uploadQueueInfo={uploadQueueInfo}
             onCancelProcessing={cancelProcessingTrack}
             onClearQueue={clearQueue}
+            onUpdateTrack={updateTrackMetadata}
+            stemFolderInfo={stemFolderInfo}
+            onChooseStemFolder={chooseStemFolder}
           />
           <button
             className={`library-toggle ${isLibraryOpen ? 'panel-open' : ''}`}
@@ -562,7 +554,6 @@ function App() {
                   {isFullscreen ? 'EXIT' : 'FULL'}
                 </button>
                 <button onClick={() => setShowHelp(true)} className="topbar-btn help-topbar-btn pixel-font" title="Help & Shortcuts">?</button>
-                <button onClick={signOut} className="topbar-btn logout-btn pixel-font">LOGOUT</button>
               </div>
             </div>
 
@@ -767,7 +758,6 @@ function App() {
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 }

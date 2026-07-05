@@ -14,8 +14,32 @@ import threading
 import time
 import requests
 import traceback
+import hashlib
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
+
+
+def load_local_env(path=".env"):
+    """Load simple KEY=VALUE pairs for local development without overriding real env vars."""
+    if not os.path.exists(path):
+        return
+
+    try:
+        with open(path, "r", encoding="utf-8") as env_file:
+            for raw_line in env_file:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                if key:
+                    os.environ.setdefault(key, value)
+    except OSError as e:
+        print(f"[env] Could not load {path}: {e}")
+
+
+load_local_env()
 
 # === Configuration ===
 UPLOAD_DIR = "uploads"
@@ -399,6 +423,72 @@ def verify_track_owner(track_id: str, user_id: str, supabase_url: str, supabase_
         raise HTTPException(status_code=403, detail="Track does not belong to authenticated user")
 
 
+def supabase_rest_headers(supabase_service_key: str, prefer: Optional[str] = None) -> dict:
+    headers = {
+        "apikey": supabase_service_key,
+        "Authorization": f"Bearer {supabase_service_key}",
+        "Accept": "application/json",
+    }
+    if prefer:
+        headers["Prefer"] = prefer
+        headers["Content-Type"] = "application/json"
+    return headers
+
+
+def find_cached_ready_track(file_hash: str, track_id: str, user_id: str, supabase_url: str, supabase_service_key: str):
+    """Return a processed track with the same file hash, if the migration is available."""
+    try:
+        response = requests.get(
+            f"{supabase_url.rstrip('/')}/rest/v1/tracks",
+            headers=supabase_rest_headers(supabase_service_key),
+            params={
+                "user_id": f"eq.{user_id}",
+                "file_hash": f"eq.{file_hash}",
+                "status": "eq.ready",
+                "id": f"neq.{track_id}",
+                "select": "id,bpm,key,duration,stem_urls,file_hash,original_size_bytes",
+                "limit": "1",
+            },
+            timeout=10,
+        )
+    except requests.exceptions.RequestException as e:
+        print(f"[cache] Failed to query cached track: {e}")
+        return None
+
+    if response.status_code != 200:
+        print(f"[cache] Cache lookup skipped ({response.status_code}): {response.text[:160]}")
+        return None
+
+    tracks = response.json()
+    return tracks[0] if tracks else None
+
+
+def reuse_cached_track(track_id: str, cached_track: dict, file_hash: str, size_bytes: int, supabase_url: str, supabase_service_key: str):
+    payload = {
+        "bpm": cached_track.get("bpm"),
+        "key": cached_track.get("key"),
+        "duration": cached_track.get("duration"),
+        "stem_urls": cached_track.get("stem_urls"),
+        "file_hash": file_hash,
+        "original_size_bytes": size_bytes,
+        "status": "ready",
+        "error_message": None,
+    }
+
+    response = requests.patch(
+        f"{supabase_url.rstrip('/')}/rest/v1/tracks",
+        headers=supabase_rest_headers(supabase_service_key, prefer="return=representation"),
+        params={"id": f"eq.{track_id}"},
+        json=payload,
+        timeout=10,
+    )
+
+    if response.status_code not in (200, 204):
+        raise HTTPException(status_code=502, detail="Failed to reuse cached track")
+
+    print(f"[cache] Reused stems from track {cached_track.get('id')} for {track_id}")
+
+
 @app.post("/library/upload")
 async def library_upload(file: UploadFile = File(...), track_id: str = Form(...), authorization: str = Header(None)):
     """
@@ -432,6 +522,18 @@ async def library_upload(file: UploadFile = File(...), track_id: str = Form(...)
         if file_size_mb > MAX_FILE_SIZE_MB:
             raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_FILE_SIZE_MB}MB")
 
+        file_hash = hashlib.sha256(contents).hexdigest()
+        size_bytes = len(contents)
+        cached_track = find_cached_ready_track(file_hash, track_id, user_id, supabase_url, supabase_service_key)
+        if cached_track and cached_track.get("stem_urls"):
+            reuse_cached_track(track_id, cached_track, file_hash, size_bytes, supabase_url, supabase_service_key)
+            return {
+                "success": True,
+                "message": "Reused existing processed track",
+                "reused": True,
+                "source_track_id": cached_track.get("id"),
+            }
+
         # Forward to HF Spaces with service credentials
         files = {"file": (file.filename, contents, file.content_type or "audio/mpeg")}
         data = {
@@ -439,6 +541,8 @@ async def library_upload(file: UploadFile = File(...), track_id: str = Form(...)
             "user_id": user_id,
             "supabase_url": supabase_url,
             "supabase_service_key": supabase_service_key,
+            "file_hash": file_hash,
+            "original_size_bytes": str(size_bytes),
         }
 
         response = requests.post(

@@ -5,6 +5,51 @@ import numpy as np
 import soundfile as sf
 
 
+ANALYSIS_SAMPLE_RATE = int(os.getenv("ANALYSIS_SAMPLE_RATE", "22050"))
+ANALYSIS_MAX_SECONDS = float(os.getenv("ANALYSIS_MAX_SECONDS", "180"))
+ANALYSIS_USE_HPSS = os.getenv("ANALYSIS_USE_HPSS", "false").lower() in {"1", "true", "yes"}
+
+
+def load_analysis_audio(audio_path: str):
+    """Load a bounded mono preview for metadata analysis on free CPU."""
+    duration = ANALYSIS_MAX_SECONDS if ANALYSIS_MAX_SECONDS > 0 else None
+    return librosa.load(audio_path, sr=ANALYSIS_SAMPLE_RATE, mono=True, duration=duration)
+
+
+def analyze_bpm_from_audio(y, sr: int) -> float:
+    tempo, _beats = librosa.beat.beat_track(y=y, sr=sr)
+    return float(np.atleast_1d(tempo)[0])
+
+
+def analyze_key_from_audio(y, sr: int) -> str:
+    key_audio = librosa.effects.hpss(y)[0] if ANALYSIS_USE_HPSS else y
+    chroma = librosa.feature.chroma_stft(y=key_audio, sr=sr)
+    chroma_mean = np.mean(chroma, axis=1)
+
+    major_profile = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
+    minor_profile = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
+    major_profile = major_profile / np.sum(major_profile)
+    minor_profile = minor_profile / np.sum(minor_profile)
+    keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+    max_corr = -1
+    best_key = "C major"
+
+    for i in range(12):
+        rotated_chroma = np.roll(chroma_mean, i)
+        major_corr = np.corrcoef(rotated_chroma, major_profile)[0, 1]
+        minor_corr = np.corrcoef(rotated_chroma, minor_profile)[0, 1]
+
+        if major_corr > minor_corr and major_corr > max_corr:
+            max_corr = major_corr
+            best_key = f"{keys[i]} major"
+        elif minor_corr > max_corr:
+            max_corr = minor_corr
+            best_key = f"{keys[i]} minor"
+
+    return best_key
+
+
 def analyze_bpm(audio_path: str) -> float:
     """
     Analyze BPM (Beats Per Minute) of an audio file using librosa.
@@ -15,13 +60,8 @@ def analyze_bpm(audio_path: str) -> float:
     Returns:
         BPM value (float)
     """
-    # Load audio file
-    y, sr = librosa.load(audio_path, sr=None)
-    
-    # Extract tempo using librosa's beat tracking
-    tempo, beats = librosa.beat.beat_track(y=y, sr=sr)
-    
-    return float(tempo)
+    y, sr = load_analysis_audio(audio_path)
+    return analyze_bpm_from_audio(y, sr)
 
 
 def analyze_key(audio_path: str) -> str:
@@ -34,53 +74,8 @@ def analyze_key(audio_path: str) -> str:
     Returns:
         Key name (e.g., "C major", "A minor")
     """
-    # Load audio file
-    y, sr = librosa.load(audio_path, sr=None)
-    
-    # Extract harmonic component (remove percussive elements)
-    y_harmonic, y_percussive = librosa.effects.hpss(y)
-    
-    # Compute chroma features
-    chroma = librosa.feature.chroma_stft(y=y_harmonic, sr=sr)
-    
-    # Average chroma across time
-    chroma_mean = np.mean(chroma, axis=1)
-    
-    # Key profiles for major and minor keys
-    # Based on Krumhansl-Schmuckler key-finding algorithm
-    major_profile = np.array([6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88])
-    minor_profile = np.array([6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17])
-    
-    # Normalize profiles
-    major_profile = major_profile / np.sum(major_profile)
-    minor_profile = minor_profile / np.sum(minor_profile)
-    
-    # Key names
-    keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    
-    # Calculate correlation for each key (all 12 transpositions)
-    max_corr = -1
-    best_key = "C major"
-    
-    for i in range(12):
-        # Rotate chroma to match key
-        rotated_chroma = np.roll(chroma_mean, i)
-        
-        # Correlate with major profile
-        major_corr = np.corrcoef(rotated_chroma, major_profile)[0, 1]
-        
-        # Correlate with minor profile
-        minor_corr = np.corrcoef(rotated_chroma, minor_profile)[0, 1]
-        
-        # Choose better match
-        if major_corr > minor_corr and major_corr > max_corr:
-            max_corr = major_corr
-            best_key = f"{keys[i]} major"
-        elif minor_corr > max_corr:
-            max_corr = minor_corr
-            best_key = f"{keys[i]} minor"
-    
-    return best_key
+    y, sr = load_analysis_audio(audio_path)
+    return analyze_key_from_audio(y, sr)
 
 
 def analyze_audio(contents: bytes, filename: str) -> dict:
@@ -100,15 +95,16 @@ def analyze_audio(contents: bytes, filename: str) -> dict:
         tmp_path = tmp_file.name
     
     try:
-        # Analyze BPM
-        bpm = analyze_bpm(tmp_path)
-        
-        # Analyze key
-        key = analyze_key(tmp_path)
-        
-        # Get audio duration
-        y, sr = librosa.load(tmp_path, sr=None)
-        duration = len(y) / sr
+        y, sr = load_analysis_audio(tmp_path)
+        bpm = analyze_bpm_from_audio(y, sr)
+        key = analyze_key_from_audio(y, sr)
+        try:
+            info = sf.info(tmp_path)
+            duration = info.duration
+            source_sample_rate = info.samplerate
+        except RuntimeError:
+            duration = librosa.get_duration(path=tmp_path)
+            source_sample_rate = sr
         
         # File size
         size_bytes = len(contents)
@@ -119,7 +115,7 @@ def analyze_audio(contents: bytes, filename: str) -> dict:
             "bpm": round(bpm, 2),
             "key": key,
             "duration": round(duration, 2),
-            "sample_rate": int(sr),
+            "sample_rate": int(source_sample_rate),
         }
     finally:
         # Clean up temporary file

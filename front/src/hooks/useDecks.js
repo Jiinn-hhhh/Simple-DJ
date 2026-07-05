@@ -252,7 +252,12 @@ export default function useDecks(audioPlayerRef, masterBpm, setMasterBpm, hfSpac
       ap.audioBuffers[deckId] = {};
       ap.reversedBuffers[deckId] = {};
       const stemNames = Object.keys(stemUrls);
-      await Promise.all(stemNames.map(s => ap.loadAudio(deckId, s, stemUrls[s])));
+      const temporaryUrls = Object.values(stemUrls).filter(url => typeof url === 'string' && url.startsWith('blob:'));
+      try {
+        await Promise.all(stemNames.map(s => ap.loadAudio(deckId, s, stemUrls[s])));
+      } finally {
+        temporaryUrls.forEach(url => URL.revokeObjectURL(url));
+      }
       analyzeWaveformForDeck(deckId);
 
       applyLoadBpm(deckId, libraryTrack.bpm || 128);

@@ -7,7 +7,8 @@ import './LibraryPanel.css';
 
 export default function LibraryPanel({
   isOpen, onClose, tracks, loading, onUpload, onDelete, onLoadToDeck,
-  uploadQueueInfo, onCancelProcessing, onClearQueue
+  uploadQueueInfo, onCancelProcessing, onClearQueue, onUpdateTrack,
+  stemFolderInfo, onChooseStemFolder
 }) {
   const [panelDragging, setPanelDragging] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // { type, id, title }
@@ -85,6 +86,7 @@ export default function LibraryPanel({
 
   const queuePending = uploadQueueInfo?.pending || 0;
   const lastError = uploadQueueInfo?.lastError;
+  const folderReady = stemFolderInfo?.configured && stemFolderInfo?.permission === 'granted';
 
   const handlePanelDragOver = (e) => {
     e.preventDefault();
@@ -96,8 +98,17 @@ export default function LibraryPanel({
   const handlePanelDrop = (e) => {
     e.preventDefault();
     setPanelDragging(false);
+    if (!folderReady) return;
     const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('audio/'));
     files.forEach(f => onUpload(f));
+  };
+
+  const handleStemFolderClick = async () => {
+    try {
+      await onChooseStemFolder?.();
+    } catch (err) {
+      console.error('Stem folder selection failed:', err);
+    }
   };
 
   // Confirm dialog handlers
@@ -140,6 +151,26 @@ export default function LibraryPanel({
       <div className="library-header">
         <h2 className="library-title pixel-font">TRACK LIBRARY</h2>
         <button className="library-close" onClick={onClose}>&times;</button>
+      </div>
+
+      <div className={`stem-folder-control ${folderReady ? 'ready' : ''}`}>
+        <button
+          type="button"
+          className="stem-folder-btn"
+          onClick={handleStemFolderClick}
+          disabled={!stemFolderInfo?.supported}
+        >
+          STEM FOLDER
+        </button>
+        <div className="stem-folder-meta">
+          {!stemFolderInfo?.supported
+            ? 'Browser unsupported'
+            : folderReady
+              ? stemFolderInfo.name
+              : stemFolderInfo?.configured
+                ? 'Re-select folder'
+                : 'Choose output folder'}
+        </div>
       </div>
 
       <div className="library-search">
@@ -187,7 +218,11 @@ export default function LibraryPanel({
         ))}
       </div>
 
-      <UploadArea onUpload={onUpload} />
+      <UploadArea
+        onUpload={onUpload}
+        disabled={!folderReady}
+        message={folderReady ? 'Drop or click to upload' : 'Choose stem folder first'}
+      />
 
       {queuePending > 1 && (
         <div className="upload-queue-status">
@@ -216,7 +251,7 @@ export default function LibraryPanel({
         <div className="library-section">
           <div className="library-section-label">ERRORS</div>
           {errorTracks.map(track => (
-            <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} />
+            <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} onUpdate={onUpdateTrack} />
           ))}
         </div>
       )}
@@ -230,7 +265,7 @@ export default function LibraryPanel({
           <div className="library-empty">No matching tracks.</div>
         ) : (
           sortedReadyTracks.map(track => (
-            <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} />
+            <TrackItem key={track.id} track={track} onDelete={handleDeleteRequest} onLoadToDeck={onLoadToDeck} onUpdate={onUpdateTrack} />
           ))
         )}
       </div>

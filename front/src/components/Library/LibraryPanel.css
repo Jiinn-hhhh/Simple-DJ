@@ -80,6 +80,63 @@
   border-color: var(--neon-pink, #ff0055);
 }
 
+.stem-folder-control {
+  margin: 10px 10px 0;
+  padding: 8px;
+  border: 1px solid #33333f;
+  border-radius: 4px;
+  background: #101015;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.stem-folder-control.ready {
+  border-color: rgba(0, 255, 157, 0.55);
+  background: rgba(0, 255, 157, 0.045);
+}
+
+.stem-folder-btn {
+  height: 28px;
+  border: 1px solid rgba(0, 255, 157, 0.5);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--neon-green, #00ff9d);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stem-folder-btn:hover:not(:disabled) {
+  background: rgba(0, 255, 157, 0.08);
+}
+
+.stem-folder-btn:disabled {
+  border-color: #33333f;
+  color: #555566;
+  cursor: not-allowed;
+}
+
+.stem-folder-meta {
+  min-width: 0;
+  color: #777788;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stem-folder-control.ready .stem-folder-meta {
+  color: var(--neon-green, #00ff9d);
+}
+
 .library-search {
   position: relative;
   flex-shrink: 0;
@@ -226,6 +283,17 @@
 .upload-area:hover, .upload-area.dragging {
   border-color: var(--neon-green, #00ff9d);
   background: rgba(0, 255, 157, 0.03);
+}
+
+.upload-area.disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.upload-area.disabled:hover,
+.upload-area.disabled.dragging {
+  border-color: #33333f;
+  background: transparent;
 }
 
 .upload-area-text {
