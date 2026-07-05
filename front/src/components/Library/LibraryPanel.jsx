@@ -221,7 +221,7 @@ export default function LibraryPanel({
       <UploadArea
         onUpload={onUpload}
         disabled={!folderReady}
-        message={folderReady ? 'Drop or click to upload' : 'Choose stem folder first'}
+        message="Drop or click to upload"
       />
 
       {queuePending > 1 && (

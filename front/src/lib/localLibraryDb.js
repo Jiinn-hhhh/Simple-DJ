@@ -133,13 +133,13 @@ export async function deleteStemBlobs(keys) {
   await txDone(tx);
 }
 
-export async function saveStemDirectoryHandle(handle) {
+export async function saveStemDirectoryHandle(handle, name = handle.name) {
   const db = await openLocalLibraryDb();
   const tx = db.transaction(SETTINGS_STORE, 'readwrite');
   tx.objectStore(SETTINGS_STORE).put({
     key: STEM_DIRECTORY_KEY,
     handle,
-    name: handle.name,
+    name,
     updated_at: new Date().toISOString(),
   });
   await txDone(tx);

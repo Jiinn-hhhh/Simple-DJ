@@ -4,6 +4,7 @@ import {
 } from './localLibraryDb';
 
 const READWRITE = 'readwrite';
+const STEM_FOLDER_NAME = 'Simple DJ Stems';
 
 export function isStemFolderSupported() {
   return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
@@ -14,24 +15,39 @@ async function getPermissionState(handle, mode = READWRITE) {
   return handle.queryPermission({ mode });
 }
 
+async function requestWritePermission(handle) {
+  let permission = await getPermissionState(handle, READWRITE);
+  if (permission !== 'granted' && handle?.requestPermission) {
+    permission = await handle.requestPermission({ mode: READWRITE });
+  }
+  return permission;
+}
+
 export async function requestStemFolder() {
   if (!isStemFolderSupported()) {
     throw new Error('Stem folders require a Chromium browser with File System Access support.');
   }
 
-  const handle = await window.showDirectoryPicker({
-    id: 'simple-dj-stems',
+  const parentHandle = await window.showDirectoryPicker({
+    id: 'simple-dj-stem-location',
     mode: READWRITE,
     startIn: 'music',
   });
 
-  const permission = await handle.requestPermission({ mode: READWRITE });
+  const parentPermission = await requestWritePermission(parentHandle);
+  if (parentPermission !== 'granted') {
+    throw new Error('Stem folder location permission was not granted.');
+  }
+
+  const handle = await parentHandle.getDirectoryHandle(STEM_FOLDER_NAME, { create: true });
+  const permission = await requestWritePermission(handle);
   if (permission !== 'granted') {
     throw new Error('Stem folder permission was not granted.');
   }
 
-  await saveStemDirectoryHandle(handle);
-  return { handle, name: handle.name, permission };
+  const displayName = `${parentHandle.name}/${handle.name}`;
+  await saveStemDirectoryHandle(handle, displayName);
+  return { handle, name: displayName, permission };
 }
 
 export async function getStoredStemFolderStatus() {
