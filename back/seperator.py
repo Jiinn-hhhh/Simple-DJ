@@ -112,12 +112,16 @@ def separate_sources(model, mix, sample_rate, segment, overlap, device, should_c
     return final / weights.clamp_min(1e-8)
 
 
-def load_audio(path, target_sr, device):
+def load_audio(path, target_sr, device, target_channels=2):
     """Load audio file and resample if needed."""
     waveform, sr = torchaudio.load(path)
     if sr != target_sr:
         waveform = torchaudio.functional.resample(waveform, sr, target_sr)
         sr = target_sr
+    if waveform.shape[0] == 1 and target_channels == 2:
+        waveform = waveform.repeat(2, 1)
+    elif waveform.shape[0] > target_channels:
+        waveform = waveform[:target_channels]
     waveform = waveform.to(device)
     return waveform, sr
 
@@ -164,7 +168,8 @@ def separate_file(input_path: str, output_root: str = "./results", output_id: st
     out_dir = os.path.join(output_root, job_id)
 
     print(f"[separator] Loading audio from {input_path}")
-    waveform, sr = load_audio(input_path, sample_rate, DEVICE)
+    target_channels = getattr(model_instance, "audio_channels", 2)
+    waveform, sr = load_audio(input_path, sample_rate, DEVICE, target_channels)
 
     # Reference for normalization
     ref = waveform.mean(0)
