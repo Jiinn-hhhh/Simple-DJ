@@ -94,7 +94,7 @@ API: https://jiinn-hhhh-seperator.hf.space
 
 ## 5. Render 환경 변수 설정
 
-1. Render 대시보드 → `dj-console-backend` 서비스
+1. Render 대시보드 → `simple-dj-backend` 서비스
 2. **Settings** → **Environment Variables**
 3. 변수 설정:
    - **Key**: `HUGGINGFACE_SPACE_URL`
@@ -125,7 +125,7 @@ Space Settings → Variables에서 필요 시 조정:
 2. **Settings** → **Environment Variables**
 3. 변수 설정:
    - **Key**: `VITE_API_URL`
-   - **Value**: `https://dj-console-backend.onrender.com` (Render URL)
+   - **Value**: `https://simple-dj-backend.onrender.com` (Render URL)
 4. **Redeploy** 실행
 
 ## 7. 테스트

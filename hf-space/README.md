@@ -90,4 +90,4 @@ This architecture prevents timeout issues with long-running separation tasks.
 ## Related
 
 - [Simple DJ Frontend](https://github.com/your-username/simple-dj)
-- [Render Backend Gateway](https://dj-console-backend.onrender.com)
+- [Render Backend Gateway](https://simple-dj-backend.onrender.com)

@@ -86,7 +86,7 @@ uvicorn space_app:app --host 0.0.0.0 --port 7860
 ## Environment Variables
 
 ### Frontend (Vercel)
-- `VITE_API_URL` - Render backend URL (e.g., `https://dj-console-backend.onrender.com`)
+- `VITE_API_URL` - Render backend URL (e.g., `https://simple-dj-backend.onrender.com`)
 
 ### Backend (Render)
 - `HUGGINGFACE_SPACE_URL` - HF Spaces API (e.g., `https://jiinn-hhhh-seperator.hf.space`)

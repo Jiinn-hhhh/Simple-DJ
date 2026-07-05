@@ -156,7 +156,7 @@ CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
 ### 4-1. Render 대시보드 접속
 
 1. [Render 대시보드](https://dashboard.render.com/) 접속
-2. `dj-console-backend` 서비스 선택
+2. `simple-dj-backend` 서비스 선택
 
 ### 4-2. 환경 변수 추가
 
@@ -227,4 +227,3 @@ CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
 - 프론트엔드는 기존과 동일하게 작동
 
 문제가 있으면 Spaces 로그와 Render 로그를 확인하세요!
-
