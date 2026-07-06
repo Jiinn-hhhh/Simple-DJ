@@ -89,6 +89,12 @@ export default function LibraryPanel({
   const folderReady = stemFolderInfo?.configured
     && stemFolderInfo?.permission === 'granted'
     && stemFolderInfo?.format === 'ready';
+  const needsStemFolder = stemFolderInfo?.supported && !folderReady;
+  const stemFolderPrompt = stemFolderInfo?.format === 'invalid'
+    ? 'FIX STEM FOLDER'
+    : stemFolderInfo?.configured
+      ? 'RE-SELECT STEM FOLDER'
+      : 'SELECT STEM FOLDER FIRST';
 
   const handlePanelDragOver = (e) => {
     e.preventDefault();
@@ -221,6 +227,22 @@ export default function LibraryPanel({
           </button>
         ))}
       </div>
+
+      {needsStemFolder && (
+        <div className="stem-folder-required" role="status">
+          <div className="stem-folder-required-copy">
+            <div className="stem-folder-required-title">{stemFolderPrompt}</div>
+            <div className="stem-folder-required-meta">Required before upload</div>
+          </div>
+          <button
+            type="button"
+            className="stem-folder-required-btn"
+            onClick={handleStemFolderClick}
+          >
+            SELECT
+          </button>
+        </div>
+      )}
 
       <UploadArea
         onUpload={onUpload}

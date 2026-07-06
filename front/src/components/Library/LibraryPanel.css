@@ -242,6 +242,60 @@
   line-height: 1;
 }
 
+.stem-folder-required {
+  margin: 10px 10px 0;
+  padding: 10px;
+  border: 2px solid var(--neon-yellow, #f0ff00);
+  border-radius: 6px;
+  background: rgba(240, 255, 0, 0.08);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.stem-folder-required-copy {
+  min-width: 0;
+}
+
+.stem-folder-required-title {
+  color: var(--neon-yellow, #f0ff00);
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.52rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.stem-folder-required-meta {
+  margin-top: 5px;
+  color: #aaaabb;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.stem-folder-required-btn {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--neon-yellow, #f0ff00);
+  border-radius: 4px;
+  background: var(--neon-yellow, #f0ff00);
+  color: #0d0d12;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.stem-folder-required-btn:hover {
+  filter: brightness(1.08);
+}
+
 .library-tracks {
   flex: 1;
   overflow-y: auto;
@@ -287,13 +341,20 @@
 
 .upload-area.disabled {
   cursor: not-allowed;
-  opacity: 0.62;
+  opacity: 1;
+  border-color: rgba(240, 255, 0, 0.75);
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(240, 255, 0, 0.07) 0,
+    rgba(240, 255, 0, 0.07) 6px,
+    rgba(0, 0, 0, 0.08) 6px,
+    rgba(0, 0, 0, 0.08) 12px
+  );
 }
 
 .upload-area.disabled:hover,
 .upload-area.disabled.dragging {
-  border-color: #33333f;
-  background: transparent;
+  border-color: rgba(240, 255, 0, 0.75);
 }
 
 .upload-area-text {
@@ -308,6 +369,10 @@
 
 .upload-area.dragging .upload-area-text {
   color: var(--neon-green, #00ff9d);
+}
+
+.upload-area.disabled .upload-area-text {
+  color: var(--neon-yellow, #f0ff00);
 }
 
 /* Track Item */
