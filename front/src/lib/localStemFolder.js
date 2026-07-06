@@ -5,6 +5,8 @@ import {
 
 const READWRITE = 'readwrite';
 const STEM_FOLDER_NAME = 'Simple DJ Stems';
+const STEM_MANIFEST_FILENAME = '.simple-dj-stems.json';
+const STEM_MANIFEST_VERSION = 1;
 
 export function isStemFolderSupported() {
   return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
@@ -23,6 +25,51 @@ async function requestWritePermission(handle) {
   return permission;
 }
 
+function buildStemFolderManifest() {
+  return {
+    app: 'Simple DJ',
+    type: 'stem-library',
+    version: STEM_MANIFEST_VERSION,
+    folder: STEM_FOLDER_NAME,
+    layout: {
+      trackFolder: '<local_track_id>/',
+      stemFile: '<stem>.wav',
+      stems: ['bass', 'drums', 'other', 'vocals'],
+    },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function writeStemFolderManifest(handle) {
+  const fileHandle = await handle.getFileHandle(STEM_MANIFEST_FILENAME, { create: true });
+  const writable = await fileHandle.createWritable();
+  try {
+    await writable.write(JSON.stringify(buildStemFolderManifest(), null, 2));
+  } finally {
+    await writable.close();
+  }
+}
+
+function validateStemFolderManifest(manifest) {
+  return manifest?.app === 'Simple DJ'
+    && manifest?.type === 'stem-library'
+    && manifest?.version === STEM_MANIFEST_VERSION;
+}
+
+async function ensureStemFolderManifest(handle) {
+  try {
+    const fileHandle = await handle.getFileHandle(STEM_MANIFEST_FILENAME);
+    const file = await fileHandle.getFile();
+    const manifest = JSON.parse(await file.text());
+    if (!validateStemFolderManifest(manifest)) {
+      throw new Error('Invalid stem folder format.');
+    }
+  } catch (err) {
+    if (err?.name !== 'NotFoundError') throw err;
+    await writeStemFolderManifest(handle);
+  }
+}
+
 export async function requestStemFolder() {
   if (!isStemFolderSupported()) {
     throw new Error('Stem folders require a Chromium browser with File System Access support.');
@@ -39,15 +86,21 @@ export async function requestStemFolder() {
     throw new Error('Stem folder location permission was not granted.');
   }
 
-  const handle = await parentHandle.getDirectoryHandle(STEM_FOLDER_NAME, { create: true });
+  const handle = parentHandle.name === STEM_FOLDER_NAME
+    ? parentHandle
+    : await parentHandle.getDirectoryHandle(STEM_FOLDER_NAME, { create: true });
   const permission = await requestWritePermission(handle);
   if (permission !== 'granted') {
     throw new Error('Stem folder permission was not granted.');
   }
 
-  const displayName = `${parentHandle.name}/${handle.name}`;
+  await ensureStemFolderManifest(handle);
+
+  const displayName = parentHandle.name === STEM_FOLDER_NAME
+    ? handle.name
+    : `${parentHandle.name}/${handle.name}`;
   await saveStemDirectoryHandle(handle, displayName);
-  return { handle, name: displayName, permission };
+  return { handle, name: displayName, permission, format: 'ready' };
 }
 
 export async function getStoredStemFolderStatus() {
@@ -62,11 +115,25 @@ export async function getStoredStemFolderStatus() {
   }
 
   const permission = await getPermissionState(record.handle, READWRITE);
+  let format = 'unchecked';
+  let errorMessage = null;
+  if (permission === 'granted') {
+    try {
+      await ensureStemFolderManifest(record.handle);
+      format = 'ready';
+    } catch (err) {
+      format = 'invalid';
+      errorMessage = err?.message || 'Invalid stem folder format.';
+    }
+  }
+
   return {
     supported: isStemFolderSupported(),
     configured: true,
     name: record.name || record.handle.name || 'Stem Folder',
     permission,
+    format,
+    error_message: errorMessage,
   };
 }
 
@@ -82,6 +149,7 @@ export async function getWritableStemDirectory() {
     throw new Error('Stem folder permission is not active. Re-select the stem folder.');
   }
 
+  await ensureStemFolderManifest(handle);
   return handle;
 }
 

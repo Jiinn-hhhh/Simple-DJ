@@ -86,7 +86,9 @@ export default function LibraryPanel({
 
   const queuePending = uploadQueueInfo?.pending || 0;
   const lastError = uploadQueueInfo?.lastError;
-  const folderReady = stemFolderInfo?.configured && stemFolderInfo?.permission === 'granted';
+  const folderReady = stemFolderInfo?.configured
+    && stemFolderInfo?.permission === 'granted'
+    && stemFolderInfo?.format === 'ready';
 
   const handlePanelDragOver = (e) => {
     e.preventDefault();
@@ -165,6 +167,8 @@ export default function LibraryPanel({
         <div className="stem-folder-meta">
           {!stemFolderInfo?.supported
             ? 'Browser unsupported'
+            : stemFolderInfo?.format === 'invalid'
+              ? 'Invalid stem folder'
             : folderReady
               ? stemFolderInfo.name
               : stemFolderInfo?.configured

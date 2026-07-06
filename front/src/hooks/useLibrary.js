@@ -60,6 +60,7 @@ export default function useLibrary() {
     configured: false,
     name: '',
     permission: 'missing',
+    format: 'unchecked',
   });
 
   const queueRef = useRef([]);
@@ -131,6 +132,7 @@ export default function useLibrary() {
       configured: true,
       name: folder.name,
       permission: folder.permission,
+      format: folder.format,
     };
     setStemFolderInfo(nextInfo);
     return nextInfo;
